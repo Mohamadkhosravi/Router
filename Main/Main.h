@@ -80,3 +80,64 @@
 #define ledefiremode 38
 #define panelon 39
 
+// Variables
+float opentreshold = 0.09;
+float normaltreshold = 0.24;
+float firetreshold = 1.1;
+float sctreshold = 0.4;
+float lowerthresholdout = 0.1;
+float uperthresholdout = 0.49;
+bool batcheking = false;
+bool card1 = false;
+bool card2 = false;
+bool relycontroll = false;
+bool faultflag = false;
+bool fireflag = false;
+bool batlowvolt = false;
+byte cardpresenterror = 0;
+float vpo = 1;
+float mux1[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+float mux2[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+float mux3[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+float mux4[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+float lcurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+float lvoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+byte limittimesc = 3;
+byte muxpos = 0;
+byte cardsit = 0;
+const byte linecontrol[12] = { PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, PB9, PB10, PB11 };
+const byte lederrors[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
+const byte ledfire[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
+byte linesituation[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+byte lastlinesituation[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+byte firstsence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+byte scdetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+unsigned long time1 = 0;
+unsigned long ledblink = 0;
+unsigned long buttontime = 0;
+unsigned long sctime = 0;
+unsigned long buzzready = 0;
+unsigned long batscan = 0;
+unsigned long fsencetimer = 0;
+unsigned long fcounter = 10;
+bool blinkerl = true;
+bool blinkerl2 = true;
+bool buzcont = false;
+bool sounderled = false;
+bool supplyfault = false;
+bool batfail = false;
+bool powerfail = false;
+bool eartfail = false;
+bool genfault = false;
+bool firetrac = false;
+bool freadanalogs = false;
+bool buzzerz = false;
+bool beeper = false;
+bool relo = false;
+bool relycustomon = false;
+bool batchargesflag = false;
+bool relysit = false;
+bool relycharge = false;
+
+
+

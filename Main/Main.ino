@@ -5,163 +5,15 @@
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
-// Variables
-float opentreshold = 0.09;
-float normaltreshold = 0.24;
-float firetreshold = 1.1;
-float sctreshold = 0.4;
-float lowerthresholdout = 0.1;
-float uperthresholdout = 0.49;
-bool batcheking = false;
-bool card1 = false;
-bool card2 = false;
-bool relycontroll = false;
-bool faultflag = false;
-bool fireflag = false;
-bool batlowvolt = false;
-byte cardpresenterror = 0;
-float vpo = 1;
-float mux1[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux2[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux3[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux4[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float lcurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-float lvoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-byte limittimesc = 3;
-byte muxpos = 0;
-byte cardsit = 0;
-const byte linecontrol[12] = { PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, PB9, PB10, PB11 };
-const byte lederrors[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
-const byte ledfire[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
-byte linesituation[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-byte lastlinesituation[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-byte firstsence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-byte scdetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-unsigned long time1 = 0;
-unsigned long ledblink = 0;
-unsigned long buttontime = 0;
-unsigned long sctime = 0;
-unsigned long buzzready = 0;
-unsigned long batscan = 0;
-unsigned long fsencetimer = 0;
-unsigned long fcounter = 10;
-bool blinkerl = true;
-bool blinkerl2 = true;
-bool buzcont = false;
-bool sounderled = false;
-bool supplyfault = false;
-bool batfail = false;
-bool powerfail = false;
-bool eartfail = false;
-bool genfault = false;
-bool firetrac = false;
-bool freadanalogs = false;
-bool buzzerz = false;
-bool beeper = false;
-bool relo = false;
-bool relycustomon = false;
-bool batchargesflag = false;
-bool relysit = false;
-bool relycharge = false;
-void Update_IT_callback(void) {  //10hz
-  time1++;
-  fsencetimer++;
-  blinkerl2 = !blinkerl2;
-  if (cardpresenterror > 0) {
-    if (cardpresenterror == 1) {
-      sr.set(lederrors[4], blinkerl2);
-      sr.set(lederrors[5], blinkerl2);
-      sr.set(lederrors[6], blinkerl2);
-      sr.set(lederrors[7], blinkerl2);
-    } else if (cardpresenterror == 2) {
-      sr.set(lederrors[8], blinkerl2);
-      sr.set(lederrors[9], blinkerl2);
-      sr.set(lederrors[10], blinkerl2);
-      sr.set(lederrors[11], blinkerl2);
-    } else if (cardpresenterror == 3) {
-      sr.set(lederrors[4], blinkerl2);
-      sr.set(lederrors[5], blinkerl2);
-      sr.set(lederrors[6], blinkerl2);
-      sr.set(lederrors[7], blinkerl2);
-      sr.set(lederrors[8], blinkerl2);
-      sr.set(lederrors[9], blinkerl2);
-      sr.set(lederrors[10], blinkerl2);
-      sr.set(lederrors[11], blinkerl2);
-    }
-  }
-  if (fcounter > 0) {
-    fcounter = fcounter - 1;
-    faultflag = true;
-  } else faultflag = false;
-}
+void Update_IT_callback(void);
+
 // Hardware Settings
 void setup() {
-  // delay(1000);
+
+  GPIOInit();
   mySerial.begin(9600);
   sr.setAllHigh();
-  // Rely Settings
-  pinMode(rel1, OUTPUT);
-  pinMode(rel2, OUTPUT);
-  pinMode(relo1, OUTPUT);
-  pinMode(relo2, OUTPUT);
-  digitalWrite(rel1, LOW);
-  digitalWrite(rel2, LOW);
-  digitalWrite(relo1, LOW);
-  digitalWrite(relo2, LOW);
-  // Line Settings
-  pinMode(Line1, OUTPUT);
-  pinMode(Line2, OUTPUT);
-  pinMode(Line3, OUTPUT);
-  pinMode(Line4, OUTPUT);
-  pinMode(Line5, OUTPUT);
-  pinMode(Line6, OUTPUT);
-  pinMode(Line7, OUTPUT);
-  pinMode(Line8, OUTPUT);
-  pinMode(Line9, OUTPUT);
-  pinMode(Line10, OUTPUT);
-  pinMode(Line11, OUTPUT);
-  pinMode(Line12, OUTPUT);
-  digitalWrite(Line1, LOW);
-  digitalWrite(Line2, LOW);
-  digitalWrite(Line3, LOW);
-  digitalWrite(Line4, LOW);
-  digitalWrite(Line5, LOW);
-  digitalWrite(Line6, LOW);
-  digitalWrite(Line7, LOW);
-  digitalWrite(Line8, LOW);
-  digitalWrite(Line9, LOW);
-  digitalWrite(Line10, LOW);
-  digitalWrite(Line11, LOW);
-  digitalWrite(Line12, LOW);
-  // Button Settings
-  pinMode(CS1, INPUT);
-  pinMode(CS2, INPUT);
-  pinMode(But1, INPUT);
-  pinMode(But2, INPUT);
-  pinMode(But3, INPUT);
-  pinMode(But4, INPUT);
-  pinMode(But5, INPUT);
-  // Battery Charges Settings
-  pinMode(Batcharges, OUTPUT);
-  pinMode(ChangeVolt, OUTPUT);
-  digitalWrite(Batcharges, LOW);
-  digitalWrite(ChangeVolt, LOW);
-  // Errors Settings
-  pinMode(LEDerror, OUTPUT);
-  pinMode(MCUbuzz, OUTPUT);
-  digitalWrite(LEDerror, LOW);
-  digitalWrite(MCUbuzz, LOW);
-  // Analog settings
-  pinMode(Sela, OUTPUT);
-  pinMode(Selb, OUTPUT);
-  pinMode(Selc, OUTPUT);
-  digitalWrite(Sela, LOW);
-  digitalWrite(Selb, LOW);
-  digitalWrite(Selc, LOW);
-  pinMode(Analog1, INPUT_ANALOG);
-  pinMode(Analog2, INPUT_ANALOG);
-  pinMode(Analog3, INPUT_ANALOG);
-  pinMode(Analog4, INPUT_ANALOG);
+
 // Timers configuration
 #if defined(TIM1)
   TIM_TypeDef *Instance = TIM1;
@@ -173,8 +25,10 @@ void setup() {
   MyTim->attachInterrupt(Update_IT_callback);
   MyTim->resume();
 
-  if (digitalRead(CS1) == 0) card1 = true;
-  if (digitalRead(CS2) == 0) card2 = true;
+  if (digitalRead(CS1) == 0)
+    card1 = true;
+  if (digitalRead(CS2) == 0)
+    card2 = true;
   if (card1 & card2) {
     cardsit = 2;
     digitalWrite(Line1, HIGH);
@@ -206,10 +60,12 @@ void setup() {
     digitalWrite(Line3, HIGH);
     digitalWrite(Line4, HIGH);
   }
-  pinMode(LEDerror, OUTPUT);
-  digitalWrite(LEDerror, HIGH);
+
+
   IWatchdog.begin(5000000);  // 5000ms
   sctime = time1;
+  
+  digitalWrite(LEDerror, HIGH);
   digitalWrite(Sela, LOW);
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
@@ -223,135 +79,88 @@ void setup() {
   mux4[3] = (3.3 / 1023.00) * analogRead(Analog4);
 }
 
-
-
-
 void loop() {
+
   digitalWrite(LEDerror, HIGH);
   batpowerchek1();
-  // adaptivethresholds();
   buttonchek();
   Muxread(muxpos);
   Linechek();
 
   for (byte i = 0; i < ((cardsit + 1) * 4); i++) {
-    if ((lvoltage[i] < sctreshold) && (time1 - sctime > 1)) {
-         mySerial.print("line");      mySerial.print(i);mySerial.print(",");
-         mySerial.println(lvoltage[i]);
-      //   digitalWrite(linecontrol[i], LOW);
-      //   scdetected[i] = scdetected[i] + 2;
-    } else {
-      if ((lcurrent[i] < opentreshold) && firstsence[i] == 0) {
-        linesituation[i] = 1;
-      } else if ((opentreshold < lcurrent[i]) && (lcurrent[i] < normaltreshold) && firstsence[i] == 0) {
-        linesituation[i] = 2;
-      } else if ((normaltreshold < lcurrent[i]) && (lcurrent[i] < firetreshold)) {
-        fsencetimer = 0;  // fire alarming
-        delay(55);
-        if (firstsence[i] == 1) {
-          linesituation[i] = 0;
-          digitalWrite(linecontrol[i], LOW);
-          delay(55);
-        } else if (firstsence[i] == 2) {
-          linesituation[i] = 0;
-          digitalWrite(linecontrol[i], HIGH);
-        } else if (firstsence[i] == 3) {
-          linesituation[i] = 3;
-          firetrac = true;
-          fireflag = true;
-          relycontroll = false;
-          relycustomon = false;
-          sr.set(ledebuz, HIGH);
-          sr.set(ledesounder, HIGH);
-        }
-        firstsence[i] = firstsence[i] + 1;
-        delay(55);
-      } else {
-        if (firstsence[i] == 0) linesituation[i] = 4;
-      }
-      if (linesituation[i] == 4 || linesituation[i] == 1) {
-        buzcont = true;
-        fcounter = fcounter + 13;
-      }
-      if (linesituation[i] != lastlinesituation[i]) {
-        if (linesituation[i] == 1) {
-          if (genfault) genfault = false;
-          if (sounderled) sounderled = false;
-        } else if (linesituation[i] == 3) {
-          if (sounderled) sounderled = false;
-          if (genfault) genfault = false;
-        }
-        lastlinesituation[i] = linesituation[i];
-      }
-    }
-    if ((scdetected[i] > 0) && (time1 - sctime > limittimesc)) {
-      sctime = time1;
-      digitalWrite(linecontrol[i], HIGH);
-      scdetected[i] = 0;
-      limittimesc++;
-      if (limittimesc > 55) limittimesc = 4;
-    }
-    //   mySerial.print(lcurrent[i]);
-    //   mySerial.print(",");
-    //   mySerial.print(lvoltage[i]);
-    //   mySerial.print(",");
-  }
-  // mySerial.println();
-  // mySerial.print("P27,");
-  // mySerial.print(mux4[0]);
-  // mySerial.print(",");
-  //  mySerial.println(mux4[3]);
-  if ((((mux4[4] > uperthresholdout) || (mux4[4] < lowerthresholdout)) || ((mux4[5] > uperthresholdout) || (mux4[5] < lowerthresholdout))) && !firetrac && !relycontroll) {
-    if (genfault) genfault = false;
-    relo = true;
-    buzcont = true;
-  } else relo = false;
-  //  mySerial.print(mux4[4]);
-  //  mySerial.print(",");
-  //  mySerial.println(mux4[5]);
-  if (0.55 < mux4[0]) {
-    supplyfault = false;
-    buzcont = true;
-    batcheking = false;
-  }  // power internal fail
-  else {
-    if (!batcheking) supplyfault = true;
-    else batcheking = false;
-  }
 
-  if (mux4[0] < 0.1) {
-    powerfail = true;
-    buzcont = true;
-  }  // power fail
-  else {
-    powerfail = false;
+    if ((lvoltage[i] < sctreshold) && (time1 - sctime > 1)) {
+
+      printVoltageAlert(i, lvoltage[i]);
+
+    } else {
+      processCurrentConditions(i);
+    }
   }
-  if (cardsit == 1) {
-    if (lcurrent[4] == 0 && lcurrent[5] == 0 && lcurrent[6] == 0 && lcurrent[7] == 0) cardpresenterror = 1;
-    else cardpresenterror = 0;
-  }
-  if (cardsit == 2) {
-    if ((lcurrent[4] == 0 && lcurrent[5] == 0 && lcurrent[6] == 0 && lcurrent[7] == 0) && (lcurrent[8] == 0 && lcurrent[9] == 0 && lcurrent[10] == 0 && lcurrent[11] == 0)) cardpresenterror = 3;
-    else if (lcurrent[8] == 0 && lcurrent[9] == 0 && lcurrent[10] == 0 && lcurrent[11] == 0) cardpresenterror = 2;
-    else cardpresenterror = 0;
-  }
-  if ((time1 - ledblink) > 6) {
-    ledblink = time1;
-    blinkerl = !blinkerl;
+  handleThresholdFaults();
+  handleSupplyAndPowerFailures();
+  handleCardPresentErrors();
+
+  if (timeForLedBlink()) {
+    toggleLedState();
     Ledcontrol();
   }
   Relaycont();
   IWatchdog.reload();
-  if (muxpos < 8) {
-    if (muxpos == 7) {
-      muxpos = 0;
-      freadanalogs = true;
-    } else muxpos++;
+  updateMuxPosition();
+  checkAndEnableBeeper();
+}
+
+
+
+// Function to check if a threshold fault is detected
+bool thresholdFaultDetected() {
+  return ((mux4[4] > uperthresholdout) || (mux4[4] < lowerthresholdout) || (mux4[5] > uperthresholdout) || (mux4[5] < lowerthresholdout));
+}
+
+// Function to handle threshold faults
+void handleThresholdFaults() {
+  if (thresholdFaultDetected() && !firetrac && !relycontroll) {
+    if (genfault) genfault = false;
+    relo = true;
+    buzcont = true;
+  } else {
+    relo = false;
   }
-  if ((buzcont && genfault && !firetrac) && (time1 - buzzready > 300)) {  // 30sec each beep
-    buzzready = time1;
-    beeper = true;
+}
+// Function to check if a supply failure is detected
+bool supplyFailureDetected() {
+  return (0.55 < mux4[0]);
+}
+// Function to check if a power failure is detected
+
+bool powerFailureDetected() {
+  return (mux4[0] < 0.1);
+}
+
+// Function to handle supply and power failures
+void handleSupplyAndPowerFailures() {
+  if (supplyFailureDetected()) {
+    supplyfault = false;
+    buzcont = true;
+    batcheking = false;
+  } else {
+    if (!batcheking)
+      supplyfault = true;
+    else
+      batcheking = false;
   }
+
+  if (powerFailureDetected()) {
+    powerfail = true;
+    buzcont = true;
+  } else {
+    powerfail = false;
+  }
+}
+// Function to check if it's time to toggle the LED
+bool timeForLedBlink() {
+  return (time1 - ledblink) > 6;
 }
 
 void batpowerchek1() {
@@ -379,7 +188,8 @@ void batpowerchek1() {
           cont++;
           delay(13);
           if (cont > 2) {
-            if (((vp[0] - vp[1]) < 0.02) && ((vp[1] - vp[2]) < 0.02)) break;
+            if (((vp[0] - vp[1]) < 0.02) && ((vp[1] - vp[2]) < 0.02))
+              break;
             cont = 0;
           }
         } while ((time1 - batscan) > 21);
@@ -415,75 +225,107 @@ void batpowerchek1() {
   batfail = !relycharge;
   powerfail = false;
 }
-
-
-
-
-
-
-
-
-/*
-void adaptivethresholds() {
-  vpo = mux4[0] / 0.68;
-  opentreshold = 0.045 * vpo;
-  normaltreshold = 0.12 * vpo;
-  firetreshold = 0.55 * vpo;
-  sctreshold = 0.49 * vpo;
-  lowerthresholdout = 0.171 * vpo;
-  uperthresholdout = 0.6 * vpo;
+// Function to print voltage alert
+void printVoltageAlert(byte line, float voltage) {
+  mySerial.print("line");
+  mySerial.print(line);
+  mySerial.print(",");
+  mySerial.println(voltage);
 }
-*/
-
-
-
-
-
-
-
-
 
 void Ledcontrol() {
   for (byte i = 0; i < 12; i++) {
     if ((linesituation[i] == 1) || (linesituation[i] == 4)) {  // Fault mode
       sr.set(lederrors[i], blinkerl);
-      if (buzcont && !genfault && !firetrac) digitalWrite(MCUbuzz, blinkerl);
-      else digitalWrite(MCUbuzz, LOW);
+      if (buzcont && !genfault && !firetrac)
+        digitalWrite(MCUbuzz, blinkerl);
+      else
+        digitalWrite(MCUbuzz, LOW);
     } else if (linesituation[i] == 3) {  // Fire mode
       sr.set(ledfire[i], blinkerl);
       sr.set(ledefiremode, LOW);
-      if (firetrac) digitalWrite(MCUbuzz, HIGH);
-      else digitalWrite(MCUbuzz, LOW);
+      if (firetrac)
+        digitalWrite(MCUbuzz, HIGH);
+      else
+        digitalWrite(MCUbuzz, LOW);
     } else {
       sr.set(lederrors[i], HIGH);
       sr.set(ledfire[i], HIGH);
-      if ((batfail || powerfail || supplyfault) && !genfault) digitalWrite(MCUbuzz, blinkerl);
-      else digitalWrite(MCUbuzz, LOW);
+      if ((batfail || powerfail || supplyfault) && !genfault)
+        digitalWrite(MCUbuzz, blinkerl);
+      else
+        digitalWrite(MCUbuzz, LOW);
     }
-    if (firetrac && !genfault) digitalWrite(MCUbuzz, HIGH);
+    if (firetrac && !genfault)
+      digitalWrite(MCUbuzz, HIGH);
   }
-  if ((genfault && firetrac) || (batfail || powerfail || supplyfault) && genfault) sr.set(ledebuz, LOW);
-  else sr.set(ledebuz, HIGH);
-  if (supplyfault && !powerfail) sr.set(ledepower, LOW);
-  else sr.set(ledepower, HIGH);
-  if (batfail) sr.set(ledebat, LOW);
-  else sr.set(ledebat, HIGH);
+  if ((genfault && firetrac) || (batfail || powerfail || supplyfault) && genfault)
+    sr.set(ledebuz, LOW);
+  else
+    sr.set(ledebuz, HIGH);
+  if (supplyfault && !powerfail)
+    sr.set(ledepower, LOW);
+  else
+    sr.set(ledepower, HIGH);
+  if (batfail)
+    sr.set(ledebat, LOW);
+  else
+    sr.set(ledebat, HIGH);
   if (batlowvolt) {
     sr.set(ledebat, blinkerl);
     sr.set(ledemainpower, blinkerl);
   }
-  if (powerfail) sr.set(ledemainpower, LOW);
-  else sr.set(ledemainpower, HIGH);
-  if (relo) sr.set(ledeearth, LOW);
-  else sr.set(ledeearth, HIGH);
-  if (firetrac) sr.set(ledefiremode, LOW);
-  else sr.set(ledefiremode, HIGH);
+  if (powerfail)
+    sr.set(ledemainpower, LOW);
+  else
+    sr.set(ledemainpower, HIGH);
+  if (relo)
+    sr.set(ledeearth, LOW);
+  else
+    sr.set(ledeearth, HIGH);
+  if (firetrac)
+    sr.set(ledefiremode, LOW);
+  else
+    sr.set(ledefiremode, HIGH);
   sr.set(panelon, LOW);
   if (relo) {
     // mySerial.println("relo ok");
-    if (!genfault) digitalWrite(MCUbuzz, relo);
+    if (!genfault)
+      digitalWrite(MCUbuzz, relo);
   }
   sr.set(generalfault, !(supplyfault || batfail || powerfail || relo));
+}
+
+
+// Function to toggle the LED state
+void toggleLedState() {
+  ledblink = time1;
+  blinkerl = !blinkerl;
+}
+
+// Function to update the mux position for analog readings
+void updateMuxPosition() {
+  if (muxpos < 8) {
+    if (muxpos == 7) {
+      muxpos = 0;
+      freadanalogs = true;
+    } else {
+      muxpos++;
+    }
+  }
+}
+
+// Function to check and enable the beeper
+void checkAndEnableBeeper() {
+  if (enableBeeper()) {
+    buzzready = time1;
+    beeper = true;
+  }
+}
+
+// Function to check if the beeper should be enabled
+bool enableBeeper() {
+  return (buzcont && genfault && !firetrac && (time1 - buzzready > 300));
 }
 
 
@@ -493,6 +335,72 @@ void Ledcontrol() {
 
 
 
+// Function to process current conditions
+void processCurrentConditions(byte line) {
+  // Process the current conditions for the line
+  if ((lcurrent[line] < opentreshold) && firstsence[line] == 0) {
+    linesituation[line] = 1;
+  } else if ((opentreshold < lcurrent[line]) && (lcurrent[line] < normaltreshold) && firstsence[line] == 0) {
+    linesituation[line] = 2;
+  } else if ((normaltreshold < lcurrent[line]) && (lcurrent[line] < firetreshold)) {
+    // Handle fire detection conditions
+    fsencetimer = 0;  // fire alarming
+    delay(55);
+    if (firstsence[line] == 1) {
+      linesituation[line] = 0;
+      digitalWrite(linecontrol[line], LOW);
+      delay(55);
+    } else if (firstsence[line] == 2) {
+      linesituation[line] = 0;
+      digitalWrite(linecontrol[line], HIGH);
+    } else if (firstsence[line] == 3) {
+      linesituation[line] = 3;
+      firetrac = true;
+      fireflag = true;
+      relycontroll = false;
+      relycustomon = false;
+      sr.set(ledebuz, HIGH);
+      sr.set(ledesounder, HIGH);
+    }
+    firstsence[line] = firstsence[line] + 1;
+    delay(55);
+  } else {
+    if (firstsence[line] == 0)
+      linesituation[line] = 4;
+  }
+}
+
+// Function to check if all values in a range are zero
+bool allZerosInRange(int start, int end) {
+  for (int i = start; i <= end; i++) {
+    if (lcurrent[i] != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+
+// Function to handle card present errors
+void handleCardPresentErrors() {
+  if (cardsit == 1) {
+    if (allZerosInRange(4, 7)) {
+      cardpresenterror = 1;
+    } else {
+      cardpresenterror = 0;
+    }
+  }
+  if (cardsit == 2) {
+    if (allZerosInRange(4, 7) && allZerosInRange(8, 11)) {
+      cardpresenterror = 3;
+    } else if (allZerosInRange(8, 11)) {
+      cardpresenterror = 2;
+    } else {
+      cardpresenterror = 0;
+    }
+  }
+}
 
 
 
@@ -508,7 +416,7 @@ void Linechek() {
       lvoltage[1] = mux1[6];
       lvoltage[0] = mux1[5];
       lcurrent[0] = mux1[7];
-      //mySerial.print(lcurrent[i]);
+      // mySerial.print(lcurrent[i]);
       break;
     case 1:
       lvoltage[3] = mux1[0];
@@ -563,117 +471,34 @@ void Linechek() {
 }
 
 
-
-
-
-
-
-
-
-
-
 void Muxread(byte add) {
-  switch (add) {
-    case 0:
-      digitalWrite(Sela, LOW);
-      digitalWrite(Selb, LOW);
-      digitalWrite(Selc, LOW);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 1:
-      digitalWrite(Sela, HIGH);
-      digitalWrite(Selb, LOW);
-      digitalWrite(Selc, LOW);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 2:
-      digitalWrite(Sela, LOW);
-      digitalWrite(Selb, HIGH);
-      digitalWrite(Selc, LOW);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 3:
-      digitalWrite(Sela, HIGH);
-      digitalWrite(Selb, HIGH);
-      digitalWrite(Selc, LOW);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 4:
-      digitalWrite(Sela, LOW);
-      digitalWrite(Selb, LOW);
-      digitalWrite(Selc, HIGH);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 5:
-      digitalWrite(Sela, HIGH);
-      digitalWrite(Selb, LOW);
-      digitalWrite(Selc, HIGH);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 6:
-      digitalWrite(Sela, LOW);
-      digitalWrite(Selb, HIGH);
-      digitalWrite(Selc, HIGH);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    case 7:
-      digitalWrite(Sela, HIGH);
-      digitalWrite(Selb, HIGH);
-      digitalWrite(Selc, HIGH);
-      delay(25);
-      mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
-      mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
-      mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
-      mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
-      delay(15);
-      break;
-    default:
-      break;
+  // Define control values for Sela, Selb, and Selc
+  byte controlValues[3] = { LOW, LOW, LOW };
+
+  // Calculate control values based on the address (add)
+  if (add & 0b001) controlValues[0] = HIGH;
+  if (add & 0b010) controlValues[1] = HIGH;
+  if (add & 0b100) controlValues[2] = HIGH;
+
+  // Set the control values
+  digitalWrite(Sela, controlValues[0]);
+  digitalWrite(Selb, controlValues[1]);
+  digitalWrite(Selc, controlValues[2]);
+
+  // Delay as needed
+  delay(25);
+
+  // Read analog values and store them in the mux arrays
+  for (int i = 0; i < 4; i++) {
+    mux1[add] = (3.3 / 1023.00) * analogRead(Analog1);
+    mux2[add] = (3.3 / 1023.00) * analogRead(Analog2);
+    mux3[add] = (3.3 / 1023.00) * analogRead(Analog3);
+    mux4[add] = (3.3 / 1023.00) * analogRead(Analog4);
   }
+
+  // Delay as needed
+  delay(15);
 }
-
-
-
-
-
-
-
-
 
 
 void buttonchek() {
@@ -694,7 +519,8 @@ void buttonchek() {
       IWatchdog.reload();
       delay(50);
       x++;
-      if (x > 21) digitalWrite(LEDerror, LOW);
+      if (x > 21)
+        digitalWrite(LEDerror, LOW);
     } while (digitalRead(But4) == 0);
     IWatchdog.reload();
     delay(550);
@@ -814,19 +640,113 @@ void buttonchek() {
         fireflag = false;
         sr.set(ledesounder, LOW);
       }
-      if (!sounderled) sounderled = !sounderled;
+      if (!sounderled)
+        sounderled = !sounderled;
       relycustomon = true;
     }
   }
 }
 
+void GPIOInit(void) {
 
+  pinMode(rel1, OUTPUT);
+  pinMode(rel2, OUTPUT);
+  pinMode(relo1, OUTPUT);
+  pinMode(relo2, OUTPUT);
+  digitalWrite(rel1, LOW);
+  digitalWrite(rel2, LOW);
+  digitalWrite(relo1, LOW);
+  digitalWrite(relo2, LOW);
+  // Line Settings
+  pinMode(Line1, OUTPUT);
+  pinMode(Line2, OUTPUT);
+  pinMode(Line3, OUTPUT);
+  pinMode(Line4, OUTPUT);
+  pinMode(Line5, OUTPUT);
+  pinMode(Line6, OUTPUT);
+  pinMode(Line7, OUTPUT);
+  pinMode(Line8, OUTPUT);
+  pinMode(Line9, OUTPUT);
+  pinMode(Line10, OUTPUT);
+  pinMode(Line11, OUTPUT);
+  pinMode(Line12, OUTPUT);
+  digitalWrite(Line1, LOW);
+  digitalWrite(Line2, LOW);
+  digitalWrite(Line3, LOW);
+  digitalWrite(Line4, LOW);
+  digitalWrite(Line5, LOW);
+  digitalWrite(Line6, LOW);
+  digitalWrite(Line7, LOW);
+  digitalWrite(Line8, LOW);
+  digitalWrite(Line9, LOW);
+  digitalWrite(Line10, LOW);
+  digitalWrite(Line11, LOW);
+  digitalWrite(Line12, LOW);
+  // Button Settings
+  pinMode(CS1, INPUT);
+  pinMode(CS2, INPUT);
+  pinMode(But1, INPUT);
+  pinMode(But2, INPUT);
+  pinMode(But3, INPUT);
+  pinMode(But4, INPUT);
+  pinMode(But5, INPUT);
+  // Battery Charges Settings
+  pinMode(Batcharges, OUTPUT);
+  pinMode(ChangeVolt, OUTPUT);
+  digitalWrite(Batcharges, LOW);
+  digitalWrite(ChangeVolt, LOW);
+  // Errors Settings
+  pinMode(LEDerror, OUTPUT);
+  pinMode(MCUbuzz, OUTPUT);
+  digitalWrite(LEDerror, LOW);
+  digitalWrite(MCUbuzz, LOW);
+  // Analog settings
+  pinMode(Sela, OUTPUT);
+  pinMode(Selb, OUTPUT);
+  pinMode(Selc, OUTPUT);
+  digitalWrite(Sela, LOW);
+  digitalWrite(Selb, LOW);
+  digitalWrite(Selc, LOW);
+  pinMode(Analog1, INPUT_ANALOG);
+  pinMode(Analog2, INPUT_ANALOG);
+  pinMode(Analog3, INPUT_ANALOG);
+  pinMode(Analog4, INPUT_ANALOG);
 
+   pinMode(LEDerror, OUTPUT);
+}
 
-
-
-
-
+void Update_IT_callback(void) {  // 10hz
+  time1++;
+  fsencetimer++;
+  blinkerl2 = !blinkerl2;
+  if (cardpresenterror > 0) {
+    if (cardpresenterror == 1) {
+      sr.set(lederrors[4], blinkerl2);
+      sr.set(lederrors[5], blinkerl2);
+      sr.set(lederrors[6], blinkerl2);
+      sr.set(lederrors[7], blinkerl2);
+    } else if (cardpresenterror == 2) {
+      sr.set(lederrors[8], blinkerl2);
+      sr.set(lederrors[9], blinkerl2);
+      sr.set(lederrors[10], blinkerl2);
+      sr.set(lederrors[11], blinkerl2);
+    } else if (cardpresenterror == 3) {
+      sr.set(lederrors[4], blinkerl2);
+      sr.set(lederrors[5], blinkerl2);
+      sr.set(lederrors[6], blinkerl2);
+      sr.set(lederrors[7], blinkerl2);
+      sr.set(lederrors[8], blinkerl2);
+      sr.set(lederrors[9], blinkerl2);
+      sr.set(lederrors[10], blinkerl2);
+      sr.set(lederrors[11], blinkerl2);
+    }
+  }
+  if (fcounter > 0) {
+    fcounter = fcounter - 1;
+    faultflag = true;
+  } else
+    faultflag = false;
+}
 
 void Relaycont() {
   digitalWrite(rel2, faultflag);
