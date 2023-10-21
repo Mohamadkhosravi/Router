@@ -144,11 +144,17 @@ void setup() {
 
 void loop() {
 
+
+  buttonchek();
+ for(char i=0; i<20; i++)
+ {
   digitalWrite(LEDerror, HIGH);
   batpowerchek1();
   buttonchek();
   Muxread(muxPosition );
   Linechek();
+ }
+  buttonchek();
 
   for (byte i = 0; i < ((cardSituation  + 1) * 4); i++) {
 
@@ -207,6 +213,7 @@ bool thresholdFaultDetected() {
 // Function to handle threshold faults
 void handleThresholdFaults() {
   if (thresholdFaultDetected() && !fireTrace && !relayControl) {
+
     if (generalFault) generalFault = false;
     relayOn = true;
     buzzerControl  = true;
@@ -418,10 +425,15 @@ bool enableBeeper() {
 void processCurrentConditions(byte line) {
   // Process the current conditions for the line
   if ((lineCurrent[line] < OPEN_THRESHOLD) && firstSence[line] == 0) {
+
     lineSituations[line] = 1;
+
   } else if ((OPEN_THRESHOLD < lineCurrent[line]) && (lineCurrent[line] < NORMAL_THRESHOLD) && firstSence[line] == 0) {
+
     lineSituations[line] = 2;
+
   } else if ((NORMAL_THRESHOLD < lineCurrent[line]) && (lineCurrent[line] < FIRE_THRESHOLD)) {
+    
     // Handle fire detection conditions
     fultSencetimer = 0;  // fire alarming
     delay(55);
@@ -845,5 +857,31 @@ void Relaycont() {
       digitalWrite(relo1, LOW);
       digitalWrite(relo2, LOW);
     }
+  }
+}
+
+
+float averageFilter(char numberOfSamples , float Sample)
+{
+
+  static char cunter=0;
+  static float samples[4]={0.0};
+  //float *samples = (float *)malloc(numberOfSamples * sizeof(float)); 
+ 
+    samples[cunter] = Sample;
+  cunter++;
+  
+  if (cunter == numberOfSamples)
+  {
+   double temp=0.0;
+   for (char i = 0; i < numberOfSamples; i++) {
+        // Replace this with your actual ADC reading code
+        // Simulated ADC reading (replace with real ADC value)
+        temp = temp+samples[i];
+    }
+
+   cunter=0;
+  // free(samples);
+   return temp/numberOfSamples;
   }
 }
