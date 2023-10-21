@@ -146,7 +146,7 @@ void loop() {
 
 
   buttonchek();
- for(char i=0; i<20; i++)
+ for(char i=0; i<12; i++)
  {
   digitalWrite(LEDerror, HIGH);
   batpowerchek1();
@@ -424,27 +424,36 @@ bool enableBeeper() {
 // Function to process current conditions
 void processCurrentConditions(byte line) {
   // Process the current conditions for the line
-  if ((lineCurrent[line] < OPEN_THRESHOLD) && firstSence[line] == 0) {
+  if(firstSence[line] == 0){
 
-    lineSituations[line] = 1;
+    if (lineCurrent[line] < OPEN_THRESHOLD) {
 
-  } else if ((OPEN_THRESHOLD < lineCurrent[line]) && (lineCurrent[line] < NORMAL_THRESHOLD) && firstSence[line] == 0) {
+      lineSituations[line] = 1;
 
-    lineSituations[line] = 2;
+    } else if( ( lineCurrent[line] > OPEN_THRESHOLD ) && (lineCurrent[line] < NORMAL_THRESHOLD) ){
 
-  } else if ((NORMAL_THRESHOLD < lineCurrent[line]) && (lineCurrent[line] < FIRE_THRESHOLD)) {
+      lineSituations[line] = 2;
+    }
+
+  } else if (( lineCurrent[line]) > NORMAL_THRESHOLD  && ( lineCurrent[line] < FIRE_THRESHOLD) ) {
     
     // Handle fire detection conditions
     fultSencetimer = 0;  // fire alarming
     delay(55);
+
     if (firstSence[line] == 1) {
+
       lineSituations[line] = 0;
       digitalWrite(lineControlPins[line], LOW);
       delay(55);
+
     } else if (firstSence[line] == 2) {
+
       lineSituations[line] = 0;
       digitalWrite(lineControlPins[line], HIGH);
+
     } else if (firstSence[line] == 3) {
+
       lineSituations[line] = 3;
       fireTrace = true;
       fireFlag = true;
@@ -452,10 +461,14 @@ void processCurrentConditions(byte line) {
       relayCustomOn = false;
       sr.set(ledebuz, HIGH);
       sr.set(ledesounder, HIGH);
+
     }
+
     firstSence[line] = firstSence[line] + 1;
     delay(55);
-  } else {
+  } 
+  else
+  {
     if (firstSence[line] == 0)
       lineSituations[line] = 4;
   }
