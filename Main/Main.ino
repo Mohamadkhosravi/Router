@@ -57,10 +57,21 @@ byte cardSituation  = 0;
 const byte lineControlPins[12] = { PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, PB9, PB10, PB11 };
 const byte ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
 const byte ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
-byte lineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+
 byte lastLineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
 byte firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 byte shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+typedef enum 
+{
+  NON_STATUS,
+  OPEN_CIRCUIT,
+  NORMAL,
+  FIER,
+  SHORT_CIRCUIT
+}status;
+status lineStatus[12]={NON_STATUS};
+
 unsigned long currentTime  = 0;
 unsigned long ledBlinkTime  = 0;
 unsigned long buttonPressTime  = 0;
@@ -163,7 +174,8 @@ void loop() {
       printVoltageAlert(i, lineVoltage[i]);
 
     } else {
-      processCurrentConditions(i);
+       lineStatus[i] = processCurrentConditions(i);
+     
     }
   }
   handleThresholdFaults();
@@ -172,7 +184,7 @@ void loop() {
 
   if (timeForLedBlink()) {
     toggleLedState();
-    Ledcontrol();
+    Ledcontrol(lineStatus);
   }
   Relaycont();
   IWatchdog.reload();
@@ -326,14 +338,16 @@ void printVoltageAlert(byte line, float voltage) {
   mySerial.println(voltage);
 }
 
-void Ledcontrol() {
+void Ledcontrol(status lineSituations[12]) {
   for (byte i = 0; i < 12; i++) {
+
     if ((lineSituations[i] == 1) || (lineSituations[i] == 4)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1 );
       if (buzzerControl  && !generalFault && !fireTrace)
         digitalWrite(MCUbuzz, ledBlinker1 );
       else
         digitalWrite(MCUbuzz, LOW);
+
     } else if (lineSituations[i] == 3) {  // Fire mode
       sr.set(ledFirePins[i], ledBlinker1 );
       sr.set(ledefiremode, LOW);
@@ -422,17 +436,23 @@ bool enableBeeper() {
 }
 
 // Function to process current conditions
-void processCurrentConditions(byte line) {
+ status processCurrentConditions(byte line) {
+
+ // byte lineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
   if(firstSence[line] == 0){
 
-    if (lineCurrent[line] < OPEN_THRESHOLD) {
+    if (lineCurrent[line] < OPEN_THRESHOLD) { 
 
-      lineSituations[line] = 1;
+      //lineSituations[line] = 1;
+
+      return OPEN_CIRCUIT;
 
     } else if( ( lineCurrent[line] > OPEN_THRESHOLD ) && (lineCurrent[line] < NORMAL_THRESHOLD) ){
 
-      lineSituations[line] = 2;
+      //lineSituations[line] = 2;
+      return NORMAL;
+      
     }
 
   } else if (( lineCurrent[line]) > NORMAL_THRESHOLD  && ( lineCurrent[line] < FIRE_THRESHOLD) ) {
@@ -443,24 +463,31 @@ void processCurrentConditions(byte line) {
 
     if (firstSence[line] == 1) {
 
-      lineSituations[line] = 0;
+      //lineSituations[line] = 0;
+      //return NON_STATUS;
       digitalWrite(lineControlPins[line], LOW);
       delay(55);
 
     } else if (firstSence[line] == 2) {
 
-      lineSituations[line] = 0;
+      //lineSituations[line] = 0;
       digitalWrite(lineControlPins[line], HIGH);
 
     } else if (firstSence[line] == 3) {
+      // lineSituations[line] = 3;
+       fireTrace = true;
+        fireFlag = true;
+        relayControl = false;
+        relayCustomOn = false;
+        sr.set(ledebuz, HIGH);
+        sr.set(ledesounder, HIGH);
 
-      lineSituations[line] = 3;
-      fireTrace = true;
-      fireFlag = true;
-      relayControl = false;
-      relayCustomOn = false;
-      sr.set(ledebuz, HIGH);
-      sr.set(ledesounder, HIGH);
+
+       return FIER;
+
+     
+
+     
 
     }
 
@@ -469,9 +496,14 @@ void processCurrentConditions(byte line) {
   } 
   else
   {
+ 
+
     if (firstSence[line] == 0)
-      lineSituations[line] = 4;
+      //lineSituations[line] = 4;
+       return SHORT_CIRCUIT;
+     
   }
+
 }
 
 // Function to check if all values in a range are zero
@@ -654,7 +686,7 @@ void buttonchek() {
     for (byte i = 0; i < 12; i++) {
       lineCurrent[i] = 0;
       lineVoltage[i] = 0;
-      lineSituations[i] = 0;      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+      //lineSituations[i] = 0;      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
       lastLineSituations[i] = 0;  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
       firstSence[i] = 0;
       shortCircuitDetected[i] = 0;
