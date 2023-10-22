@@ -157,25 +157,33 @@ void loop() {
 
 
   buttonchek();
- for(char i=0; i<12; i++)
- {
+
   digitalWrite(LEDerror, HIGH);
   batpowerchek1();
   buttonchek();
   Muxread(muxPosition );
   Linechek();
- }
   buttonchek();
 
   for (byte i = 0; i < ((cardSituation  + 1) * 4); i++) {
-
+ 
     if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
-
       printVoltageAlert(i, lineVoltage[i]);
+      digitalWrite(lineControlPins[i], LOW);
+      shortCircuitDetected[i]= shortCircuitDetected[i]+2;
 
     } else {
+      
        lineStatus[i] = processCurrentConditions(i);
-     
+        mySerial.print(lineStatus[i]);
+    }
+    if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
+    {
+      shortCircuitTime=currentTime;
+       digitalWrite(lineControlPins[i], HIGH);
+       shortCircuitDetected[i]=0;
+       limitTimeSC++;
+      if (limitTimeSC > 55) limitTimeSC = 4;
     }
   }
   handleThresholdFaults();
@@ -437,58 +445,59 @@ bool enableBeeper() {
 
 // Function to process current conditions
  status processCurrentConditions(byte line) {
+    
+  mySerial.print("\n");
+  mySerial.print("line=");
+  mySerial.print(line);
 
- // byte lineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+  mySerial.print("Current=");
+  mySerial.print(lineCurrent[line]) ;
+  mySerial.print("\n");
+
+  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
+
   if(firstSence[line] == 0){
 
     if (lineCurrent[line] < OPEN_THRESHOLD) { 
 
-      //lineSituations[line] = 1;
-
       return OPEN_CIRCUIT;
-
+    
     } else if( ( lineCurrent[line] > OPEN_THRESHOLD ) && (lineCurrent[line] < NORMAL_THRESHOLD) ){
 
-      //lineSituations[line] = 2;
       return NORMAL;
-      
+
     }
 
-  } else if (( lineCurrent[line]) > NORMAL_THRESHOLD  && ( lineCurrent[line] < FIRE_THRESHOLD) ) {
-    
+  } 
+  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)){
+     mySerial.print("\n");
+      mySerial.print("FIER");
+      mySerial.print("\n");
+   
     // Handle fire detection conditions
     fultSencetimer = 0;  // fire alarming
     delay(55);
 
     if (firstSence[line] == 1) {
 
-      //lineSituations[line] = 0;
-      //return NON_STATUS;
       digitalWrite(lineControlPins[line], LOW);
       delay(55);
 
-    } else if (firstSence[line] == 2) {
+    } if (firstSence[line] == 2) {
 
-      //lineSituations[line] = 0;
       digitalWrite(lineControlPins[line], HIGH);
-
-    } else if (firstSence[line] == 3) {
-      // lineSituations[line] = 3;
-       fireTrace = true;
-        fireFlag = true;
-        relayControl = false;
-        relayCustomOn = false;
-        sr.set(ledebuz, HIGH);
-        sr.set(ledesounder, HIGH);
+    }
+    if (firstSence[line] == 3) {
 
 
-       return FIER;
-
-     
-
-     
-
+      fireTrace = true;
+      fireFlag = true;
+      relayControl = false;
+      relayCustomOn = false;
+      sr.set(ledebuz, HIGH);
+      sr.set(ledesounder, HIGH);
+      return FIER;
     }
 
     firstSence[line] = firstSence[line] + 1;
@@ -499,7 +508,7 @@ bool enableBeeper() {
  
 
     if (firstSence[line] == 0)
-      //lineSituations[line] = 4;
+   
        return SHORT_CIRCUIT;
      
   }
