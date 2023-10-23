@@ -72,6 +72,16 @@ typedef enum
 }status;
 status lineStatus[12]={NON_STATUS};
 
+struct
+{
+  enum{
+    START,
+    STOP
+  }status;
+  unsigned long value;
+}Timer;
+
+
 unsigned long currentTime  = 0;
 unsigned long ledBlinkTime  = 0;
 unsigned long buttonPressTime  = 0;
@@ -81,14 +91,16 @@ unsigned long batteryScanTime =0;
 
 unsigned long fultSencetimer = 0;
 unsigned long fultCounter = 10;
+unsigned long fireDebounceTimer =0;
 
-
+unsigned long learningProcessCounter = 10;
 
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
 void Update_IT_callback(void);
 // Hardware Settings
+
 void setup() {
 
   GPIOInit();
@@ -157,7 +169,6 @@ void loop() {
 
 
   buttonchek();
-
   digitalWrite(LEDerror, HIGH);
   batpowerchek1();
   buttonchek();
@@ -165,40 +176,58 @@ void loop() {
   Linechek();
   buttonchek();
 
-  for (byte i = 0; i < ((cardSituation  + 1) * 4); i++) {
- 
-    if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
-      printVoltageAlert(i, lineVoltage[i]);
-      digitalWrite(lineControlPins[i], LOW);
-      shortCircuitDetected[i]= shortCircuitDetected[i]+2;
+  
 
-    } else {
-      
-       lineStatus[i] = processCurrentConditions(i);
-        mySerial.print(lineStatus[i]);
-    }
-    if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
-    {
-      shortCircuitTime=currentTime;
-       digitalWrite(lineControlPins[i], HIGH);
-       shortCircuitDetected[i]=0;
-       limitTimeSC++;
-      if (limitTimeSC > 55) limitTimeSC = 4;
-    }
-  }
-  handleThresholdFaults();
-  handleSupplyAndpowerFailures();
-  handleCardPresentErrors();
+    for (byte i = 0; i < ((cardSituation  + 1) * 4); i++) {
 
-  if (timeForLedBlink()) {
-    toggleLedState();
-    Ledcontrol(lineStatus);
-  }
-  Relaycont();
-  IWatchdog.reload();
-  updateMuxPosition();
-  checkAndEnableBeeper();
-}
+    
+
+      if(learningProcessCounter==0){
+
+      if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
+        printVoltageAlert(i, lineVoltage[i]);
+        digitalWrite(lineControlPins[i], LOW);
+        shortCircuitDetected[i]= shortCircuitDetected[i]+2;
+
+      } else {
+        
+         lineStatus[i] = processCurrentConditions(i);
+          mySerial.print(lineStatus[i]);
+      }
+      if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
+      {
+        shortCircuitTime=currentTime;
+        digitalWrite(lineControlPins[i], HIGH);
+        shortCircuitDetected[i]=0;
+        limitTimeSC++;
+        if (limitTimeSC > 55) limitTimeSC = 4;
+      }
+
+        }
+
+    }
+
+     mySerial.print("\n");
+       mySerial.print("learnCounter =");
+       mySerial.print(learningProcessCounter);
+       mySerial.print("\n"); 
+    if(learningProcessCounter>0)learningProcessCounter--;
+    
+    handleThresholdFaults();
+    handleSupplyAndpowerFailures();
+    handleCardPresentErrors();
+  
+    if (timeForLedBlink()) {
+      toggleLedState();
+      Ledcontrol(lineStatus);
+    }
+    Relaycont();
+    IWatchdog.reload();
+    updateMuxPosition();
+    checkAndEnableBeeper();
+
+    }
+
 
 
 // Set all lines low
@@ -445,7 +474,17 @@ bool enableBeeper() {
 
 // Function to process current conditions
  status processCurrentConditions(byte line) {
-    
+
+ mySerial.print("\n"); 
+  mySerial.print("fireDebounceTimer=");
+  mySerial.print(fireDebounceTimer);
+
+   mySerial.print("\n");
+
+  
+
+  static int flag=0;
+  static int fierDebounce=0;
   mySerial.print("\n");
   mySerial.print("line=");
   mySerial.print(line);
@@ -470,42 +509,71 @@ bool enableBeeper() {
     }
 
   } 
-  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)){
-     mySerial.print("\n");
-      mySerial.print("FIER");
-      mySerial.print("\n");
    
-    // Handle fire detection conditions
-    fultSencetimer = 0;  // fire alarming
-    delay(55);
+  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD))
+  {   
+      if (flag==0){
+        fierDebounce++;
+        }
+        
+        mySerial.print("\n");
+        mySerial.print("*****************Detect********************************");
+        mySerial.print("\n");
+       mySerial.print("\n");
+       mySerial.print("fierDebounce =");
+       mySerial.print(fierDebounce);
+       mySerial.print("\n"); 
+  } 
+ if( (fierDebounce >=100)&&((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)) )
+  {
 
-    if (firstSence[line] == 1) {
+      flag=1;
 
-      digitalWrite(lineControlPins[line], LOW);
+        mySerial.print("\n");
+        mySerial.print("============================FIER================================");
+        mySerial.print("\n");
+    
+      // Handle fire detection conditions
+      fultSencetimer = 0;  // fire alarming
       delay(55);
 
-    } if (firstSence[line] == 2) {
+      if (firstSence[line] == 1) {
 
-      digitalWrite(lineControlPins[line], HIGH);
-    }
-    if (firstSence[line] == 3) {
+        digitalWrite(lineControlPins[line], LOW);
+        delay(55);
 
+      } 
+      if (firstSence[line] == 2) {
 
-      fireTrace = true;
-      fireFlag = true;
-      relayControl = false;
-      relayCustomOn = false;
-      sr.set(ledebuz, HIGH);
-      sr.set(ledesounder, HIGH);
-      return FIER;
-    }
+        digitalWrite(lineControlPins[line], HIGH);
+      }
+
+      if (firstSence[line] == 3) {
+
+        fireTrace = true;
+        fireFlag = true;
+        relayControl = false;
+        relayCustomOn = false;
+        sr.set(ledebuz, HIGH);
+        sr.set(ledesounder, HIGH);
+        return FIER;
+      }
 
     firstSence[line] = firstSence[line] + 1;
     delay(55);
-  } 
+
+
+
+          
+      }
+
+
+
+
+  
   else
   {
- 
+    //fierDebounce=0;
 
     if (firstSence[line] == 0)
    
@@ -863,6 +931,14 @@ void GPIOInit(void) {
 void Update_IT_callback(void) {  // 10hz
   currentTime ++;
   fultSencetimer++;
+
+ /*  if (timer.status  == Timer::START) {
+       timer.value++;
+    } else if (timer.status == Timer::START) {
+      timer.value=0;
+    }*/
+  
+  
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError  > 0) {
     if (CardPresentError  == 1) {
