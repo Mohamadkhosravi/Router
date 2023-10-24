@@ -62,6 +62,67 @@ byte lastLineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // 1=open
 byte firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 byte shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+
+class Filter {
+  public:
+    Filter(int numSamples) : numSamples_(numSamples) {
+        samples_.reserve(numSamples_);
+    }
+
+    // Low-Pass Filter Method
+    double LowPassFilter(double inputValue) {
+        // Store the input value in the samples vector
+        samples_.push_back(inputValue);
+
+        // If the number of samples exceeds the specified limit, remove the oldest sample
+        if (samples_.size() > numSamples_) {
+            samples_.erase(samples_.begin());
+        }
+
+        double sum = 0.0;
+        // Calculate the sum of all samples in the window
+        for (double sample : samples_) {
+            sum += sample;
+        }
+
+        // Calculate the average of the samples, which is the low-pass filtered value
+        return sum / samples_.size();
+    }
+
+    // High-Pass Filter Method
+    double HighPassFilter(double inputValue) {
+        // Store the input value in the samples vector
+        samples_.push_back(inputValue);
+
+        // If the number of samples exceeds the specified limit, remove the oldest sample
+        if (samples_.size() > numSamples_) {
+            samples_.erase(samples_.begin());
+        }
+
+        double sum = 0.0;
+        // Calculate the sum of all samples in the window
+        for (double sample : samples_) {
+            sum += sample;
+        }
+
+        // Calculate the high-pass filtered value by subtracting the low-pass filtered value
+        return inputValue - (sum / samples_.size());
+    }
+
+    // Mid-Pass Filter Method
+    double MidPassFilter(double inputValue) {
+        // Apply both low-pass and high-pass filters in sequence to achieve a mid-pass effect
+        return HighPassFilter(LowPassFilter(inputValue));
+    }
+
+private:
+    int numSamples_;
+    std::vector<double> samples_;
+};
+
+
+
+
 typedef enum 
 {
   NON_STATUS,
@@ -72,16 +133,22 @@ typedef enum
 }status;
 status lineStatus[12]={NON_STATUS};
 
-struct
+
+ typedef enum{
+    STOP,
+    START
+  
+  }STATE;
+  
+
+ struct
 {
-  enum{
-    START,
-    STOP
-  }status;
-  unsigned long value;
-}Timer;
+  STATE status;
+  unsigned long value=0;
+}timer;
+//Timer timer;
 
-
+//timer.status = START;
 unsigned long currentTime  = 0;
 unsigned long ledBlinkTime  = 0;
 unsigned long buttonPressTime  = 0;
@@ -91,9 +158,11 @@ unsigned long batteryScanTime =0;
 
 unsigned long fultSencetimer = 0;
 unsigned long fultCounter = 10;
-unsigned long fireDebounceTimer =0;
 
 unsigned long learningProcessCounter = 10;
+
+int j = 0;
+char i = 0;
 
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
@@ -106,7 +175,7 @@ void setup() {
   GPIOInit();
   mySerial.begin(9600);
   sr.setAllHigh();
-
+  
 // Timers configuration
 #if defined(TIM1)
   TIM_TypeDef *Instance = TIM1;
@@ -164,53 +233,65 @@ void setup() {
   delay(25);
   mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
 }
+    
 
 void loop() {
-
-
-  buttonchek();
-  digitalWrite(LEDerror, HIGH);
-  batpowerchek1();
-  buttonchek();
-  Muxread(muxPosition );
-  Linechek();
-  buttonchek();
-
+    Filter filter(5);
+    buttonchek();
+    digitalWrite(LEDerror, HIGH);
+    batpowerchek1();
+    Muxread(muxPosition );
+    Linechek();
+    buttonchek();
+   /* buttonchek();
   
+      for ( i = 0; i <5; i++  ) 
+      {
+        Muxread(muxPosition );
+        Linechek();
+          for(j = 0; j < ((cardSituation  + 1) * 4); j++)
+         {
+          lineCurrent[j]=filter.LowPassFilter(lineCurrent[j]);
+          buttonchek();
+         }
 
-    for (byte i = 0; i < ((cardSituation  + 1) * 4); i++) {
+      }
+    
+ buttonchek();*/
+        
+   
+   
+
+    for ( i = 0; i < ((cardSituation  + 1) * 4); i++) {
 
     
 
       if(learningProcessCounter==0){
 
-      if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
-        printVoltageAlert(i, lineVoltage[i]);
-        digitalWrite(lineControlPins[i], LOW);
-        shortCircuitDetected[i]= shortCircuitDetected[i]+2;
+        if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
+          printVoltageAlert(i, lineVoltage[i]);
+          digitalWrite(lineControlPins[i], LOW);
+          shortCircuitDetected[i]= shortCircuitDetected[i]+2;
 
-      } else {
-        
-         lineStatus[i] = processCurrentConditions(i);
-          mySerial.print(lineStatus[i]);
-      }
-      if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
-      {
-        shortCircuitTime=currentTime;
-        digitalWrite(lineControlPins[i], HIGH);
-        shortCircuitDetected[i]=0;
-        limitTimeSC++;
-        if (limitTimeSC > 55) limitTimeSC = 4;
-      }
-
+        } 
+        else {
+          
+          lineStatus[i] = processCurrentConditions(i);
+            mySerial.print(lineStatus[i]);
         }
+        if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
+        {
+          shortCircuitTime=currentTime;
+          digitalWrite(lineControlPins[i], HIGH);
+          shortCircuitDetected[i]=0;
+          limitTimeSC++;
+          if (limitTimeSC > 55) limitTimeSC = 4;
+        }
+
+      }
 
     }
 
-     mySerial.print("\n");
-       mySerial.print("learnCounter =");
-       mySerial.print(learningProcessCounter);
-       mySerial.print("\n"); 
     if(learningProcessCounter>0)learningProcessCounter--;
     
     handleThresholdFaults();
@@ -474,24 +555,43 @@ bool enableBeeper() {
 
 // Function to process current conditions
  status processCurrentConditions(byte line) {
+    static int fierLouckBit=0;
+   static int fierDebounce=0;
 
- mySerial.print("\n"); 
-  mySerial.print("fireDebounceTimer=");
-  mySerial.print(fireDebounceTimer);
+       mySerial.print("\n"); 
+       mySerial.print("timer.value ");
+       mySerial.print(timer.value );
+       mySerial.print("\n"); 
+       mySerial.print("\n");
+       mySerial.print("fierDebounce =");
+       mySerial.print(fierDebounce);
+       mySerial.print("\n"); 
 
-   mySerial.print("\n");
 
-  
+  if((timer.value > 40 )&&(fierDebounce <= 10)&&(fierLouckBit==0))
+ {
+    mySerial.print("\n");
+    mySerial.print("=========================================================================");
+    mySerial.print("\n");
+    mySerial.print("============================RESET DEBUNCE================================");
+    mySerial.print("\n");
+    mySerial.print("=========================================================================");
+    mySerial.print("\n");
+  fierDebounce=0;
+  timer.value=0;
+  timer.status=STOP;
+ }
 
-  static int flag=0;
-  static int fierDebounce=0;
-  mySerial.print("\n");
+
+ /* mySerial.print("\n");
   mySerial.print("line=");
   mySerial.print(line);
-
   mySerial.print("Current=");
   mySerial.print(lineCurrent[line]) ;
-  mySerial.print("\n");
+  mySerial.print("\n");*/
+
+
+   
 
   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
@@ -510,27 +610,39 @@ bool enableBeeper() {
 
   } 
    
-  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD))
+  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)&&(fierLouckBit==0))
   {   
-      if (flag==0){
+      
         fierDebounce++;
-        }
-        
-        mySerial.print("\n");
-        mySerial.print("*****************Detect********************************");
-        mySerial.print("\n");
-       mySerial.print("\n");
-       mySerial.print("fierDebounce =");
-       mySerial.print(fierDebounce);
-       mySerial.print("\n"); 
+       timer.status = START;
+     
+     
+     
+      mySerial.print("\n");
+      mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+      mySerial.print("\n");
+
+   
+
   } 
- if( (fierDebounce >=100)&&((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)) )
+    
+
+   
+
+
+  
+ 
+
+ if( (fierDebounce >9)&&((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD) )||(fierLouckBit==1) )
   {
 
-      flag=1;
+      fierLouckBit=1;
+      fierDebounce=0;
+      timer.status = STOP;
 
         mySerial.print("\n");
         mySerial.print("============================FIER================================");
+       
         mySerial.print("\n");
     
       // Handle fire detection conditions
@@ -932,11 +1044,13 @@ void Update_IT_callback(void) {  // 10hz
   currentTime ++;
   fultSencetimer++;
 
- /*  if (timer.status  == Timer::START) {
+    if (timer.status  == START) 
+    {
        timer.value++;
-    } else if (timer.status == Timer::START) {
+    } else if (timer.status ==STOP) 
+    {
       timer.value=0;
-    }*/
+    }
   
   
   ledBlinker2 = !ledBlinker2;
@@ -990,28 +1104,3 @@ void Relaycont() {
   }
 }
 
-
-float averageFilter(char numberOfSamples , float Sample)
-{
-
-  static char cunter=0;
-  static float samples[4]={0.0};
-  //float *samples = (float *)malloc(numberOfSamples * sizeof(float)); 
- 
-    samples[cunter] = Sample;
-  cunter++;
-  
-  if (cunter == numberOfSamples)
-  {
-   double temp=0.0;
-   for (char i = 0; i < numberOfSamples; i++) {
-        // Replace this with your actual ADC reading code
-        // Simulated ADC reading (replace with real ADC value)
-        temp = temp+samples[i];
-    }
-
-   cunter=0;
-  // free(samples);
-   return temp/numberOfSamples;
-  }
-}
