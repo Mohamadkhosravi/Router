@@ -1,116 +1,12 @@
 #include <Main.h>
-
 #include <IWatchdog.h>
 #include <ShiftRegister74HC595.h>
 #include <SoftwareSerial.h>
 #include <Arduino.h>
 
 
-#define MAXIMUM_TIME_FOR_FIER_DETECT 40  //4sec
-#define MINIMUM_REPEAT_FOR_FIER_DETECT 10
-#define LIMIT_REPEAT_FOR_FIER_DETECT 9
-//#define FIER_DEBUG
-#define SHORT_CIRCUIT_DEBUG
-#define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], HIGH);
-#define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], LOW);
+const char lineControlPins[12] = { Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
 
-
-
-// Threshold values
-const float OPEN_THRESHOLD = 0.09;
-const float NORMAL_THRESHOLD = 0.24;
-const float FIRE_THRESHOLD = 1.1;
-const float SHORT_CIRCUIT_THRESHOLD = 0.4;
-const float LOWER_THRESHOLD_OUT = 0.1;
-const float UPPER_THRESHOLD_OUT = 0.49;
-
-
-// Flags
-bool batteryChecking = false;
-bool card1Present = false;
-bool card2Present = false;
-bool relayControl = false;
-bool faultFlag = false;
-bool fireFlag = false;
-bool batteryLowVoltage = false;
-bool supplyFault = false;
-bool batteryFail = false;
-bool powerFail = false;
-bool earthFail = false;
-bool generalFault = false;
-bool fireTrace = false;
-bool readAnalogs = false;
-bool buzzerEnabled = false;
-bool beeperEnabled = false;
-bool relayOn = false;
-bool relayCustomOn = false;
-bool relayStatus = false;
-bool relayCharging = false;
-bool batteryChargesFlag = false;
-bool ledBlinker1 = true;
-bool ledBlinker2 = true;
-bool buzzerControl = false;
-bool sounderLedStatus = false;
-
-byte CardPresentError = 0;
-// Data arrays
-float mux1Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux2Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux3Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux4Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-byte limitTimeSC = 3;
-byte muxPosition = 0;
-byte cardSituation = 0;
-const byte lineControlPins[12] = { PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, PB9, PB10, PB11 };
-const byte ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
-const byte ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
-
-byte lastLineSituations[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-byte firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-byte shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-
-typedef enum {
-  NON_STATUS,
-  OPEN_CIRCUIT,
-  NORMAL,
-  FIER,
-  SHORT_CIRCUIT
-} status;
-status lineStatus[12] = { NON_STATUS };
-
-
-typedef enum {
-  STOP,
-  START
-
-} STATE;
-
-
-struct
-{
-  STATE status;
-  unsigned long value = 0;
-} timer;
-//Timer timer;
-
-//timer.status = START;
-unsigned long currentTime = 0;
-unsigned long ledBlinkTime = 0;
-unsigned long buttonPressTime = 0;
-unsigned long shortCircuitTime = 0;
-unsigned long buzzerReadyTime = 0;
-unsigned long batteryScanTime = 0;
-
-unsigned long fultSencetimer = 0;
-unsigned long fultCounter = 10;
-
-unsigned long learningProcessCounter = 10;
-
-int j = 0;
-char i = 0;
 
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
@@ -182,7 +78,6 @@ void setup() {
   mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
 }
 
-
 void loop() {
 
   buttonchek();
@@ -194,47 +89,10 @@ void loop() {
 
   for (i = 0; i < ((cardSituation + 1) * 4); i++) {
 
-#ifdef SHORT_CIRCUIT_DEBUG
-
-    mySerial.print("\n");
-    mySerial.print("line");
-    mySerial.printf("%d", i);
-    mySerial.print("voltage =");
-    mySerial.print(lineVoltage[i]);
-    mySerial.print("\n");
-      #endif
     if (learningProcessCounter == 0) {
 
-
-      if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime > 1)) {
-
-        #ifdef SHORT_CIRCUIT_DEBUG
-        mySerial.print("\n");
-        mySerial.printf("====================shortCircuit line %d", i);
-        mySerial.print("=======================");
-        mySerial.print("\n");
-        #endif
-
-        lineON(i);
-        shortCircuitDetected[i] = shortCircuitDetected[i] + 2;
-
-      } else {
+        handelShortCircuit(i);
         lineStatus[i] = processCurrentConditions(i);
-      }
-      if ((shortCircuitDetected[i] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
-        #ifdef SHORT_CIRCUIT_DEBUG
-        mySerial.print("\n");
-        mySerial.print("==================== Open line ! ==================");
-
-        mySerial.print("\n");
-        #endif
-        shortCircuitTime = currentTime;
-
-        lineOFF(i);
-        shortCircuitDetected[i] = 0;
-        limitTimeSC++;
-        if (limitTimeSC > 55) limitTimeSC = 4;
-      }
     }
   }
   if (learningProcessCounter > 0) learningProcessCounter--;
@@ -253,7 +111,51 @@ void loop() {
 }
 
 
+void handelShortCircuit(byte numberLine)
+{
 
+
+  #ifdef SHORT_CIRCUIT_DEBUG
+
+    mySerial.print("\n");
+    mySerial.print("line");
+    mySerial.printf("%d", i);
+    mySerial.print("voltage =");
+    mySerial.print(lineVoltage[numberLine]);
+    mySerial.print("\n");
+    #endif
+
+  if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
+          #ifdef SHORT_CIRCUIT_DEBUG
+          mySerial.print("\n");
+          mySerial.print("==================== Open line ! ==================");
+
+          mySerial.print("\n");
+          #endif
+          shortCircuitTime = currentTime;
+
+          lineOFF(numberLine);
+          shortCircuitDetected[numberLine] = 0;
+          limitTimeSC++;
+          if (limitTimeSC > 55) limitTimeSC = 4;
+        }
+
+        if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime > 1)) {
+
+          #ifdef SHORT_CIRCUIT_DEBUG
+          mySerial.print("\n");
+          mySerial.printf("====================shortCircuit line %d", numberLine);
+          mySerial.print("=======================");
+          mySerial.print("\n");
+          #endif
+
+          lineON(numberLine);
+          shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
+
+        } 
+
+
+}
 
 // Function to check if a threshold fault is detected
 bool thresholdFaultDetected() {
@@ -475,18 +377,18 @@ status processCurrentConditions(byte line) {
   static int fierLouckBit = 0;
   static int repeatFireDetection = 0;
 
-#ifdef FIER_DEBUG
+  #ifdef FIER_DEBUG
 
-  mySerial.print("\n");
-  mySerial.print("timer.value ");
-  mySerial.print(timer.value);
-  mySerial.print("\n");
-  mySerial.print("\n");
-  mySerial.print("repeatFireDetection =");
-  mySerial.print(repeatFireDetection);
-  mySerial.print("\n");
+    mySerial.print("\n");
+    mySerial.print("timer.value ");
+    mySerial.print(timer.value);
+    mySerial.print("\n");
+    mySerial.print("\n");
+    mySerial.print("repeatFireDetection =");
+    mySerial.print(repeatFireDetection);
+    mySerial.print("\n");
 
-#endif
+  #endif
 
   if ((timer.value > MAXIMUM_TIME_FOR_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FOR_FIER_DETECT) && (fierLouckBit == 0)) {
 
@@ -500,22 +402,22 @@ status processCurrentConditions(byte line) {
     mySerial.print("=========================================================================");
     mySerial.print("\n");
 
-#endif
+    #endif
 
-    repeatFireDetection = 0;
-    timer.value = 0;
-    timer.status = STOP;
-  }
+      repeatFireDetection = 0;
+      timer.value = 0;
+      timer.status = STOP;
+    }
 
-#ifdef FIER_DEBUG
-  mySerial.print("\n");
-  mySerial.print("line=");
-  mySerial.print(line);
-  mySerial.print("Current=");
-  mySerial.print(lineCurrent[line]);
-  mySerial.print("\n");
+    #ifdef FIER_DEBUG
+      mySerial.print("\n");
+      mySerial.print("line=");
+      mySerial.print(line);
+      mySerial.print("Current=");
+      mySerial.print(lineCurrent[line]);
+      mySerial.print("\n");
 
-#endif
+    #endif
 
 
   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
@@ -539,11 +441,11 @@ status processCurrentConditions(byte line) {
     timer.status = START;
 
 
-#ifdef FIER_DEBUG
-    mySerial.print("\n");
-    mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-    mySerial.print("\n");
-#endif
+    #ifdef FIER_DEBUG
+        mySerial.print("\n");
+        mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+        mySerial.print("\n");
+    #endif
   }
 
   if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {
@@ -775,7 +677,7 @@ void buttonchek() {
       lineCurrent[i] = 0;
       lineVoltage[i] = 0;
       //lineSituations[i] = 0;      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-      lastLineSituations[i] = 0;  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+      
       firstSence[i] = 0;
       shortCircuitDetected[i] = 0;
     }
