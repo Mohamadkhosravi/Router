@@ -6,6 +6,15 @@
 #include <Arduino.h>
 
 
+#define MAXIMUM_TIME_FOR_FIER_DETECT 40  //4sec
+#define MINIMUM_REPEAT_FOR_FIER_DETECT 10
+#define LIMIT_REPEAT_FOR_FIER_DETECT 9
+//#define FIER_DEBUG
+#define SHORT_CIRCUIT_DEBUG
+#define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], HIGH);
+#define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], LOW);
+
+
 
 // Threshold values
 const float OPEN_THRESHOLD = 0.09;
@@ -19,7 +28,7 @@ const float UPPER_THRESHOLD_OUT = 0.49;
 // Flags
 bool batteryChecking = false;
 bool card1Present = false;
-bool card2Present= false;
+bool card2Present = false;
 bool relayControl = false;
 bool faultFlag = false;
 bool fireFlag = false;
@@ -27,7 +36,7 @@ bool batteryLowVoltage = false;
 bool supplyFault = false;
 bool batteryFail = false;
 bool powerFail = false;
-bool earthFail  = false;
+bool earthFail = false;
 bool generalFault = false;
 bool fireTrace = false;
 bool readAnalogs = false;
@@ -38,12 +47,12 @@ bool relayCustomOn = false;
 bool relayStatus = false;
 bool relayCharging = false;
 bool batteryChargesFlag = false;
-bool ledBlinker1  = true;
+bool ledBlinker1 = true;
 bool ledBlinker2 = true;
-bool buzzerControl  = false;
-bool sounderLedStatus  = false;
+bool buzzerControl = false;
+bool sounderLedStatus = false;
 
-byte CardPresentError  = 0;
+byte CardPresentError = 0;
 // Data arrays
 float mux1Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float mux2Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -51,9 +60,9 @@ float mux3Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float mux4Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-byte limitTimeSC  = 3;
-byte muxPosition  = 0;
-byte cardSituation  = 0;
+byte limitTimeSC = 3;
+byte muxPosition = 0;
+byte cardSituation = 0;
 const byte lineControlPins[12] = { PB0, PB1, PB2, PB3, PB4, PB5, PB6, PB7, PB8, PB9, PB10, PB11 };
 const byte ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
 const byte ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
@@ -63,98 +72,37 @@ byte firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 byte shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
-class Filter {
-  public:
-    Filter(int numSamples) : numSamples_(numSamples) {
-        samples_.reserve(numSamples_);
-    }
-
-    // Low-Pass Filter Method
-    double LowPassFilter(double inputValue) {
-        // Store the input value in the samples vector
-        samples_.push_back(inputValue);
-
-        // If the number of samples exceeds the specified limit, remove the oldest sample
-        if (samples_.size() > numSamples_) {
-            samples_.erase(samples_.begin());
-        }
-
-        double sum = 0.0;
-        // Calculate the sum of all samples in the window
-        for (double sample : samples_) {
-            sum += sample;
-        }
-
-        // Calculate the average of the samples, which is the low-pass filtered value
-        return sum / samples_.size();
-    }
-
-    // High-Pass Filter Method
-    double HighPassFilter(double inputValue) {
-        // Store the input value in the samples vector
-        samples_.push_back(inputValue);
-
-        // If the number of samples exceeds the specified limit, remove the oldest sample
-        if (samples_.size() > numSamples_) {
-            samples_.erase(samples_.begin());
-        }
-
-        double sum = 0.0;
-        // Calculate the sum of all samples in the window
-        for (double sample : samples_) {
-            sum += sample;
-        }
-
-        // Calculate the high-pass filtered value by subtracting the low-pass filtered value
-        return inputValue - (sum / samples_.size());
-    }
-
-    // Mid-Pass Filter Method
-    double MidPassFilter(double inputValue) {
-        // Apply both low-pass and high-pass filters in sequence to achieve a mid-pass effect
-        return HighPassFilter(LowPassFilter(inputValue));
-    }
-
-private:
-    int numSamples_;
-    std::vector<double> samples_;
-};
-
-
-
-
-typedef enum 
-{
+typedef enum {
   NON_STATUS,
   OPEN_CIRCUIT,
   NORMAL,
   FIER,
   SHORT_CIRCUIT
-}status;
-status lineStatus[12]={NON_STATUS};
+} status;
+status lineStatus[12] = { NON_STATUS };
 
 
- typedef enum{
-    STOP,
-    START
-  
-  }STATE;
-  
+typedef enum {
+  STOP,
+  START
 
- struct
+} STATE;
+
+
+struct
 {
   STATE status;
-  unsigned long value=0;
-}timer;
+  unsigned long value = 0;
+} timer;
 //Timer timer;
 
 //timer.status = START;
-unsigned long currentTime  = 0;
-unsigned long ledBlinkTime  = 0;
-unsigned long buttonPressTime  = 0;
-unsigned long shortCircuitTime  = 0;
-unsigned long buzzerReadyTime  = 0;
-unsigned long batteryScanTime =0;
+unsigned long currentTime = 0;
+unsigned long ledBlinkTime = 0;
+unsigned long buttonPressTime = 0;
+unsigned long shortCircuitTime = 0;
+unsigned long buzzerReadyTime = 0;
+unsigned long batteryScanTime = 0;
 
 unsigned long fultSencetimer = 0;
 unsigned long fultCounter = 10;
@@ -175,7 +123,7 @@ void setup() {
   GPIOInit();
   mySerial.begin(9600);
   sr.setAllHigh();
-  
+
 // Timers configuration
 #if defined(TIM1)
   TIM_TypeDef *Instance = TIM1;
@@ -194,12 +142,12 @@ void setup() {
   // Check if Card 2 is present
   if (digitalRead(CS2) == 0)
     card2Present = true;
-    
+
   if (card1Present & card2Present) {
-    cardSituation  = 2;
-  
+    cardSituation = 2;
+
   } else if (card1Present) {
-    cardSituation  = 1;
+    cardSituation = 1;
     digitalWrite(Line1, HIGH);
     digitalWrite(Line2, HIGH);
     digitalWrite(Line3, HIGH);
@@ -209,7 +157,7 @@ void setup() {
     digitalWrite(Line7, HIGH);
     digitalWrite(Line8, HIGH);
   } else {
-    cardSituation  = 0;
+    cardSituation = 0;
     digitalWrite(Line1, HIGH);
     digitalWrite(Line2, HIGH);
     digitalWrite(Line3, HIGH);
@@ -218,8 +166,8 @@ void setup() {
 
 
   IWatchdog.begin(5000000);  // 5000ms
-  shortCircuitTime  = currentTime ;
-  
+  shortCircuitTime = currentTime;
+
   digitalWrite(LEDerror, HIGH);
   digitalWrite(Sela, LOW);
   digitalWrite(Selb, LOW);
@@ -233,107 +181,79 @@ void setup() {
   delay(25);
   mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
 }
-    
+
 
 void loop() {
-    Filter filter(5);
-    buttonchek();
-    digitalWrite(LEDerror, HIGH);
-    batpowerchek1();
-    Muxread(muxPosition );
-    Linechek();
-    buttonchek();
-   /* buttonchek();
-  
-      for ( i = 0; i <5; i++  ) 
-      {
-        Muxread(muxPosition );
-        Linechek();
-          for(j = 0; j < ((cardSituation  + 1) * 4); j++)
-         {
-          lineCurrent[j]=filter.LowPassFilter(lineCurrent[j]);
-          buttonchek();
-         }
 
+  buttonchek();
+  digitalWrite(LEDerror, HIGH);
+  batpowerchek1();
+  Muxread(muxPosition);
+  Linechek();
+  buttonchek();
+
+  for (i = 0; i < ((cardSituation + 1) * 4); i++) {
+
+#ifdef SHORT_CIRCUIT_DEBUG
+
+    mySerial.print("\n");
+    mySerial.print("line");
+    mySerial.printf("%d", i);
+    mySerial.print("voltage =");
+    mySerial.print(lineVoltage[i]);
+    mySerial.print("\n");
+      #endif
+    if (learningProcessCounter == 0) {
+
+
+      if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime > 1)) {
+
+        #ifdef SHORT_CIRCUIT_DEBUG
+        mySerial.print("\n");
+        mySerial.printf("====================shortCircuit line %d", i);
+        mySerial.print("=======================");
+        mySerial.print("\n");
+        #endif
+
+        lineON(i);
+        shortCircuitDetected[i] = shortCircuitDetected[i] + 2;
+
+      } else {
+        lineStatus[i] = processCurrentConditions(i);
       }
-    
- buttonchek();*/
-        
-   
-   
+      if ((shortCircuitDetected[i] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
+        #ifdef SHORT_CIRCUIT_DEBUG
+        mySerial.print("\n");
+        mySerial.print("==================== Open line ! ==================");
 
-    for ( i = 0; i < ((cardSituation  + 1) * 4); i++) {
+        mySerial.print("\n");
+        #endif
+        shortCircuitTime = currentTime;
 
-    
-
-      if(learningProcessCounter==0){
-
-        if ((lineVoltage[i] < SHORT_CIRCUIT_THRESHOLD) && (currentTime  - shortCircuitTime  > 1)) {
-          printVoltageAlert(i, lineVoltage[i]);
-          digitalWrite(lineControlPins[i], LOW);
-          shortCircuitDetected[i]= shortCircuitDetected[i]+2;
-
-        } 
-        else {
-          
-          lineStatus[i] = processCurrentConditions(i);
-            mySerial.print(lineStatus[i]);
-        }
-        if( (shortCircuitDetected[i]>0)&&(currentTime  - shortCircuitTime  >limitTimeSC ) )
-        {
-          shortCircuitTime=currentTime;
-          digitalWrite(lineControlPins[i], HIGH);
-          shortCircuitDetected[i]=0;
-          limitTimeSC++;
-          if (limitTimeSC > 55) limitTimeSC = 4;
-        }
-
+        lineOFF(i);
+        shortCircuitDetected[i] = 0;
+        limitTimeSC++;
+        if (limitTimeSC > 55) limitTimeSC = 4;
       }
-
     }
-
-    if(learningProcessCounter>0)learningProcessCounter--;
-    
-    handleThresholdFaults();
-    handleSupplyAndpowerFailures();
-    handleCardPresentErrors();
-  
-    if (timeForLedBlink()) {
-      toggleLedState();
-      Ledcontrol(lineStatus);
-    }
-    Relaycont();
-    IWatchdog.reload();
-    updateMuxPosition();
-    checkAndEnableBeeper();
-
-    }
-
-
-
-// Set all lines low
-void SetAllLinesLow() {
-  for (int i = 0; i < 12; i++) {
-    digitalWrite(lineControlPins[i], LOW);
   }
-}
+  if (learningProcessCounter > 0) learningProcessCounter--;
 
-// Set all lines high
-void SetAllLinesHigh() {
-  for (int i = 0; i < 12; i++) {
-    digitalWrite(lineControlPins[i], HIGH);
+  handleThresholdFaults();
+  handleSupplyAndpowerFailures();
+  handleCardPresentErrors();
+  if (timeForLedBlink()) {
+    toggleLedState();
+    Ledcontrol(lineStatus);
   }
+  Relaycont();
+  IWatchdog.reload();
+  updateMuxPosition();
+  checkAndEnableBeeper();
 }
 
-// Set a specific line high
-void SetLineHigh(int line) {
-  digitalWrite(lineControlPins[line - 1], HIGH);
-}
 
-// Set a specific line low
-void SetLineLow(int line) {
-  digitalWrite(lineControlPins[line - 1], LOW);
-}
+
 
 // Function to check if a threshold fault is detected
 bool thresholdFaultDetected() {
@@ -346,7 +266,7 @@ void handleThresholdFaults() {
 
     if (generalFault) generalFault = false;
     relayOn = true;
-    buzzerControl  = true;
+    buzzerControl = true;
   } else {
     relayOn = false;
   }
@@ -365,7 +285,7 @@ bool powerFailureDetected() {
 void handleSupplyAndpowerFailures() {
   if (supplyFailureDetected()) {
     supplyFault = false;
-    buzzerControl  = true;
+    buzzerControl = true;
     batteryChecking = false;
   } else {
     if (!batteryChecking)
@@ -376,14 +296,14 @@ void handleSupplyAndpowerFailures() {
 
   if (powerFailureDetected()) {
     powerFail = true;
-    buzzerControl  = true;
+    buzzerControl = true;
   } else {
     powerFail = false;
   }
 }
 // Function to check if it's time to toggle the LED
 bool timeForLedBlink() {
-  return (currentTime  - ledBlinkTime ) > 6;
+  return (currentTime - ledBlinkTime) > 6;
 }
 
 void batpowerchek1() {
@@ -397,12 +317,14 @@ void batpowerchek1() {
     }
   }
   if (relayCharging) {
-    if (currentTime  - batteryScanTime   > 50) {
+
+    if (currentTime - batteryScanTime > 50) {
+
       if ((mux4Values[0] * 41) > 16) {
         digitalWrite(Sela, LOW);
         digitalWrite(Selb, LOW);
         digitalWrite(Selc, LOW);
-        batteryScanTime   = currentTime ;
+        batteryScanTime = currentTime;
         digitalWrite(ChangeVolt, HIGH);
         delay(55);
         do {
@@ -415,7 +337,8 @@ void batpowerchek1() {
               break;
             cont = 0;
           }
-        } while ((currentTime  - batteryScanTime  ) > 21);
+        } while ((currentTime - batteryScanTime) > 21);
+
         digitalWrite(Sela, HIGH);
         digitalWrite(Selb, HIGH);
         digitalWrite(Selc, LOW);
@@ -449,25 +372,19 @@ void batpowerchek1() {
   powerFail = false;
 }
 // Function to print voltage alert
-void printVoltageAlert(byte line, float voltage) {
-  mySerial.print("line");
-  mySerial.print(line);
-  mySerial.print(",");
-  mySerial.println(voltage);
-}
 
 void Ledcontrol(status lineSituations[12]) {
   for (byte i = 0; i < 12; i++) {
 
     if ((lineSituations[i] == 1) || (lineSituations[i] == 4)) {  // Fault mode
-      sr.set(ledErrorsPins[i], ledBlinker1 );
-      if (buzzerControl  && !generalFault && !fireTrace)
-        digitalWrite(MCUbuzz, ledBlinker1 );
+      sr.set(ledErrorsPins[i], ledBlinker1);
+      if (buzzerControl && !generalFault && !fireTrace)
+        digitalWrite(MCUbuzz, ledBlinker1);
       else
         digitalWrite(MCUbuzz, LOW);
 
     } else if (lineSituations[i] == 3) {  // Fire mode
-      sr.set(ledFirePins[i], ledBlinker1 );
+      sr.set(ledFirePins[i], ledBlinker1);
       sr.set(ledefiremode, LOW);
       if (fireTrace)
         digitalWrite(MCUbuzz, HIGH);
@@ -477,7 +394,7 @@ void Ledcontrol(status lineSituations[12]) {
       sr.set(ledErrorsPins[i], HIGH);
       sr.set(ledFirePins[i], HIGH);
       if ((batteryFail || powerFail || supplyFault) && !generalFault)
-        digitalWrite(MCUbuzz, ledBlinker1 );
+        digitalWrite(MCUbuzz, ledBlinker1);
       else
         digitalWrite(MCUbuzz, LOW);
     }
@@ -497,8 +414,8 @@ void Ledcontrol(status lineSituations[12]) {
   else
     sr.set(ledebat, HIGH);
   if (batteryLowVoltage) {
-    sr.set(ledebat, ledBlinker1 );
-    sr.set(ledemainpower, ledBlinker1 );
+    sr.set(ledebat, ledBlinker1);
+    sr.set(ledemainpower, ledBlinker1);
   }
   if (powerFail)
     sr.set(ledemainpower, LOW);
@@ -524,18 +441,18 @@ void Ledcontrol(status lineSituations[12]) {
 
 // Function to toggle the LED state
 void toggleLedState() {
-  ledBlinkTime  = currentTime ;
-  ledBlinker1  = !ledBlinker1 ;
+  ledBlinkTime = currentTime;
+  ledBlinker1 = !ledBlinker1;
 }
 
 // Function to update the mux position for analog readings
 void updateMuxPosition() {
-  if (muxPosition  < 8) {
-    if (muxPosition  == 7) {
-      muxPosition  = 0;
+  if (muxPosition < 8) {
+    if (muxPosition == 7) {
+      muxPosition = 0;
       readAnalogs = true;
     } else {
-      muxPosition ++;
+      muxPosition++;
     }
   }
 }
@@ -543,33 +460,38 @@ void updateMuxPosition() {
 // Function to check and enable the beeperEnabled
 void checkAndEnableBeeper() {
   if (enableBeeper()) {
-    buzzerReadyTime  = currentTime ;
+    buzzerReadyTime = currentTime;
     beeperEnabled = true;
   }
 }
 
 // Function to check if the beeperEnabled should be enabled
 bool enableBeeper() {
-  return (buzzerControl  && generalFault && !fireTrace && (currentTime  - buzzerReadyTime  > 300));
+  return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
 // Function to process current conditions
- status processCurrentConditions(byte line) {
-    static int fierLouckBit=0;
-   static int fierDebounce=0;
+status processCurrentConditions(byte line) {
+  static int fierLouckBit = 0;
+  static int repeatFireDetection = 0;
 
-       mySerial.print("\n"); 
-       mySerial.print("timer.value ");
-       mySerial.print(timer.value );
-       mySerial.print("\n"); 
-       mySerial.print("\n");
-       mySerial.print("fierDebounce =");
-       mySerial.print(fierDebounce);
-       mySerial.print("\n"); 
+#ifdef FIER_DEBUG
 
+  mySerial.print("\n");
+  mySerial.print("timer.value ");
+  mySerial.print(timer.value);
+  mySerial.print("\n");
+  mySerial.print("\n");
+  mySerial.print("repeatFireDetection =");
+  mySerial.print(repeatFireDetection);
+  mySerial.print("\n");
 
-  if((timer.value > 40 )&&(fierDebounce <= 10)&&(fierLouckBit==0))
- {
+#endif
+
+  if ((timer.value > MAXIMUM_TIME_FOR_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FOR_FIER_DETECT) && (fierLouckBit == 0)) {
+
+#ifdef FIER_DEBUG
+
     mySerial.print("\n");
     mySerial.print("=========================================================================");
     mySerial.print("\n");
@@ -577,122 +499,99 @@ bool enableBeeper() {
     mySerial.print("\n");
     mySerial.print("=========================================================================");
     mySerial.print("\n");
-  fierDebounce=0;
-  timer.value=0;
-  timer.status=STOP;
- }
 
+#endif
 
- /* mySerial.print("\n");
+    repeatFireDetection = 0;
+    timer.value = 0;
+    timer.status = STOP;
+  }
+
+#ifdef FIER_DEBUG
+  mySerial.print("\n");
   mySerial.print("line=");
   mySerial.print(line);
   mySerial.print("Current=");
-  mySerial.print(lineCurrent[line]) ;
-  mySerial.print("\n");*/
+  mySerial.print(lineCurrent[line]);
+  mySerial.print("\n");
 
+#endif
 
-   
 
   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
 
-  if(firstSence[line] == 0){
+  if (firstSence[line] == 0) {
 
-    if (lineCurrent[line] < OPEN_THRESHOLD) { 
+    if (lineCurrent[line] < OPEN_THRESHOLD) {
 
       return OPEN_CIRCUIT;
-    
-    } else if( ( lineCurrent[line] > OPEN_THRESHOLD ) && (lineCurrent[line] < NORMAL_THRESHOLD) ){
+
+    } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
 
       return NORMAL;
+    }
+  }
 
+  if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)) {
+
+    repeatFireDetection++;
+    timer.status = START;
+
+
+#ifdef FIER_DEBUG
+    mySerial.print("\n");
+    mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+    mySerial.print("\n");
+#endif
+  }
+
+  if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {
+
+    fierLouckBit = 1;
+    repeatFireDetection = 0;
+    timer.status = STOP;
+
+    mySerial.print("\n");
+    mySerial.print("============================FIER================================");
+
+    mySerial.print("\n");
+
+    // Handle fire detection conditions
+    fultSencetimer = 0;  // fire alarming
+    delay(55);
+
+    if (firstSence[line] == 1) {
+
+      digitalWrite(lineControlPins[line], LOW);
+      delay(55);
+    }
+    if (firstSence[line] == 2) {
+
+      digitalWrite(lineControlPins[line], HIGH);
     }
 
-  } 
-   
-  if ((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD)&&(fierLouckBit==0))
-  {   
-      
-        fierDebounce++;
-       timer.status = START;
-     
-     
-     
-      mySerial.print("\n");
-      mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
-      mySerial.print("\n");
+    if (firstSence[line] == 3) {
 
-   
-
-  } 
-    
-
-   
-
-
-  
- 
-
- if( (fierDebounce >9)&&((lineCurrent[line] > NORMAL_THRESHOLD ) && (lineCurrent[line] < FIRE_THRESHOLD) )||(fierLouckBit==1) )
-  {
-
-      fierLouckBit=1;
-      fierDebounce=0;
-      timer.status = STOP;
-
-        mySerial.print("\n");
-        mySerial.print("============================FIER================================");
-       
-        mySerial.print("\n");
-    
-      // Handle fire detection conditions
-      fultSencetimer = 0;  // fire alarming
-      delay(55);
-
-      if (firstSence[line] == 1) {
-
-        digitalWrite(lineControlPins[line], LOW);
-        delay(55);
-
-      } 
-      if (firstSence[line] == 2) {
-
-        digitalWrite(lineControlPins[line], HIGH);
-      }
-
-      if (firstSence[line] == 3) {
-
-        fireTrace = true;
-        fireFlag = true;
-        relayControl = false;
-        relayCustomOn = false;
-        sr.set(ledebuz, HIGH);
-        sr.set(ledesounder, HIGH);
-        return FIER;
-      }
+      fireTrace = true;
+      fireFlag = true;
+      relayControl = false;
+      relayCustomOn = false;
+      sr.set(ledebuz, HIGH);
+      sr.set(ledesounder, HIGH);
+      return FIER;
+    }
 
     firstSence[line] = firstSence[line] + 1;
     delay(55);
 
-
-
-          
-      }
-
-
-
-
-  
-  else
-  {
-    //fierDebounce=0;
+  } else {
+    //repeatFireDetection=0;
 
     if (firstSence[line] == 0)
-   
-       return SHORT_CIRCUIT;
-     
-  }
 
+      return SHORT_CIRCUIT;
+  }
 }
 
 // Function to check if all values in a range are zero
@@ -709,20 +608,20 @@ bool allZerosInRange(int start, int end) {
 
 // Function to handle card present errors
 void handleCardPresentErrors() {
-  if (cardSituation  == 1) {
+  if (cardSituation == 1) {
     if (allZerosInRange(4, 7)) {
-      CardPresentError  = 1;
+      CardPresentError = 1;
     } else {
-      CardPresentError  = 0;
+      CardPresentError = 0;
     }
   }
-  if (cardSituation  == 2) {
+  if (cardSituation == 2) {
     if (allZerosInRange(4, 7) && allZerosInRange(8, 11)) {
-      CardPresentError  = 3;
+      CardPresentError = 3;
     } else if (allZerosInRange(8, 11)) {
-      CardPresentError  = 2;
+      CardPresentError = 2;
     } else {
-      CardPresentError  = 0;
+      CardPresentError = 0;
     }
   }
 }
@@ -731,7 +630,7 @@ void handleCardPresentErrors() {
 
 void Linechek() {
 
-  switch (cardSituation ) {
+  switch (cardSituation) {
     case 0:
       lineVoltage[3] = mux1Values[0];
       lineCurrent[3] = mux1Values[3];
@@ -828,8 +727,8 @@ void Muxread(byte add) {
 
 void buttonchek() {
   if (digitalRead(But5) == 0) {  // Buzzer off
-    if (currentTime  - buttonPressTime  > 10) {
-      buttonPressTime  = currentTime ;
+    if (currentTime - buttonPressTime > 10) {
+      buttonPressTime = currentTime;
       generalFault = !generalFault;
     }
   }
@@ -837,8 +736,8 @@ void buttonchek() {
     sr.setAllLow();
     delay(550);
     byte initi = 0;
-    initi = CardPresentError ;
-    CardPresentError  = 0;
+    initi = CardPresentError;
+    CardPresentError = 0;
     int x = 0;
     do {
       IWatchdog.reload();
@@ -851,7 +750,7 @@ void buttonchek() {
     delay(550);
     IWatchdog.reload();
     sr.setAllHigh();
-    CardPresentError  = initi;
+    CardPresentError = initi;
   }
   if (digitalRead(But3) == 0) {  // All Line Reset
     digitalWrite(Line1, LOW);
@@ -880,23 +779,25 @@ void buttonchek() {
       firstSence[i] = 0;
       shortCircuitDetected[i] = 0;
     }
-    limitTimeSC  = 3;
-    muxPosition  = 0;
+
+    limitTimeSC = 3;
+
+    muxPosition = 0;
     // cardSituation  = 0;
-    currentTime  = 0;
-    ledBlinkTime  = 0;
-    buttonPressTime  = 0;
-    shortCircuitTime  = 0;
-    buzzerReadyTime  = 0;
+    currentTime = 0;
+    ledBlinkTime = 0;
+    buttonPressTime = 0;
+    shortCircuitTime = 0;
+    buzzerReadyTime = 0;
     fultSencetimer = 0;
-    ledBlinker1  = true;
+    ledBlinker1 = true;
     ledBlinker2 = true;
-    buzzerControl  = false;
-    sounderLedStatus  = false;
+    buzzerControl = false;
+    sounderLedStatus = false;
     supplyFault = false;
     batteryFail = false;
     powerFail = false;
-    earthFail  = false;
+    earthFail = false;
     generalFault = false;
     fireTrace = false;
     relayControl = false;
@@ -911,7 +812,7 @@ void buttonchek() {
     IWatchdog.reload();
     delay(900);
     IWatchdog.reload();
-    if (cardSituation  == 2) {
+    if (cardSituation == 2) {
       digitalWrite(Line1, HIGH);
       digitalWrite(Line2, HIGH);
       digitalWrite(Line3, HIGH);
@@ -924,7 +825,7 @@ void buttonchek() {
       digitalWrite(Line10, HIGH);
       digitalWrite(Line11, HIGH);
       digitalWrite(Line12, HIGH);
-    } else if (cardSituation  == 1) {
+    } else if (cardSituation == 1) {
       digitalWrite(Line1, HIGH);
       digitalWrite(Line2, HIGH);
       digitalWrite(Line3, HIGH);
@@ -941,32 +842,32 @@ void buttonchek() {
     }
     delay(100);
     IWatchdog.reload();
-    Muxread(muxPosition );
+    Muxread(muxPosition);
   }
   if (digitalRead(But2) == 0) {  // Alarm rely on
-    if (currentTime  - buttonPressTime  > 13) {
-      buttonPressTime  = currentTime ;
+    if (currentTime - buttonPressTime > 13) {
+      buttonPressTime = currentTime;
       relayControl = true;
       sr.set(ledesounder, HIGH);
       //  mySerial.println("alarm on");
-      if (sounderLedStatus ) {
-        sounderLedStatus  = !sounderLedStatus ;
+      if (sounderLedStatus) {
+        sounderLedStatus = !sounderLedStatus;
         relayCustomOn = false;
       }
     }
   }
   if (digitalRead(But1) == 0) {  // Alarm rely off
 
-    if (currentTime  - buttonPressTime  > 13) {
-      buttonPressTime  = currentTime ;
+    if (currentTime - buttonPressTime > 13) {
+      buttonPressTime = currentTime;
       relayControl = false;
       // mySerial.println("alarm off");
       if (fireFlag) {
         fireFlag = false;
         sr.set(ledesounder, LOW);
       }
-      if (!sounderLedStatus )
-        sounderLedStatus  = !sounderLedStatus ;
+      if (!sounderLedStatus)
+        sounderLedStatus = !sounderLedStatus;
       relayCustomOn = true;
     }
   }
@@ -1037,35 +938,33 @@ void GPIOInit(void) {
   pinMode(Analog3, INPUT_ANALOG);
   pinMode(Analog4, INPUT_ANALOG);
 
-   pinMode(LEDerror, OUTPUT);
+  pinMode(LEDerror, OUTPUT);
 }
 
 void Update_IT_callback(void) {  // 10hz
-  currentTime ++;
+  currentTime++;
   fultSencetimer++;
 
-    if (timer.status  == START) 
-    {
-       timer.value++;
-    } else if (timer.status ==STOP) 
-    {
-      timer.value=0;
-    }
-  
-  
+  if (timer.status == START) {
+    timer.value++;
+  } else if (timer.status == STOP) {
+    timer.value = 0;
+  }
+
+
   ledBlinker2 = !ledBlinker2;
-  if (CardPresentError  > 0) {
-    if (CardPresentError  == 1) {
+  if (CardPresentError > 0) {
+    if (CardPresentError == 1) {
       sr.set(ledErrorsPins[4], ledBlinker2);
       sr.set(ledErrorsPins[5], ledBlinker2);
       sr.set(ledErrorsPins[6], ledBlinker2);
       sr.set(ledErrorsPins[7], ledBlinker2);
-    } else if (CardPresentError  == 2) {
+    } else if (CardPresentError == 2) {
       sr.set(ledErrorsPins[8], ledBlinker2);
       sr.set(ledErrorsPins[9], ledBlinker2);
       sr.set(ledErrorsPins[10], ledBlinker2);
       sr.set(ledErrorsPins[11], ledBlinker2);
-    } else if (CardPresentError  == 3) {
+    } else if (CardPresentError == 3) {
       sr.set(ledErrorsPins[4], ledBlinker2);
       sr.set(ledErrorsPins[5], ledBlinker2);
       sr.set(ledErrorsPins[6], ledBlinker2);
@@ -1103,4 +1002,3 @@ void Relaycont() {
     }
   }
 }
-

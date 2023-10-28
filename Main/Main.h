@@ -1,4 +1,6 @@
-
+#define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
+#define MINIMUM_REPEAT_FOR_FIER_DETECT 10
+#define LIMIT_REPEAT_FOR_FIER_DETECT 9
 
 // Defines Relys
 #define rel1 PD1
@@ -81,3 +83,22 @@
 #define ledemainpower 37
 #define ledefiremode 38
 #define panelon 39
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
