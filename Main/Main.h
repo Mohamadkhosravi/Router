@@ -1,4 +1,5 @@
-
+#ifndef MAIN_H
+#define  MAIN_H
 
 #define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
 #define MINIMUM_REPEAT_FOR_FIER_DETECT 10
@@ -170,6 +171,12 @@ struct
   STATE status;
   unsigned long value = 0;
 } timer;
+
+struct
+{
+  STATE status;
+  unsigned long value = 0;
+} timer1;
 //Timer timer;
 
 //timer.status = START;
@@ -201,5 +208,5 @@ char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
-
+#endif
 

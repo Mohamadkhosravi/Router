@@ -79,38 +79,41 @@ void setup() {
 
 void loop() {
 
-  buttonchek();
-  digitalWrite(LEDerror, HIGH);
-  batpowerchek1();
-  Muxread(muxPosition);
-  Linechek();
-  buttonchek();
-
-  for (i = 0; i < ((cardSituation + 1) * 4); i++) {
-
+  timer1.status=START;
+    buttonchek();
+    digitalWrite(LEDerror, HIGH);
+    batpowerchek1();
+    Muxread(muxPosition);
+    Linechek();
+    buttonchek();
     if (learningProcessCounter == 0) {
+      for (i = 0; i < ((cardSituation + 1) * 4); i++) {
 
-        handelShortCircuit(i);
-        lineStatus[i] = processCurrentConditions(i);
-       
-         mySerial.printf(" \n my status is== %d \n ", lineStatus[i]);
+      
 
+            handelShortCircuit(i);
+
+            lineStatus[i] = processCurrentConditions(i);
+          
+            mySerial.printf(" \n my status is== %d \n ", lineStatus[i]);
+
+            
         
+      }
     }
-  }
-  if (learningProcessCounter > 0) learningProcessCounter--;
+    if (learningProcessCounter > 0) learningProcessCounter--;
 
-  handleThresholdFaults();
-  handleSupplyAndpowerFailures();
-  handleCardPresentErrors();
-  if (timeForLedBlink()) {
-    toggleLedState();
-    Ledcontrol(lineStatus);
-  }
-  Relaycont();
-  IWatchdog.reload();
-  updateMuxPosition();
-  checkAndEnableBeeper();
+    handleThresholdFaults();
+    handleSupplyAndpowerFailures();
+    handleCardPresentErrors();
+    if (timeForLedBlink()) {
+      toggleLedState();
+      Ledcontrol(lineStatus);
+    }
+    Relaycont();
+    IWatchdog.reload();
+    updateMuxPosition();
+    checkAndEnableBeeper();
 }
 
 
@@ -118,7 +121,7 @@ void handelShortCircuit(byte numberLine)
 {
 
 
-  #ifdef SHORT_CIRCUIT_DEBUG
+    #ifdef SHORT_CIRCUIT_DEBUG
 
     mySerial.print("\n");
     mySerial.print("line");
@@ -135,22 +138,41 @@ void handelShortCircuit(byte numberLine)
 
     #endif
 
-  if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
-          #ifdef SHORT_CIRCUIT_DEBUG
-          mySerial.print("\n");
-          mySerial.print("==================== Open line ! ==================");
+    if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
+      #ifdef SHORT_CIRCUIT_DEBUG
+      mySerial.print("\n");
+      mySerial.print("==================== Open line ! ==================");
 
-          mySerial.print("\n");
-          #endif
-          shortCircuitTime = currentTime;
+      mySerial.print("\n");
+      #endif
+      shortCircuitTime = currentTime;
 
-          lineON(numberLine);
-          shortCircuitDetected[numberLine] = 0;
-          limitTimeSC++;
-          if (limitTimeSC > 55) limitTimeSC = 4;
-        }
+      lineON(numberLine);
+      shortCircuitDetected[numberLine] = 0;
+      limitTimeSC++;
+      if (limitTimeSC > 55) limitTimeSC = 4;
+    }
 
-        
+    if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD)) {
+
+      #ifdef SHORT_CIRCUIT_DEBUG
+      mySerial.print("\n");
+      mySerial.printf("====================shortCircuit line %d", numberLine);
+      mySerial.print("=======================");
+      mySerial.print("\n");
+      #endif
+
+      lineOFF(numberLine);
+  mySerial.printf("\n +++++++++++++++++++++++MYTIME=%d+++++++++++++++++++++++\n", timer1.value);
+  timer1.value=0;
+  timer1.status=STOP;
+
+      shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
+
+
+
+
+    } 
 }
 
 // Function to check if a threshold fault is detected
@@ -388,7 +410,7 @@ status processCurrentConditions(byte line) {
 
   if ((timer.value > MAXIMUM_TIME_FOR_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FOR_FIER_DETECT) && (fierLouckBit == 0)) {
 
-#ifdef FIER_DEBUG
+  #ifdef FIER_DEBUG
 
     mySerial.print("\n");
     mySerial.print("=========================================================================");
@@ -398,7 +420,7 @@ status processCurrentConditions(byte line) {
     mySerial.print("=========================================================================");
     mySerial.print("\n");
 
-    #endif
+   #endif
 
       repeatFireDetection = 0;
       timer.value = 0;
@@ -858,7 +880,11 @@ void Update_IT_callback(void) {  // 10hz
   } else if (timer.status == STOP) {
     timer.value = 0;
   }
-
+if (timer1.status == START) {
+    timer1.value++;
+  } else if (timer1.status == STOP) {
+    timer1.value = 0;
+  }
 
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
