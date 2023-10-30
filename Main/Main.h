@@ -3,15 +3,19 @@
 #define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
 #define MINIMUM_REPEAT_FOR_FIER_DETECT 10
 #define LIMIT_REPEAT_FOR_FIER_DETECT 9
+
 //#define FIER_DEBUG
 #define SHORT_CIRCUIT_DEBUG
-#define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], HIGH);
-#define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], LOW);
+
+#define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
+#define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
 // Threshold values
 #define OPEN_THRESHOLD  0.09
 #define NORMAL_THRESHOLD  0.24
-#define FIRE_THRESHOLD  1.1
-#define SHORT_CIRCUIT_THRESHOLD  0.4
+//#define FIRE_THRESHOLD  1.1
+#define FIRE_THRESHOLD  0.8
+//#define SHORT_CIRCUIT_THRESHOLD  0.4
+#define SHORT_CIRCUIT_THRESHOLD  0.95
 #define LOWER_THRESHOLD_OUT 0.1
 #define UPPER_THRESHOLD_OUT  0.49
 
