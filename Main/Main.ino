@@ -71,27 +71,21 @@ void setup() {
 }
 
 void loop() {
-   tempTime=millis(); 
-   timer1.status=START;
+  
     buttonchek();
     digitalWrite(LEDerror, HIGH);
     batpowerchek1();
     Muxread(muxPosition);
     Linechek();
     buttonchek();
-      // if (learningProcessCounter == 0) {
- 
+      
       for (i = 0; i < ((cardSituation + 1) * 4); i++) {
-
+          IWatchdog.reload();
             handelShortCircuit(i);
             lineStatus[i] = processCurrentConditions(i);
             
           
       }
-    //}
-    //if (learningProcessCounter > 0) learningProcessCounter--;
-
-    
 
     handleThresholdFaults();
     handleSupplyAndpowerFailures();
@@ -129,24 +123,19 @@ void handelShortCircuit(byte numberLine)
       mySerial.print("\n");
 
     #endif
-   // mySerial.printf(" \n Time STEP 1 === %d \n ", tempTime=millis()-tempTime); 
+  
 
     if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
-    #ifdef SHORT_CIRCUIT_DEBUG
-    mySerial.print("\n");
-    mySerial.print("==================== Open line ! ==================");
 
-    mySerial.print("\n");
-    #endif
     shortCircuitTime = currentTime;
-
     lineON(numberLine);
     shortCircuitDetected[numberLine] = 0;
     limitTimeSC++;
     if (limitTimeSC > 55) limitTimeSC = 4;
+
     }
 
-   // mySerial.printf(" \n Time STEP 2 === %d \n ", tempTime=millis()-tempTime); 
+  
     
     if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime>1 )) {
 
@@ -159,7 +148,7 @@ void handelShortCircuit(byte numberLine)
     lineOFF(numberLine);
     shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
     } 
-   // mySerial.printf(" \n Time STEP 3 === %d \n ", tempTime=millis()-tempTime); 
+ 
 }
 
 // Function to check if a threshold fault is detected
@@ -379,7 +368,7 @@ bool enableBeeper() {
 
 // Function to process current conditions
 status processCurrentConditions(byte line) {
-  static int fierLouckBit = 0;
+
   static int repeatFireDetection = 0;
 
   #ifdef FIER_DEBUG
@@ -432,12 +421,13 @@ status processCurrentConditions(byte line) {
 
     if (lineCurrent[line] < OPEN_THRESHOLD) {
 
-      /*
-          mySerial.print("\n");
-          mySerial.printf("====================shortCircuit line %d", numberLine);
-          mySerial.print("=======================");
-          mySerial.print("\n");*/
-          return OPEN_CIRCUIT;
+        #ifdef OPEN_CIRCUIT_DEBUG
+
+          mySerial.printf("OOOOOOOOOOOOOOO>>>OPEN_CIRCUIT line= %d <<<OOOOOOOOOOOOOOOOO\n", line);
+
+        #endif
+
+        return OPEN_CIRCUIT;
 
     } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
 
@@ -453,7 +443,7 @@ status processCurrentConditions(byte line) {
 
     #ifdef FIER_DEBUG
         mySerial.print("\n");
-        mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>Detect<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+        mySerial.print(">>>>>>>>>>>>>>>>>>>>>>>>>>>> Detect F <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
         mySerial.print("\n");
     #endif
   }
@@ -465,7 +455,7 @@ status processCurrentConditions(byte line) {
     timer.status = STOP;
 
     mySerial.print("\n");
-    mySerial.print("============================FIER================================");
+    mySerial.print("<<<!!!!!!!!!!!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>>>");
     mySerial.print("\n");
 
     // Handle fire detection conditions
@@ -502,9 +492,12 @@ status processCurrentConditions(byte line) {
     //repeatFireDetection=0;
       if (firstSence[line] == 0)
 
-      mySerial.print("\n");
-      mySerial.print("SSSSSSSSSSSSSSSSSSSSSS>>> STATUS CURENT IS SHORT_CIRCUIT <<<SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
-      mySerial.print("\n");
+      #ifdef SHORT_CIRCUIT
+            mySerial.print("\n");
+            mySerial.print("SSSSSSSSSSSSSSSSSSSSSS>>> STATUS CURENT IS SHORT_CIRCUIT <<<SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
+            mySerial.print("\n");
+      #endif
+
       return SHORT_CIRCUIT;
   }
 }
@@ -626,7 +619,7 @@ void Muxread(byte add) {
 
   // Delay as needed
 
-  //delay(25);
+   delay(25);
 
   // Read analog values and store them in the mux arrays
   for (int i = 0; i < 4; i++) {
@@ -643,6 +636,7 @@ void Muxread(byte add) {
 
 
 void buttonchek() {
+
   if (digitalRead(But5) == 0) {  // Buzzer off
     if (currentTime - buttonPressTime > 10) {
       buttonPressTime = currentTime;
@@ -671,6 +665,7 @@ void buttonchek() {
   }
   
   if (digitalRead(But3) == 0) {  // All Line Reset
+    fierLouckBit=0;
     digitalWrite(Line1, LOW);
     digitalWrite(Line2, LOW);
     digitalWrite(Line3, LOW);
@@ -863,7 +858,7 @@ void GPIOInit(void) {
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
-
+ IWatchdog.reload();
   if (timer.status == START) {
     timer.value++;
   } else if (timer.status == STOP) {

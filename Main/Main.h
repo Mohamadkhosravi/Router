@@ -10,11 +10,13 @@
 
 
 #define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
-#define MINIMUM_REPEAT_FOR_FIER_DETECT 10
-#define LIMIT_REPEAT_FOR_FIER_DETECT 9
+#define MINIMUM_REPEAT_FOR_FIER_DETECT 5
+#define LIMIT_REPEAT_FOR_FIER_DETECT 6
 
-//#define FIER_DEBUG
-//#define SHORT_CIRCUIT_DEBUG
+#define FIER_DEBUG
+#define SHORT_CIRCUIT_DEBUG
+#define OPEN_CIRCUIT_DEBUG
+
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
@@ -145,8 +147,8 @@ bool ledBlinker1 = true;
 bool ledBlinker2 = true;
 bool buzzerControl = false;
 bool sounderLedStatus = false;
+ int fierLouckBit = 0;
 
-unsigned long tempTime;
 //bool  stateUpdateMUX =false;
 
 // Data arrays
