@@ -1,12 +1,20 @@
 #ifndef MAIN_H
 #define  MAIN_H
 
+#include <IWatchdog.h>
+#include <ShiftRegister74HC595.h>
+#include <SoftwareSerial.h>
+#include <Arduino.h>
+
+
+
+
 #define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
 #define MINIMUM_REPEAT_FOR_FIER_DETECT 10
 #define LIMIT_REPEAT_FOR_FIER_DETECT 9
 
 //#define FIER_DEBUG
-#define SHORT_CIRCUIT_DEBUG
+//#define SHORT_CIRCUIT_DEBUG
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
@@ -138,6 +146,9 @@ bool ledBlinker2 = true;
 bool buzzerControl = false;
 bool sounderLedStatus = false;
 
+unsigned long tempTime;
+//bool  stateUpdateMUX =false;
+
 // Data arrays
 float mux1Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float mux2Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -147,7 +158,7 @@ float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
-
+const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
 
 typedef enum {
   NON_STATUS,

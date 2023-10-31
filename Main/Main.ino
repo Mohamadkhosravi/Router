@@ -1,16 +1,9 @@
 #include <Main.h>
-#include <IWatchdog.h>
-#include <ShiftRegister74HC595.h>
-#include <SoftwareSerial.h>
-#include <Arduino.h>
-
-
-const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
 
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
-void Update_IT_callback(void);
+void Update_IT_callback1(void);
 // Hardware Settings
 
 void setup() {
@@ -27,7 +20,7 @@ void setup() {
 #endif
   HardwareTimer *MyTim = new HardwareTimer(Instance);
   MyTim->setOverflow(10, HERTZ_FORMAT);  // 10 Hz
-  MyTim->attachInterrupt(Update_IT_callback);
+  MyTim->attachInterrupt(Update_IT_callback1);
   MyTim->resume();
 
   // Check if Card 1 is present
@@ -78,30 +71,27 @@ void setup() {
 }
 
 void loop() {
-
-  timer1.status=START;
+   tempTime=millis(); 
+   timer1.status=START;
     buttonchek();
     digitalWrite(LEDerror, HIGH);
     batpowerchek1();
     Muxread(muxPosition);
     Linechek();
     buttonchek();
-    if (learningProcessCounter == 0) {
+      // if (learningProcessCounter == 0) {
+ 
       for (i = 0; i < ((cardSituation + 1) * 4); i++) {
 
-      
-
             handelShortCircuit(i);
-
             lineStatus[i] = processCurrentConditions(i);
-          
-            mySerial.printf(" \n my status is== %d \n ", lineStatus[i]);
-
             
-        
+          
       }
-    }
-    if (learningProcessCounter > 0) learningProcessCounter--;
+    //}
+    //if (learningProcessCounter > 0) learningProcessCounter--;
+
+    
 
     handleThresholdFaults();
     handleSupplyAndpowerFailures();
@@ -114,20 +104,22 @@ void loop() {
     IWatchdog.reload();
     updateMuxPosition();
     checkAndEnableBeeper();
-}
 
+ 
+
+}
 
 void handelShortCircuit(byte numberLine)
 {
-
+    
 
     #ifdef SHORT_CIRCUIT_DEBUG
 
-    mySerial.print("\n");
-    mySerial.print("line");
-    mySerial.printf("%d", numberLine);
-    mySerial.print("voltage =");
-    mySerial.print(lineVoltage[numberLine]);
+      mySerial.print("\n");
+      mySerial.print("line");
+      mySerial.printf("%d", numberLine);
+      mySerial.print("voltage =");
+      mySerial.print(lineVoltage[numberLine]);
       mySerial.print("\n");
       mySerial.print("\n");
       mySerial.print("line=");
@@ -137,42 +129,37 @@ void handelShortCircuit(byte numberLine)
       mySerial.print("\n");
 
     #endif
+   // mySerial.printf(" \n Time STEP 1 === %d \n ", tempTime=millis()-tempTime); 
 
     if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
-      #ifdef SHORT_CIRCUIT_DEBUG
-      mySerial.print("\n");
-      mySerial.print("==================== Open line ! ==================");
+    #ifdef SHORT_CIRCUIT_DEBUG
+    mySerial.print("\n");
+    mySerial.print("==================== Open line ! ==================");
 
-      mySerial.print("\n");
-      #endif
-      shortCircuitTime = currentTime;
+    mySerial.print("\n");
+    #endif
+    shortCircuitTime = currentTime;
 
-      lineON(numberLine);
-      shortCircuitDetected[numberLine] = 0;
-      limitTimeSC++;
-      if (limitTimeSC > 55) limitTimeSC = 4;
+    lineON(numberLine);
+    shortCircuitDetected[numberLine] = 0;
+    limitTimeSC++;
+    if (limitTimeSC > 55) limitTimeSC = 4;
     }
 
-    if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD)) {
+   // mySerial.printf(" \n Time STEP 2 === %d \n ", tempTime=millis()-tempTime); 
+    
+    if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime>1 )) {
 
-      #ifdef SHORT_CIRCUIT_DEBUG
-      mySerial.print("\n");
-      mySerial.printf("====================shortCircuit line %d", numberLine);
-      mySerial.print("=======================");
-      mySerial.print("\n");
-      #endif
-
-      lineOFF(numberLine);
-  mySerial.printf("\n +++++++++++++++++++++++MYTIME=%d+++++++++++++++++++++++\n", timer1.value);
-  timer1.value=0;
-  timer1.status=STOP;
-
-      shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
-
-
-
-
+    #ifdef SHORT_CIRCUIT_DEBUG
+    mySerial.print("\n");
+    mySerial.printf("====================shortCircuit line %d", numberLine);
+    mySerial.print("=======================");
+    mySerial.print("\n");
+    #endif
+    lineOFF(numberLine);
+    shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
     } 
+   // mySerial.printf(" \n Time STEP 3 === %d \n ", tempTime=millis()-tempTime); 
 }
 
 // Function to check if a threshold fault is detected
@@ -509,15 +496,15 @@ status processCurrentConditions(byte line) {
     firstSence[line] = firstSence[line] + 1;
     delay(55);
 
-  } else {
+  } 
+  else
+   {
     //repeatFireDetection=0;
+      if (firstSence[line] == 0)
 
-    if (firstSence[line] == 0)
-
-
-        mySerial.print("\n");
-        mySerial.print("SSSSSSSSSSSSSSSSSSSSSS>>> STATUS CURENT IS SHORT_CIRCUIT <<<SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
-        mySerial.print("\n");
+      mySerial.print("\n");
+      mySerial.print("SSSSSSSSSSSSSSSSSSSSSS>>> STATUS CURENT IS SHORT_CIRCUIT <<<SSSSSSSSSSSSSSSSSSSSSSSSSSSSSS");
+      mySerial.print("\n");
       return SHORT_CIRCUIT;
   }
 }
@@ -638,7 +625,8 @@ void Muxread(byte add) {
   digitalWrite(Selc, controlValues[2]);
 
   // Delay as needed
-  delay(25);
+
+  //delay(25);
 
   // Read analog values and store them in the mux arrays
   for (int i = 0; i < 4; i++) {
@@ -649,6 +637,7 @@ void Muxread(byte add) {
   }
 
   // Delay as needed
+
   delay(15);
 }
 
@@ -871,7 +860,7 @@ void GPIOInit(void) {
   pinMode(LEDerror, OUTPUT);
 }
 
-void Update_IT_callback(void) {  // 10hz
+void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
 
@@ -918,7 +907,7 @@ if (timer1.status == START) {
 
 void Relaycont() {
   digitalWrite(rel2, faultFlag);
-  // mySerial.println(faultFlag);
+  // mySerial.println(faultFlag);y
   if (fireFlag && !relayCustomOn) {
     digitalWrite(rel1, HIGH);
     digitalWrite(relo1, HIGH);
