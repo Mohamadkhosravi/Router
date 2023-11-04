@@ -8,6 +8,7 @@ void Update_IT_callback1(void);
 
 void setup() {
 
+
   GPIOInit();
   mySerial.begin(9600);
   sr.setAllHigh();
@@ -71,19 +72,21 @@ void setup() {
 }
 
 void loop() {
-  
+
+   
     buttonchek();
     digitalWrite(LEDerror, HIGH);
     batpowerchek1();
     Muxread(muxPosition);
     Linechek();
     buttonchek();
-      
+     
+
       for (i = 0; i < ((cardSituation + 1) * 4); i++) {
-          IWatchdog.reload();
+        
             handelShortCircuit(i);
             lineStatus[i] = processCurrentConditions(i);
-            
+
           
       }
 
@@ -105,7 +108,7 @@ void loop() {
 
 void handelShortCircuit(byte numberLine)
 {
-    
+
 
     #ifdef SHORT_CIRCUIT_DEBUG
 
@@ -149,7 +152,8 @@ void handelShortCircuit(byte numberLine)
     shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
     } 
  
-}
+} 
+
 
 // Function to check if a threshold fault is detected
 bool thresholdFaultDetected() {
@@ -453,11 +457,11 @@ status processCurrentConditions(byte line) {
     fierLouckBit = 1;
     repeatFireDetection = 0;
     timer.status = STOP;
-
+ #ifdef FIER_DEBUG
     mySerial.print("\n");
     mySerial.print("<<<!!!!!!!!!!!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>>>");
     mySerial.print("\n");
-
+  #endif
     // Handle fire detection conditions
     fultSencetimer = 0;  // fire alarming
     delay(55);
@@ -533,7 +537,6 @@ void handleCardPresentErrors() {
     }
   }
 }
-
 
 
 void Linechek() {
@@ -664,9 +667,10 @@ void buttonchek() {
     CardPresentError = initi;
   }
   
-  if (digitalRead(But3) == 0) {  // All Line Reset
+ if((digitalRead(But3) == 0)&&(digitalRead(JUMPER) == 0)){  // All Line Reset
+
     fierLouckBit=0;
-    digitalWrite(Line1, LOW);
+   /* digitalWrite(Line1, LOW);
     digitalWrite(Line2, LOW);
     digitalWrite(Line3, LOW);
     digitalWrite(Line4, LOW);
@@ -683,7 +687,7 @@ void buttonchek() {
       mux2Values[i] = 0;
       mux3Values[i] = 0;
       mux4Values[i] = 0;
-    }
+    }*/
     for (byte i = 0; i < 12; i++) {
       lineCurrent[i] = 0;
       lineVoltage[i] = 0;
@@ -720,7 +724,6 @@ void buttonchek() {
     fireFlag = false;
     faultFlag = false;
     fultCounter = 0;
-
 
     digitalWrite(MCUbuzz, LOW);
     IWatchdog.reload();
@@ -825,6 +828,7 @@ void GPIOInit(void) {
   // Button Settings
   pinMode(CS1, INPUT);
   pinMode(CS2, INPUT);
+  pinMode(JUMPER, INPUT);
   pinMode(But1, INPUT);
   pinMode(But2, INPUT);
   pinMode(But3, INPUT);
@@ -854,6 +858,8 @@ void GPIOInit(void) {
 
   pinMode(LEDerror, OUTPUT);
 }
+
+
 
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;

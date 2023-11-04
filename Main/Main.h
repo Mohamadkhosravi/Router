@@ -9,13 +9,13 @@
 
 
 
-#define MAXIMUM_TIME_FOR_FIER_DETECT 40 //4sec
-#define MINIMUM_REPEAT_FOR_FIER_DETECT 5
-#define LIMIT_REPEAT_FOR_FIER_DETECT 6
+#define MAXIMUM_TIME_FOR_FIER_DETECT 38 //4sec
+#define MINIMUM_REPEAT_FOR_FIER_DETECT 8
+#define LIMIT_REPEAT_FOR_FIER_DETECT 9
 
 #define FIER_DEBUG
-#define SHORT_CIRCUIT_DEBUG
-#define OPEN_CIRCUIT_DEBUG
+//#define SHORT_CIRCUIT_DEBUG
+//#define OPEN_CIRCUIT_DEBUG
 
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
@@ -29,7 +29,6 @@
 #define SHORT_CIRCUIT_THRESHOLD  0.95
 #define LOWER_THRESHOLD_OUT 0.1
 #define UPPER_THRESHOLD_OUT  0.49
-
 
 
 // Defines Relys
@@ -61,7 +60,8 @@
 // Buttons
 #define But1 PA11
 #define But2 PA12
-#define But3 PA13
+#define JUMPER PA13
+#define But3 PB13
 #define But4 PD3
 #define But5 PA15
 // Analog Selection
@@ -113,8 +113,6 @@
 #define ledemainpower 37
 #define ledefiremode 38
 #define panelon 39
-
-
 
 
 
