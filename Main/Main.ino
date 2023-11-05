@@ -5,7 +5,7 @@ SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
 void Update_IT_callback1(void);
 // Hardware Settings
-
+int firstRepeat=0;
 void setup() {
 
 
@@ -34,6 +34,18 @@ void setup() {
 
   if (card1Present & card2Present) {
     cardSituation = 2;
+    digitalWrite(Line1, HIGH);
+    digitalWrite(Line2, HIGH);
+    digitalWrite(Line3, HIGH);
+    digitalWrite(Line4, HIGH);
+    digitalWrite(Line5, HIGH);
+    digitalWrite(Line6, HIGH);
+    digitalWrite(Line7, HIGH);
+    digitalWrite(Line8, HIGH);
+    digitalWrite(Line9, HIGH);
+    digitalWrite(Line10, HIGH);
+    digitalWrite(Line11, HIGH);
+    digitalWrite(Line12, HIGH);
 
   } else if (card1Present) {
     cardSituation = 1;
@@ -45,7 +57,8 @@ void setup() {
     digitalWrite(Line6, HIGH);
     digitalWrite(Line7, HIGH);
     digitalWrite(Line8, HIGH);
-  } else {
+  } else 
+  {
     cardSituation = 0;
     digitalWrite(Line1, HIGH);
     digitalWrite(Line2, HIGH);
@@ -53,7 +66,18 @@ void setup() {
     digitalWrite(Line4, HIGH);
   }
 
-
+  digitalWrite(Line1, HIGH);
+    digitalWrite(Line2, HIGH);
+    digitalWrite(Line3, HIGH);
+    digitalWrite(Line4, HIGH);
+    digitalWrite(Line5, HIGH);
+    digitalWrite(Line6, HIGH);
+    digitalWrite(Line7, HIGH);
+    digitalWrite(Line8, HIGH);
+    digitalWrite(Line9, HIGH);
+    digitalWrite(Line10, HIGH);
+    digitalWrite(Line11, HIGH);
+    digitalWrite(Line12, HIGH);
   IWatchdog.begin(5000000);  // 5000ms
   shortCircuitTime = currentTime;
 
@@ -71,8 +95,10 @@ void setup() {
   mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
 }
 
+
 void loop() {
 
+  
    
     buttonchek();
     digitalWrite(LEDerror, HIGH);
@@ -80,16 +106,19 @@ void loop() {
     Muxread(muxPosition);
     Linechek();
     buttonchek();
-     
-
-      for (i = 0; i < ((cardSituation + 1) * 4); i++) {
-        
-            handelShortCircuit(i);
-            lineStatus[i] = processCurrentConditions(i);
-
-          
+  
+     if (firstRepeat>12)
+     {
+        for (i = 0; i < ((cardSituation + 1) * 4); i++) {
+             //if(lineStatus[i]!=1) handelShortCircuit(i);
+              handelShortCircuit(i);
+              lineStatus[i] = processCurrentConditions(i);
+        }
       }
-
+      else
+      {
+          firstRepeat++;
+      }
     handleThresholdFaults();
     handleSupplyAndpowerFailures();
     handleCardPresentErrors();
@@ -102,7 +131,7 @@ void loop() {
     updateMuxPosition();
     checkAndEnableBeeper();
 
- 
+
 
 }
 
@@ -388,7 +417,20 @@ status processCurrentConditions(byte line) {
 
   #endif
 
-  if ((timer.value > MAXIMUM_TIME_FOR_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FOR_FIER_DETECT) && (fierLouckBit == 0)) {
+ if (line > 3)//extera lines addcart 1 or 2
+ {
+  MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
+  LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
+  MAXIMUM_TIME_FIER_DETECT=MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+ }
+ else{
+
+   MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
+   LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
+   MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+ }
+
+if ((timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
 
   #ifdef FIER_DEBUG
 
@@ -551,7 +593,7 @@ void Linechek() {
       lineVoltage[1] = mux1Values[6];
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
-      // mySerial.print(lineCurrent[i]);
+       mySerial.printf("LINE==%d\n",lineCurrent[i]);
       break;
     case 1:
       lineVoltage[3] = mux1Values[0];
@@ -607,7 +649,7 @@ void Linechek() {
 
 
 void Muxread(byte add) {
-  // Define control values for Sela, Selb, and Selc
+ // Define control values for Sela, Selb, and Selc
   byte controlValues[3] = { LOW, LOW, LOW };
 
   // Calculate control values based on the address (add)
@@ -635,6 +677,9 @@ void Muxread(byte add) {
   // Delay as needed
 
   delay(15);
+  
+ 
+ 
 }
 
 
@@ -855,7 +900,6 @@ void GPIOInit(void) {
   pinMode(Analog2, INPUT_ANALOG);
   pinMode(Analog3, INPUT_ANALOG);
   pinMode(Analog4, INPUT_ANALOG);
-
   pinMode(LEDerror, OUTPUT);
 }
 
