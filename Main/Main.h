@@ -22,10 +22,10 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 int MAXIMUM_TIME_FIER_DETECT= MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES;
 
 
-#define FIER_DEBUG
-#define SHORT_CIRCUIT_DEBUG
-#define OPEN_CIRCUIT_DEBUG
-
+// #define FIER_DEBUG
+// #define SHORT_CIRCUIT_DEBUG
+// #define OPEN_CIRCUIT_DEBUG
+#define CHECK_BATTERY_DEBUG
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
@@ -178,26 +178,37 @@ typedef enum {
 } status;
 status lineStatus[12] = { NON_STATUS };
 
+#define SUPPLY_VOLTAGE_IS_16_V digitalWrite(ChangeVolt, LOW);
+#define SUPPLY_VOLTAGE_IS_24_V digitalWrite(ChangeVolt, HIGH);
 
+#define POWER_RELAY_ON  digitalWrite(Batcharges,HIGH);
+#define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
+ byte limitLowPower =18;
 typedef enum {
   STOP,
   START
 
 } STATE;
 
+class timerMS {
+  public:
+  struct
+  {
+    STATE status;
+    unsigned long value = 0;
+  } timer;
 
-struct
-{
-  STATE status;
-  unsigned long value = 0;
-} timer;
+  void update();
+};
+ void timerMS::update() {
+    if (timer.status == START) {
+        timer.value++;
+    } else if (timer.status == STOP) {
+        timer.value = 0;
+    }
+} 
 
-struct
-{
-  STATE status;
-  unsigned long value = 0;
-} timer1;
-//Timer timer;
+
 
 //timer.status = START;
 unsigned long currentTime = 0;

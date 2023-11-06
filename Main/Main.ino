@@ -3,6 +3,9 @@
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
+timerMS Timer;
+timerMS batteryCheckTime;
+
 void Update_IT_callback1(void);
 // Hardware Settings
 int firstRepeat=0;
@@ -66,7 +69,7 @@ void setup() {
     digitalWrite(Line4, HIGH);
   }
 
-  digitalWrite(Line1, HIGH);
+    digitalWrite(Line1, HIGH);
     digitalWrite(Line2, HIGH);
     digitalWrite(Line3, HIGH);
     digitalWrite(Line4, HIGH);
@@ -93,26 +96,27 @@ void setup() {
   digitalWrite(Selc, LOW);
   delay(25);
   mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
+ 
 }
 
 
 void loop() {
-
   
-   
-    buttonchek();
     digitalWrite(LEDerror, HIGH);
-    batpowerchek1();
+    batteryCheck();
+    powerCheck( mux4Values[3]*24,mux4Values[0]*24);
+    buttonchek();
     Muxread(muxPosition);
     Linechek();
-    buttonchek();
-  
+   
+    
      if (firstRepeat>12)
      {
-        for (i = 0; i < ((cardSituation + 1) * 4); i++) {
-             //if(lineStatus[i]!=1) handelShortCircuit(i);
-              handelShortCircuit(i);
-              lineStatus[i] = processCurrentConditions(i);
+        for (i = 0; i < ((cardSituation + 1) * 4); i++) 
+        { 
+            //if(lineStatus[i]!=1) handelShortCircuit(i);
+            handelShortCircuit(i);
+            lineStatus[i] = processCurrentConditions(i);
         }
       }
       else
@@ -132,13 +136,10 @@ void loop() {
     checkAndEnableBeeper();
 
 
-
 }
 
 void handelShortCircuit(byte numberLine)
 {
-
-
     #ifdef SHORT_CIRCUIT_DEBUG
 
       mySerial.print("\n");
@@ -235,7 +236,113 @@ bool timeForLedBlink() {
   return (currentTime - ledBlinkTime) > 6;
 }
 
-void batpowerchek1() {
+void powerCheck( float VoltageBattery, float VoltagePowerSuply) {
+
+   #ifdef CHECK_BATTERY_DEBUG
+   mySerial.print("\n VoltageBattery==");
+   mySerial.print(VoltageBattery);
+   
+   mySerial.print("\n VoltagePowerSuply==");
+   mySerial.print(VoltagePowerSuply);
+   #endif
+ bool battery;
+ bool lowBattery;
+ bool powerSuply;
+
+  typedef enum
+  {
+    NORMAL,
+    BATTERY,
+    LOW_BATTERY,
+    POWER_SUPLY,
+    POWER_OFF
+
+  } powerState;
+   powerState state;
+
+ battery = (VoltageBattery > limitLowPower-0.1 )? true : false;
+ powerSuply= (VoltagePowerSuply > 20)? true : false;
+ lowBattery= ((VoltageBattery < limitLowPower ))? true : false;
+
+ if( (battery == true) && (powerSuply == true) ) state = NORMAL;
+
+ if( (battery == true) && (powerSuply == false)) state = BATTERY;
+ //if( (battery == true) && (powerSuply == false) && (lowBattery==false) ) state = BATTERY;
+// if( (battery == true) && (powerSuply == false) && (lowBattery==true) ) state = LOW_BATTERY;
+ if( (battery == false) && (powerSuply == true) ) state = POWER_SUPLY;
+ if( (battery == false) && (powerSuply == false) ) state = POWER_OFF;
+
+  #ifdef CHECK_BATTERY_DEBUG
+
+   mySerial.printf(" \n==================> STATE == %d <======================== \n",state);
+   mySerial.printf(" \n==================> limitLowPower == %d <======================== \n",limitLowPower);
+   #endif
+
+    mySerial.printf("batteryCheckTime.timer.value == %s \n",batteryCheckTime.timer.value);
+ switch(state)
+ { 
+
+ case NORMAL:
+    
+    batteryCheckTime.timer.status = START;
+
+  if(batteryCheckTime.timer.value==60000) //1MIN
+  {  
+     
+
+     SUPPLY_VOLTAGE_IS_16_V
+
+      if( batteryCheckTime.timer.value==1100)//1s
+      {
+        if(VoltageBattery>18){
+           state = NORMAL;
+           SUPPLY_VOLTAGE_IS_24_V;
+        }
+        else 
+        {
+         state = LOW_BATTERY;
+        }
+       batteryCheckTime.timer.status = STOP;
+         
+      }
+  }
+ break;
+
+ case BATTERY:
+ POWER_RELAY_ON
+   limitLowPower==17;
+   //battery off
+    if(VoltageBattery<17)
+    {
+       state = LOW_BATTERY;
+    }
+          
+      
+
+ break;
+
+ case LOW_BATTERY:
+ 
+    if(VoltageBattery<17)
+    {
+       //ALARM
+    }
+
+ break;
+
+ case POWER_SUPLY:
+//battery fult
+ break;
+
+case POWER_OFF:
+POWER_RELAY_OFF
+break;
+ } 
+
+//(VoltagePowerSuply > 24)?(powerSuply=EXIST):(powerSuply=DOSNT_EXIST);
+
+}
+void batteryCheck() {
   batteryChecking = true;
   float vp[4] = { 0, 0, 0, 0 };
   byte cont = 0;
@@ -248,13 +355,15 @@ void batpowerchek1() {
   if (relayCharging) {
 
     if (currentTime - batteryScanTime > 50) {
-
-      if ((mux4Values[0] * 41) > 16) {
-        digitalWrite(Sela, LOW);
-        digitalWrite(Selb, LOW);
-        digitalWrite(Selc, LOW);
+    
+      //24v suply
+      if ((mux4Values[0] * 41) > 16) {  //power check power 24 to 16v
+        //chose mult chanel .0
+          digitalWrite(Sela, LOW);
+          digitalWrite(Selb, LOW);
+          digitalWrite(Selc, LOW);
         batteryScanTime = currentTime;
-        digitalWrite(ChangeVolt, HIGH);
+        digitalWrite(ChangeVolt, HIGH);//voltage is 16
         delay(55);
         do {
           mux4Values[0] = (3.3 / 1023.00) * analogRead(Analog4);
@@ -264,26 +373,29 @@ void batpowerchek1() {
           if (cont > 2) {
             if (((vp[0] - vp[1]) < 0.02) && ((vp[1] - vp[2]) < 0.02))
               break;
-            cont = 0;
+              cont = 0;
           }
         } while ((currentTime - batteryScanTime) > 21);
-
+        //chose mul battery voltage read
         digitalWrite(Sela, HIGH);
         digitalWrite(Selb, HIGH);
         digitalWrite(Selc, LOW);
+
         delay(21);
         mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
         batteryFail = false;
         delay(13);
+
         if ((mux4Values[3] * 24) < 18.6) {
           relayCharging = false;
           batteryFail = true;
           digitalWrite(Batcharges, relayCharging);
         }
-        digitalWrite(ChangeVolt, LOW);
+        digitalWrite(ChangeVolt, LOW);//power go up 16 to 24
       }
     }
     if ((mux4Values[0] * 41) < 15.6) {
+    
       if ((mux4Values[3] * 24) < 15.6) {
         relayCharging = false;
         batteryFail = true;
@@ -407,8 +519,8 @@ status processCurrentConditions(byte line) {
   #ifdef FIER_DEBUG
 
     mySerial.print("\n");
-    mySerial.print("timer.value ");
-    mySerial.print(timer.value);
+    mySerial.print("time.value ");
+    mySerial.print(Timer.timer.value);
     mySerial.print("\n");
     mySerial.print("\n");
     mySerial.print("repeatFireDetection =");
@@ -417,7 +529,7 @@ status processCurrentConditions(byte line) {
 
   #endif
 
- if (line > 3)//extera lines addcart 1 or 2
+ if (line > 3)//extera lines(card 1 or 2 or bouth)
  {
   MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
   LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
@@ -430,7 +542,7 @@ status processCurrentConditions(byte line) {
    MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
  }
 
-if ((timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
 
   #ifdef FIER_DEBUG
 
@@ -445,8 +557,8 @@ if ((timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
    #endif
 
       repeatFireDetection = 0;
-      timer.value = 0;
-      timer.status = STOP;
+      Timer.timer.value = 0;
+      Timer.timer.status = STOP;
     }
 
     #ifdef FIER_DEBUG
@@ -484,7 +596,7 @@ if ((timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
   if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)) {
 
     repeatFireDetection++;
-    timer.status = START;
+   Timer.timer.status = START;
 
 
     #ifdef FIER_DEBUG
@@ -498,7 +610,7 @@ if ((timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
 
     fierLouckBit = 1;
     repeatFireDetection = 0;
-    timer.status = STOP;
+  Timer.timer.status = STOP;
  #ifdef FIER_DEBUG
     mySerial.print("\n");
     mySerial.print("<<<!!!!!!!!!!!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>>>");
@@ -908,17 +1020,12 @@ void GPIOInit(void) {
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
- IWatchdog.reload();
-  if (timer.status == START) {
-    timer.value++;
-  } else if (timer.status == STOP) {
-    timer.value = 0;
-  }
-if (timer1.status == START) {
-    timer1.value++;
-  } else if (timer1.status == STOP) {
-    timer1.value = 0;
-  }
+
+ batteryCheckTime.update();
+ Timer.update();
+
+
+
 
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
