@@ -101,10 +101,31 @@ void setup() {
 
 
 void loop() {
-  
+
+
+
     digitalWrite(LEDerror, HIGH);
-    batteryCheck();
-    powerCheck( mux4Values[3]*24,mux4Values[0]*24);
+   // batteryCheck();
+while(1){
+    IWatchdog.reload();
+   
+  //  mySerial.print("\n VoltageBattery==");
+  //   mySerial.print(VoltageBattery);
+       POWER_RELAY_ON
+     //SUPPLY_VOLTAGE_IS_24_V
+     delay(1000);
+       //  POWER_RELAY_OFF;
+   //  SUPPLY_VOLTAGE_IS_16_V
+   POWER_RELAY_OFF
+     delay(1000);
+  //  mySerial.print("\n VoltagePowerSuply==");
+  //  mySerial.print(VoltagePowerSuply);
+    //powerCheck(readBattery(),readPowerSupply());
+    }
+    // POWER_RELAY_ON;
+    // SUPPLY_VOLTAGE_IS_24_V
+  
+   
     buttonchek();
     Muxread(muxPosition);
     Linechek();
@@ -236,18 +257,19 @@ bool timeForLedBlink() {
   return (currentTime - ledBlinkTime) > 6;
 }
 
-void powerCheck( float VoltageBattery, float VoltagePowerSuply) {
+void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
 
-   #ifdef CHECK_BATTERY_DEBUG
-   mySerial.print("\n VoltageBattery==");
-   mySerial.print(VoltageBattery);
+  
+//    #ifdef CHECK_BATTERY_DEBUG
+//    mySerial.print("\n VoltageBattery==");
+//    mySerial.print(VoltageBattery);
    
-   mySerial.print("\n VoltagePowerSuply==");
-   mySerial.print(VoltagePowerSuply);
-   #endif
- bool battery;
- bool lowBattery;
- bool powerSuply;
+//    mySerial.print("\n VoltagePowerSuply==");
+//    mySerial.print(VoltagePowerSuply);
+//    #endif
+    bool battery;
+    bool lowBattery;
+    bool powerSuply;
 
   typedef enum
   {
@@ -259,70 +281,84 @@ void powerCheck( float VoltageBattery, float VoltagePowerSuply) {
 
   } powerState;
    powerState state;
-
- battery = (VoltageBattery > limitLowPower-0.1 )? true : false;
+ 
+ battery = (VoltageBattery > 16)? true : false;
  powerSuply= (VoltagePowerSuply > 20)? true : false;
- lowBattery= ((VoltageBattery < limitLowPower ))? true : false;
-
- if( (battery == true) && (powerSuply == true) ) state = NORMAL;
-
- if( (battery == true) && (powerSuply == false)) state = BATTERY;
- //if( (battery == true) && (powerSuply == false) && (lowBattery==false) ) state = BATTERY;
-// if( (battery == true) && (powerSuply == false) && (lowBattery==true) ) state = LOW_BATTERY;
- if( (battery == false) && (powerSuply == true) ) state = POWER_SUPLY;
- if( (battery == false) && (powerSuply == false) ) state = POWER_OFF;
+ lowBattery= ((VoltageBattery < limitLowPower )&&(VoltageBattery > 15 ) )? true : false;
+ 
+ if((battery == true) && (powerSuply == true)&&(lowBattery == false)) state = NORMAL;
+ if((battery == true) && (powerSuply == false)&&(lowBattery == false)) state = BATTERY;
+ if((battery == true) && (lowBattery==true)) state = LOW_BATTERY;
+ if((battery == false) && (powerSuply == true)) state = POWER_SUPLY;
+ if((battery == false) && (powerSuply == false)) state = POWER_OFF;
 
   #ifdef CHECK_BATTERY_DEBUG
 
-   mySerial.printf(" \n==================> STATE == %d <======================== \n",state);
-   mySerial.printf(" \n==================> limitLowPower == %d <======================== \n",limitLowPower);
+   mySerial.printf("\n => STATE == %d <=",state);
+  
    #endif
 
-    mySerial.printf("batteryCheckTime.timer.value == %s \n",batteryCheckTime.timer.value);
+
+
+   mySerial.print(" VoltageBattery==");
+   mySerial.print(VoltageBattery);
+   
+   mySerial.print(" VoltagePowerSuply==");
+   mySerial.print(VoltagePowerSuply);
+   // mySerial.printf("batteryCheckTime.timer.value == %s \n",batteryCheckTime.timer.value);
+
+ 
  switch(state)
  { 
 
  case NORMAL:
-    
-    batteryCheckTime.timer.status = START;
-
-  if(batteryCheckTime.timer.value==60000) //1MIN
-  {  
+     // POWER_RELAY_ON
      
+      batteryCheckTime.timer.status = START;
 
-     SUPPLY_VOLTAGE_IS_16_V
 
-      if( batteryCheckTime.timer.value==1100)//1s
+      if( batteryCheckTime.timer.value>150)//15s
       {
-        if(VoltageBattery>18){
-           state = NORMAL;
-           SUPPLY_VOLTAGE_IS_24_V;
+            SUPPLY_VOLTAGE_IS_16_V
+           // POWER_RELAY_OFF;
+          if(batteryCheckTime.timer.value>200){
+            
+            mySerial.print(" \n==================>  == %d <======================== \n");
+           mySerial.print(" \n==================>  == %d <======================== \n");
+            if(VoltageBattery>14){
+              // POWER_RELAY_ON
+              state = NORMAL;
+              SUPPLY_VOLTAGE_IS_24_V;
+              batteryCheckTime.timer.status = STOP;
+            }
+            else
+            { 
+           // POWER_RELAY_OFF
+            SUPPLY_VOLTAGE_IS_24_V;
+            state = POWER_SUPLY;
+            batteryCheckTime.timer.status = STOP;
+            }
         }
-        else 
-        {
-         state = LOW_BATTERY;
-        }
-       batteryCheckTime.timer.status = STOP;
-         
       }
-  }
+                
  break;
 
  case BATTERY:
- POWER_RELAY_ON
-   limitLowPower==17;
-   //battery off
+  // POWER_RELAY_ON
+   limitLowPower=17;
+  
     if(VoltageBattery<17)
     {
+
        state = LOW_BATTERY;
     }
-          
+   break;        
       
 
- break;
+
 
  case LOW_BATTERY:
- 
+  // POWER_RELAY_ON
     if(VoltageBattery<17)
     {
        //ALARM
@@ -331,17 +367,19 @@ void powerCheck( float VoltageBattery, float VoltagePowerSuply) {
  break;
 
  case POWER_SUPLY:
-//battery fult
+ 
+//POWER_RELAY_OFF
  break;
 
-case POWER_OFF:
-POWER_RELAY_OFF
-break;
- } 
+
+ } ;
 
 //(VoltagePowerSuply > 24)?(powerSuply=EXIST):(powerSuply=DOSNT_EXIST);
 
 }
+
+
+
 void batteryCheck() {
   batteryChecking = true;
   float vp[4] = { 0, 0, 0, 0 };
@@ -994,8 +1032,8 @@ void GPIOInit(void) {
   // Battery Charges Settings
   pinMode(Batcharges, OUTPUT);
   pinMode(ChangeVolt, OUTPUT);
-  digitalWrite(Batcharges, LOW);
-  digitalWrite(ChangeVolt, LOW);
+ //digitalWrite(Batcharges, HIGH);
+// digitalWrite(ChangeVolt, LOW);
   // Errors Settings
   pinMode(LEDerror, OUTPUT);
   pinMode(MCUbuzz, OUTPUT);
@@ -1077,3 +1115,28 @@ void Relaycont() {
     }
   }
 }
+
+float readBattery(void){
+ static int tempTime=millis();
+ if ((tempTime=millis()-tempTime)>50){
+  digitalWrite(Sela, HIGH);
+  digitalWrite(Selb, HIGH);
+  digitalWrite(Selc, LOW);
+ }
+  if ((tempTime=millis()-tempTime)>50){
+  return (((3.3 / 1023.00) * analogRead(Analog4))*31.2);
+ }
+}
+  float readPowerSupply(void){
+    static int tempTime=millis();
+   if ((tempTime=millis()-tempTime)>50){
+    digitalWrite(Sela, LOW);
+    digitalWrite(Selb, LOW);
+    digitalWrite(Selc, LOW);
+   }
+    if ((tempTime=millis()-tempTime)>50){
+    return ((3.3 / 1023.00) * analogRead(Analog4)*31.2);
+   }
+
+  }
+

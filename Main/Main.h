@@ -178,10 +178,10 @@ typedef enum {
 } status;
 status lineStatus[12] = { NON_STATUS };
 
-#define SUPPLY_VOLTAGE_IS_16_V digitalWrite(ChangeVolt, LOW);
-#define SUPPLY_VOLTAGE_IS_24_V digitalWrite(ChangeVolt, HIGH);
+#define SUPPLY_VOLTAGE_IS_16_V digitalWrite(ChangeVolt, HIGH);
+#define SUPPLY_VOLTAGE_IS_24_V digitalWrite(ChangeVolt, LOW);
 
-#define POWER_RELAY_ON  digitalWrite(Batcharges,HIGH);
+#define POWER_RELAY_ON   digitalWrite(Batcharges,HIGH);
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
  byte limitLowPower =18;
 typedef enum {
