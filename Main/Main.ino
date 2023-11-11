@@ -111,16 +111,16 @@ while(1){
    
   //  mySerial.print("\n VoltageBattery==");
   //   mySerial.print(VoltageBattery);
-       POWER_RELAY_ON
-     //SUPPLY_VOLTAGE_IS_24_V
-     delay(1000);
-       //  POWER_RELAY_OFF;
-   //  SUPPLY_VOLTAGE_IS_16_V
-   POWER_RELAY_OFF
-     delay(1000);
+  //      POWER_RELAY_ON
+  //    //SUPPLY_VOLTAGE_IS_24_V
+  //    delay(1000);
+  //      //  POWER_RELAY_OFF;
+  //  //  SUPPLY_VOLTAGE_IS_16_V
+  //  POWER_RELAY_OFF
+  //    delay(1000);
   //  mySerial.print("\n VoltagePowerSuply==");
   //  mySerial.print(VoltagePowerSuply);
-    //powerCheck(readBattery(),readPowerSupply());
+    powerCheck(readBattery(),readPowerSupply());
     }
     // POWER_RELAY_ON;
     // SUPPLY_VOLTAGE_IS_24_V
@@ -259,20 +259,10 @@ bool timeForLedBlink() {
 
 void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
 
-  
-//    #ifdef CHECK_BATTERY_DEBUG
-//    mySerial.print("\n VoltageBattery==");
-//    mySerial.print(VoltageBattery);
-   
-//    mySerial.print("\n VoltagePowerSuply==");
-//    mySerial.print(VoltagePowerSuply);
-//    #endif
-    bool battery;
-    bool lowBattery;
-    bool powerSuply;
 
   typedef enum
   {
+    CHECK,
     NORMAL,
     BATTERY,
     LOW_BATTERY,
@@ -280,101 +270,84 @@ void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
     POWER_OFF
 
   } powerState;
-   powerState state;
- 
- battery = (VoltageBattery > 16)? true : false;
- powerSuply= (VoltagePowerSuply > 20)? true : false;
- lowBattery= ((VoltageBattery < limitLowPower )&&(VoltageBattery > 15 ) )? true : false;
- 
- if((battery == true) && (powerSuply == true)&&(lowBattery == false)) state = NORMAL;
- if((battery == true) && (powerSuply == false)&&(lowBattery == false)) state = BATTERY;
- if((battery == true) && (lowBattery==true)) state = LOW_BATTERY;
- if((battery == false) && (powerSuply == true)) state = POWER_SUPLY;
- if((battery == false) && (powerSuply == false)) state = POWER_OFF;
+   static powerState state;
 
-  #ifdef CHECK_BATTERY_DEBUG
-
-   mySerial.printf("\n => STATE == %d <=",state);
-  
-   #endif
-
-
-
-   mySerial.print(" VoltageBattery==");
-   mySerial.print(VoltageBattery);
+  //Fiter VoltagePowerSuply & VoltageBattery Value
+   if((VoltagePowerSuply )>=(VoltageBattery)) 
+   {
+    if(VoltagePowerSuply-VoltageBattery<=1.1)VoltageBattery=VoltagePowerSuply;
+   }
    
-   mySerial.print(" VoltagePowerSuply==");
-   mySerial.print(VoltagePowerSuply);
-   // mySerial.printf("batteryCheckTime.timer.value == %s \n",batteryCheckTime.timer.value);
-
- 
- switch(state)
- { 
-
- case NORMAL:
-     // POWER_RELAY_ON
-     
-      batteryCheckTime.timer.status = START;
-
-
-      if( batteryCheckTime.timer.value>150)//15s
-      {
-            SUPPLY_VOLTAGE_IS_16_V
-           // POWER_RELAY_OFF;
-          if(batteryCheckTime.timer.value>200){
-            
-            mySerial.print(" \n==================>  == %d <======================== \n");
-           mySerial.print(" \n==================>  == %d <======================== \n");
-            if(VoltageBattery>14){
-              // POWER_RELAY_ON
-              state = NORMAL;
-              SUPPLY_VOLTAGE_IS_24_V;
-              batteryCheckTime.timer.status = STOP;
-            }
-            else
-            { 
-           // POWER_RELAY_OFF
-            SUPPLY_VOLTAGE_IS_24_V;
-            state = POWER_SUPLY;
-            batteryCheckTime.timer.status = STOP;
-            }
-        }
-      }
-                
- break;
-
- case BATTERY:
-  // POWER_RELAY_ON
-   limitLowPower=17;
+   else if((VoltagePowerSuply ) < (VoltageBattery)) 
+   {
+     if((VoltageBattery-VoltagePowerSuply)<=1.1)VoltageBattery=VoltagePowerSuply;
+   }
+   
+   //Debug
+    #ifdef CHECK_BATTERY_DEBUG
+      mySerial.printf("\n => STATE == %d ,",state);
+      mySerial.print(" VoltageBattery==");
+      mySerial.print(VoltageBattery );
+      mySerial.print(" VoltagePowerSuply==");
+      mySerial.print(VoltagePowerSuply);
+    #endif
+   
+    
+   if (VoltageBattery > VoltagePowerSuply) 
+   {
+    if (VoltageBattery- VoltagePowerSuply >1) 
+    {
+      if  (VoltageBattery < 12) state = LOW_BATTERY;
+      else state =BATTERY;
+    }
   
-    if(VoltageBattery<17)
-    {
+    if (VoltageBattery- VoltagePowerSuply <1) state =NORMAL;
+   }
+  if (VoltageBattery < VoltagePowerSuply)state =POWER_SUPLY; 
+  if (VoltageBattery == VoltagePowerSuply)state =NORMAL;
 
-       state = LOW_BATTERY;
-    }
-   break;        
+
+  switch(state)
+  { 
+    case CHECK:
+    break;
+
+    case NORMAL:
+        mySerial.print(" Normal"); 
+        batteryCheckTime.timer.status = START;
       
+        if( batteryCheckTime.timer.value >300)//3M
+        {
+          SUPPLY_VOLTAGE_IS_16_V
+          POWER_RELAY_OFF
+          mySerial.print("\n POWER_RELAY_OFF ");
+          
+        }
+        else {
+        
+        POWER_RELAY_ON;
+        SUPPLY_VOLTAGE_IS_24_V
+        }
+      if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
+
+    break;
+
+    case BATTERY:
+      mySerial.print(" Battery");
+    break; 
+
+    case LOW_BATTERY:
+      mySerial.print(" LowBattery");
+    break;
+
+    case POWER_SUPLY:
+     mySerial.print(" PowerSuply");
+    break;
 
 
-
- case LOW_BATTERY:
-  // POWER_RELAY_ON
-    if(VoltageBattery<17)
-    {
-       //ALARM
-    }
-
- break;
-
- case POWER_SUPLY:
- 
-//POWER_RELAY_OFF
- break;
-
-
- } ;
-
-//(VoltagePowerSuply > 24)?(powerSuply=EXIST):(powerSuply=DOSNT_EXIST);
+  } ;
+  
+ if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
 
 }
 
@@ -569,15 +542,15 @@ status processCurrentConditions(byte line) {
 
  if (line > 3)//extera lines(card 1 or 2 or bouth)
  {
-  MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
-  LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
-  MAXIMUM_TIME_FIER_DETECT=MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+    MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
+    LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
+    MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
  }
  else{
 
-   MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
-   LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
-   MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+    MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
+    LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
+    MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
  }
 
 if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
@@ -626,7 +599,6 @@ if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MI
         return OPEN_CIRCUIT;
 
     } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
-
       return NORMAL;
     }
   }
@@ -1124,19 +1096,19 @@ float readBattery(void){
   digitalWrite(Selc, LOW);
  }
   if ((tempTime=millis()-tempTime)>50){
-  return (((3.3 / 1023.00) * analogRead(Analog4))*31.2);
+  return (((3.3 / 1023.00) * analogRead(Analog4))*24/1.39375);
  }
 }
-  float readPowerSupply(void){
-    static int tempTime=millis();
-   if ((tempTime=millis()-tempTime)>50){
-    digitalWrite(Sela, LOW);
-    digitalWrite(Selb, LOW);
-    digitalWrite(Selc, LOW);
-   }
-    if ((tempTime=millis()-tempTime)>50){
-    return ((3.3 / 1023.00) * analogRead(Analog4)*31.2);
-   }
-
+float readPowerSupply(void){
+  static int tempTime=millis();
+  if ((tempTime=millis()-tempTime)>50){
+  digitalWrite(Sela, LOW);
+  digitalWrite(Selb, LOW);
+  digitalWrite(Selc, LOW);
   }
+  if ((tempTime=millis()-tempTime)>50){
+  return ((3.3 / 1023.00) * analogRead(Analog4)*24/1.39375-0.33);
+  }
+
+}
 
