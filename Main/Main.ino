@@ -1,5 +1,5 @@
 #include <Main.h>
-
+#include <cstdio>
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
@@ -89,13 +89,13 @@ void setup() {
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[0] = (3.3 / 1023.00) * analogRead(Analog4);
+  mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4));
   delay(15);
   digitalWrite(Sela, HIGH);
   digitalWrite(Selb, HIGH);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[3] = (3.3 / 1023.00) * analogRead(Analog4);
+  mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4));
  
 }
 
@@ -103,12 +103,27 @@ void setup() {
 void loop() {
 
 
-
     digitalWrite(LEDerror, HIGH);
    // batteryCheck();
 while(1){
     IWatchdog.reload();
-   
+// digitalWrite(LEDerror, HIGH);
+//   digitalWrite(Sela, LOW);
+//   digitalWrite(Selb, LOW);
+//   digitalWrite(Selc, LOW);
+//   delay(25);
+//   mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4));
+//   delay(15);
+//   digitalWrite(Sela, HIGH);
+//   digitalWrite(Selb, HIGH);
+//   digitalWrite(Selc, LOW);
+//   delay(25);
+//   mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4));
+ 
+//       mySerial.print("\n VoltageBattery==");
+//       mySerial.print(  mux4Values[0],10);
+//       mySerial.print(" VoltagePowerSuply==");
+//       mySerial.print(  mux4Values[3],10);
   //  mySerial.print("\n VoltageBattery==");
   //   mySerial.print(VoltageBattery);
   //      POWER_RELAY_ON
@@ -120,6 +135,9 @@ while(1){
   //    delay(1000);
   //  mySerial.print("\n VoltagePowerSuply==");
   //  mySerial.print(VoltagePowerSuply);
+
+
+
     powerCheck(readBattery(),readPowerSupply());
     }
     // POWER_RELAY_ON;
@@ -271,25 +289,27 @@ void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
 
   } powerState;
    static powerState state;
+   POWER_RELAY_ON
+
 
   //Fiter VoltagePowerSuply & VoltageBattery Value
-   if((VoltagePowerSuply )>=(VoltageBattery)) 
-   {
-    if(VoltagePowerSuply-VoltageBattery<=1.1)VoltageBattery=VoltagePowerSuply;
-   }
+  //  if((VoltagePowerSuply )>=(VoltageBattery)) 
+  //  {
+  //   if(VoltagePowerSuply-VoltageBattery<=1.1)VoltageBattery=VoltagePowerSuply;
+  //  }
    
-   else if((VoltagePowerSuply ) < (VoltageBattery)) 
-   {
-     if((VoltageBattery-VoltagePowerSuply)<=1.1)VoltageBattery=VoltagePowerSuply;
-   }
+  //  else if((VoltagePowerSuply ) < (VoltageBattery)) 
+  //  {
+  //    if((VoltageBattery-VoltagePowerSuply)<=1.1)VoltageBattery=VoltagePowerSuply;
+  //  }
    
    //Debug
     #ifdef CHECK_BATTERY_DEBUG
       mySerial.printf("\n => STATE == %d ,",state);
       mySerial.print(" VoltageBattery==");
-      mySerial.print(VoltageBattery );
+      mySerial.print(VoltageBattery,10);
       mySerial.print(" VoltagePowerSuply==");
-      mySerial.print(VoltagePowerSuply);
+      mySerial.print(VoltagePowerSuply,10);
     #endif
    
     
@@ -306,46 +326,64 @@ void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
   if (VoltageBattery < VoltagePowerSuply)state =POWER_SUPLY; 
   if (VoltageBattery == VoltagePowerSuply)state =NORMAL;
 
-
-  switch(state)
-  { 
-    case CHECK:
-    break;
-
-    case NORMAL:
-        mySerial.print(" Normal"); 
-        batteryCheckTime.timer.status = START;
+     batteryCheckTime.timer.status = START;
       
-        if( batteryCheckTime.timer.value >300)//3M
+        if( batteryCheckTime.timer.value >100)//3M
         {
           SUPPLY_VOLTAGE_IS_16_V
-          POWER_RELAY_OFF
-          mySerial.print("\n POWER_RELAY_OFF ");
+       
+          mySerial.print("\n SUPPLY_VOLTAGE_IS_16_V ");
           
         }
         else {
         
-        POWER_RELAY_ON;
+        
         SUPPLY_VOLTAGE_IS_24_V
+         mySerial.print("\n SUPPLY_VOLTAGE_IS_24_V ");
         }
-      if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
-
-    break;
-
-    case BATTERY:
-      mySerial.print(" Battery");
-    break; 
-
-    case LOW_BATTERY:
-      mySerial.print(" LowBattery");
-    break;
-
-    case POWER_SUPLY:
-     mySerial.print(" PowerSuply");
-    break;
+      if( batteryCheckTime.timer.value >200) batteryCheckTime.timer.status = STOP;
 
 
-  } ;
+
+  // switch(state)
+  // { 
+  //   case CHECK:
+  //   break;
+
+  //   case NORMAL:
+  //       mySerial.print(" Normal"); 
+  //       batteryCheckTime.timer.status = START;
+      
+  //       if( batteryCheckTime.timer.value >300)//3M
+  //       {
+  //         SUPPLY_VOLTAGE_IS_16_V
+  //         POWER_RELAY_OFF
+  //         mySerial.print("\n POWER_RELAY_OFF ");
+          
+  //       }
+  //       else {
+        
+  //       POWER_RELAY_ON;
+  //       SUPPLY_VOLTAGE_IS_24_V
+  //       }
+  //     if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
+
+  //   break;
+
+  //   case BATTERY:
+  //     mySerial.print(" Battery");
+  //   break; 
+
+  //   case LOW_BATTERY:
+  //     mySerial.print(" LowBattery");
+  //   break;
+
+  //   case POWER_SUPLY:
+  //    mySerial.print(" PowerSuply");
+  //   break;
+
+
+  // } ;
   
  if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
 
@@ -1089,26 +1127,37 @@ void Relaycont() {
 }
 
 float readBattery(void){
- static int tempTime=millis();
- if ((tempTime=millis()-tempTime)>50){
+  static float result=0;
+//  static int tempTime=millis();
+//  if ((tempTime=millis()-tempTime)>50){
+    delay(100);
   digitalWrite(Sela, HIGH);
   digitalWrite(Selb, HIGH);
   digitalWrite(Selc, LOW);
- }
-  if ((tempTime=millis()-tempTime)>50){
-  return (((3.3 / 1023.00) * analogRead(Analog4))*24/1.39375);
- }
+  delay(100);
+//  }
+//  //*24/1.39375
+//   if ((tempTime=millis()-tempTime)>50){
+  //return ((3.3 / 1023.00) * (analogRead(Analog4)))*30.7438028064;
+ 
+  return  analogRead(Analog4);
+ //}
 }
 float readPowerSupply(void){
-  static int tempTime=millis();
-  if ((tempTime=millis()-tempTime)>50){
+   static float result=0;
+  // static int tempTime=millis();
+  // if ((tempTime=millis()-tempTime)>50){
+     delay(100);
   digitalWrite(Sela, LOW);
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
-  }
-  if ((tempTime=millis()-tempTime)>50){
-  return ((3.3 / 1023.00) * analogRead(Analog4)*24/1.39375-0.33);
-  }
+  delay(100);
+  // }
+  // //*24/1.39375-0.33
+  // if ((tempTime=millis()-tempTime)>50){
+ return analogRead(Analog4);
+
+ // }
 
 }
 
