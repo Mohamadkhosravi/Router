@@ -192,19 +192,18 @@ typedef enum {
 
 class timerMS {
   public:
-  struct
-  {
+  
     STATE status;
     unsigned long value = 0;
-  } timer;
+
 
   void update();
 };
  void timerMS::update() {
-    if (timer.status == START) {
-        timer.value++;
-    } else if (timer.status == STOP) {
-        timer.value = 0;
+    if (status == START) {
+         value++;
+    } else if (status == STOP) {
+        value = 0;
     }
 } 
 

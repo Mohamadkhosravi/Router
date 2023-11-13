@@ -5,8 +5,10 @@ SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
 timerMS Timer;
 timerMS batteryCheckTime;
-
+timerMS readMUXBatteryTimer;
+timerMS readMUXPowerSupplyTimer;
 void Update_IT_callback1(void);
+void Update_IT_callback2(void);
 // Hardware Settings
 int firstRepeat=0;
 void setup() {
@@ -16,16 +18,30 @@ void setup() {
   mySerial.begin(9600);
   sr.setAllHigh();
 
+
+
 // Timers configuration
 #if defined(TIM1)
   TIM_TypeDef *Instance = TIM1;
 #else
   TIM_TypeDef *Instance = TIM2;
 #endif
+
   HardwareTimer *MyTim = new HardwareTimer(Instance);
   MyTim->setOverflow(10, HERTZ_FORMAT);  // 10 Hz
   MyTim->attachInterrupt(Update_IT_callback1);
   MyTim->resume();
+
+
+ TIM_TypeDef *Instance1 =TIM3;
+ HardwareTimer *MyTim2 = new HardwareTimer(Instance1);
+  MyTim2->setOverflow(1000, HERTZ_FORMAT);  // 10 Hz
+  MyTim2->attachInterrupt(Update_IT_callback2);
+  MyTim2->resume();
+
+readMUXBatteryTimer.status== START;
+SUPPLY_VOLTAGE_IS_24_V
+
 
   // Check if Card 1 is present
   if (digitalRead(CS1) == 0)
@@ -104,44 +120,15 @@ void loop() {
 
 
     digitalWrite(LEDerror, HIGH);
-   // batteryCheck();
-while(1){
-    IWatchdog.reload();
-// digitalWrite(LEDerror, HIGH);
-//   digitalWrite(Sela, LOW);
-//   digitalWrite(Selb, LOW);
-//   digitalWrite(Selc, LOW);
-//   delay(25);
-//   mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4));
-//   delay(15);
-//   digitalWrite(Sela, HIGH);
-//   digitalWrite(Selb, HIGH);
-//   digitalWrite(Selc, LOW);
-//   delay(25);
-//   mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4));
  
-//       mySerial.print("\n VoltageBattery==");
-//       mySerial.print(  mux4Values[0],10);
-//       mySerial.print(" VoltagePowerSuply==");
-//       mySerial.print(  mux4Values[3],10);
-  //  mySerial.print("\n VoltageBattery==");
-  //   mySerial.print(VoltageBattery);
-  //      POWER_RELAY_ON
-  //    //SUPPLY_VOLTAGE_IS_24_V
-  //    delay(1000);
-  //      //  POWER_RELAY_OFF;
-  //  //  SUPPLY_VOLTAGE_IS_16_V
-  //  POWER_RELAY_OFF
-  //    delay(1000);
-  //  mySerial.print("\n VoltagePowerSuply==");
-  //  mySerial.print(VoltagePowerSuply);
+  POWER_RELAY_ON
+while(1){
 
-
-
+    IWatchdog.reload();
     powerCheck(readBattery(),readPowerSupply());
     }
     // POWER_RELAY_ON;
-    // SUPPLY_VOLTAGE_IS_24_V
+    
   
    
     buttonchek();
@@ -275,117 +262,118 @@ bool timeForLedBlink() {
   return (currentTime - ledBlinkTime) > 6;
 }
 
-void powerCheck(float VoltageBattery, float VoltagePowerSuply) {
+void powerCheck(float VoltageBattery, float VoltagePowerSupply) {
 
+static bool battery=false;
+static bool supply=false;
 
   typedef enum
   {
-    CHECK,
     NORMAL,
     BATTERY,
     LOW_BATTERY,
-    POWER_SUPLY,
+    POWER_SUPPLY,
+    BATTERY_BROKEN,
     POWER_OFF
 
   } powerState;
    static powerState state;
-   POWER_RELAY_ON
-
-
-  //Fiter VoltagePowerSuply & VoltageBattery Value
-  //  if((VoltagePowerSuply )>=(VoltageBattery)) 
-  //  {
-  //   if(VoltagePowerSuply-VoltageBattery<=1.1)VoltageBattery=VoltagePowerSuply;
-  //  }
+ 
    
-  //  else if((VoltagePowerSuply ) < (VoltageBattery)) 
-  //  {
-  //    if((VoltageBattery-VoltagePowerSuply)<=1.1)VoltageBattery=VoltagePowerSuply;
-  //  }
-   
+   // Fiter VoltagePowerSupply & VoltageBattery Value
+    if (VoltagePowerSupply<=6)VoltagePowerSupply=0;
+    if (VoltageBattery<=6)VoltageBattery=0;
+
    //Debug
     #ifdef CHECK_BATTERY_DEBUG
       mySerial.printf("\n => STATE == %d ,",state);
       mySerial.print(" VoltageBattery==");
       mySerial.print(VoltageBattery,10);
-      mySerial.print(" VoltagePowerSuply==");
-      mySerial.print(VoltagePowerSuply,10);
+      mySerial.print(" VoltagePowerSupply==");
+      mySerial.print(VoltagePowerSupply,10);
+       mySerial.print(" |");
     #endif
    
-    
-   if (VoltageBattery > VoltagePowerSuply) 
-   {
-    if (VoltageBattery- VoltagePowerSuply >1) 
-    {
-      if  (VoltageBattery < 12) state = LOW_BATTERY;
-      else state =BATTERY;
-    }
-  
-    if (VoltageBattery- VoltagePowerSuply <1) state =NORMAL;
-   }
-  if (VoltageBattery < VoltagePowerSuply)state =POWER_SUPLY; 
-  if (VoltageBattery == VoltagePowerSuply)state =NORMAL;
+    supply=( VoltagePowerSupply >10 )? true : false;
+    battery=( VoltageBattery >10 )? true : false;
 
-     batteryCheckTime.timer.status = START;
-      
-        if( batteryCheckTime.timer.value >100)//3M
-        {
-          SUPPLY_VOLTAGE_IS_16_V
+    if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
+   
+      if (VoltageBattery<18)state= BATTERY_BROKEN;
+      else if (VoltageBattery>18)state= NORMAL;
+     
+    }
+    if((supply==true) && (battery == false))state = POWER_SUPPLY;
+    if((supply==false) && (battery == true)){
        
-          mySerial.print("\n SUPPLY_VOLTAGE_IS_16_V ");
+        if((VoltageBattery<18)&&(VoltageBattery>17))state=LOW_BATTERY;
+        else if(VoltageBattery<17)state= BATTERY_BROKEN;
+        else if(VoltageBattery>18) state = BATTERY;
+    }
+   if((supply==false) && (battery == false))state = POWER_OFF;
+
+ 
+  switch(state)
+  { 
+   
+    case NORMAL:
+        mySerial.print(" Normal"); 
+        batteryCheckTime.status = START;
+        if( batteryCheckTime.value >100)
+         {
+            SUPPLY_VOLTAGE_IS_16_V
+        
+          mySerial.print(" Check Battery ");
           
         }
         else {
         
-        
-        SUPPLY_VOLTAGE_IS_24_V
-         mySerial.print("\n SUPPLY_VOLTAGE_IS_24_V ");
-        }
-      if( batteryCheckTime.timer.value >200) batteryCheckTime.timer.status = STOP;
+        POWER_RELAY_ON;
+       SUPPLY_VOLTAGE_IS_24_V
+    
+       }
+      if( batteryCheckTime.value >120) {
 
+       batteryCheckTime.status = STOP;
+    
+      }
 
+    break;
 
-  // switch(state)
-  // { 
-  //   case CHECK:
-  //   break;
+    case BATTERY:
+      mySerial.print(" Battery");
+    break; 
 
-  //   case NORMAL:
-  //       mySerial.print(" Normal"); 
-  //       batteryCheckTime.timer.status = START;
-      
-  //       if( batteryCheckTime.timer.value >300)//3M
-  //       {
-  //         SUPPLY_VOLTAGE_IS_16_V
-  //         POWER_RELAY_OFF
-  //         mySerial.print("\n POWER_RELAY_OFF ");
-          
-  //       }
-  //       else {
-        
-  //       POWER_RELAY_ON;
-  //       SUPPLY_VOLTAGE_IS_24_V
-  //       }
-  //     if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
+    case LOW_BATTERY:
+       SUPPLY_VOLTAGE_IS_24_V
+      mySerial.print(" LowBattery");
 
-  //   break;
+    break;
 
-  //   case BATTERY:
-  //     mySerial.print(" Battery");
-  //   break; 
+    case POWER_SUPPLY:
+     SUPPLY_VOLTAGE_IS_24_V
+     POWER_RELAY_OFF
+     mySerial.print(" PowerSupply");
+     if((supply==true) && (battery == true))state=NORMAL;
 
-  //   case LOW_BATTERY:
-  //     mySerial.print(" LowBattery");
-  //   break;
+    break;
 
-  //   case POWER_SUPLY:
-  //    mySerial.print(" PowerSuply");
-  //   break;
+    case BATTERY_BROKEN:
+     SUPPLY_VOLTAGE_IS_24_V
+     POWER_RELAY_OFF
+     mySerial.print(" Battery is Broken"); 
+    break;
 
+    case POWER_OFF:
+     SUPPLY_VOLTAGE_IS_24_V
+     mySerial.print("Power is OFF"); 
+    break;
 
-  // } ;
+    
+
+  } ;
   
- if( batteryCheckTime.timer.value >305) batteryCheckTime.timer.status = STOP;
+ if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
 
 }
 
@@ -405,7 +393,7 @@ void batteryCheck() {
 
     if (currentTime - batteryScanTime > 50) {
     
-      //24v suply
+      //24v Supply
       if ((mux4Values[0] * 41) > 16) {  //power check power 24 to 16v
         //chose mult chanel .0
           digitalWrite(Sela, LOW);
@@ -569,7 +557,7 @@ status processCurrentConditions(byte line) {
 
     mySerial.print("\n");
     mySerial.print("time.value ");
-    mySerial.print(Timer.timer.value);
+    mySerial.print(Timer.value);
     mySerial.print("\n");
     mySerial.print("\n");
     mySerial.print("repeatFireDetection =");
@@ -591,7 +579,7 @@ status processCurrentConditions(byte line) {
     MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
  }
 
-if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
 
   #ifdef FIER_DEBUG
 
@@ -606,8 +594,8 @@ if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MI
    #endif
 
       repeatFireDetection = 0;
-      Timer.timer.value = 0;
-      Timer.timer.status = STOP;
+      Timer.value = 0;
+      Timer.status = STOP;
     }
 
     #ifdef FIER_DEBUG
@@ -644,7 +632,7 @@ if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MI
   if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)) {
 
     repeatFireDetection++;
-   Timer.timer.status = START;
+   Timer.status = START;
 
 
     #ifdef FIER_DEBUG
@@ -658,7 +646,7 @@ if ((Timer.timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MI
 
     fierLouckBit = 1;
     repeatFireDetection = 0;
-  Timer.timer.status = STOP;
+  Timer.status = STOP;
  #ifdef FIER_DEBUG
     mySerial.print("\n");
     mySerial.print("<<<!!!!!!!!!!!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>>>");
@@ -1068,11 +1056,8 @@ void GPIOInit(void) {
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
-
  batteryCheckTime.update();
  Timer.update();
-
-
 
 
   ledBlinker2 = !ledBlinker2;
@@ -1104,6 +1089,14 @@ void Update_IT_callback1(void) {  // 10hz
   } else
     faultFlag = false;
 }
+void Update_IT_callback2(void) { 
+
+ readMUXPowerSupplyTimer.update();
+ readMUXBatteryTimer.update();
+
+
+}
+
 
 void Relaycont() {
   digitalWrite(rel2, faultFlag);
@@ -1127,37 +1120,46 @@ void Relaycont() {
 }
 
 float readBattery(void){
-  static float result=0;
-//  static int tempTime=millis();
-//  if ((tempTime=millis()-tempTime)>50){
-    delay(100);
-  digitalWrite(Sela, HIGH);
-  digitalWrite(Selb, HIGH);
-  digitalWrite(Selc, LOW);
-  delay(100);
-//  }
-//  //*24/1.39375
-//   if ((tempTime=millis()-tempTime)>50){
-  //return ((3.3 / 1023.00) * (analogRead(Analog4)))*30.7438028064;
- 
-  return  analogRead(Analog4);
- //}
+  static char state;
+  static float result;
+   if( state==0) readMUXBatteryTimer.status=START;
+   if (readMUXBatteryTimer.value > 100){
+
+    digitalWrite(Sela, HIGH);
+    digitalWrite(Selb, HIGH);
+    digitalWrite(Selc, LOW);
+    } 
+   if ((readMUXBatteryTimer.value>200)){
+
+     readMUXBatteryTimer.status=STOP;
+     state=readMUXPowerSupplyTimer.status=START;
+      result =(analogRead(Analog4)*0.0819672131)-1.3770491803;
+     
+     } 
+     return result;
 }
 float readPowerSupply(void){
-   static float result=0;
-  // static int tempTime=millis();
-  // if ((tempTime=millis()-tempTime)>50){
-     delay(100);
-  digitalWrite(Sela, LOW);
-  digitalWrite(Selb, LOW);
-  digitalWrite(Selc, LOW);
-  delay(100);
-  // }
-  // //*24/1.39375-0.33
-  // if ((tempTime=millis()-tempTime)>50){
- return analogRead(Analog4);
 
- // }
+  static float result;
+  static char state;
+   if( state==0) readMUXPowerSupplyTimer.status=START;
+   if ((readMUXPowerSupplyTimer.value > 100)){ 
+
+      digitalWrite(Sela, LOW);
+      digitalWrite(Selb, LOW);
+      digitalWrite(Selc, LOW);
+    } 
+   if ((readMUXPowerSupplyTimer.value>200)){ 
+
+    readMUXPowerSupplyTimer.status=STOP;
+    state=readMUXBatteryTimer.status=START;
+    result =((analogRead(Analog4)*0.1020408163265)-26.857142857127);
+   
+    } 
+ return result;
+
+
+
 
 }
 
