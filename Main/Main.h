@@ -195,9 +195,7 @@ class timerMS {
   
     STATE status;
     unsigned long value = 0;
-
-
-  void update();
+    void update();
 };
  void timerMS::update() {
     if (status == START) {
@@ -205,7 +203,28 @@ class timerMS {
     } else if (status == STOP) {
         value = 0;
     }
-} 
+}
+
+class flowDelay: public timerMS {
+  public:
+
+
+  bool Delay(long unsigned time_ms ){
+    
+    status= START;
+     if (value>= time_ms){
+        status= STOP;
+
+       return true;
+     }
+     else{
+      return false;
+     }
+  }
+
+};
+
+  
 
 
 

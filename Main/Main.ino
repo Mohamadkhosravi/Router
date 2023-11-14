@@ -7,6 +7,8 @@ timerMS Timer;
 timerMS batteryCheckTime;
 timerMS readMUXBatteryTimer;
 timerMS readMUXPowerSupplyTimer;
+flowDelay flow[10];
+
 void Update_IT_callback1(void);
 void Update_IT_callback2(void);
 // Hardware Settings
@@ -118,28 +120,28 @@ SUPPLY_VOLTAGE_IS_24_V
 
 void loop() {
 
-
-    digitalWrite(LEDerror, HIGH);
- 
-  POWER_RELAY_ON
-while(1){
-
-    IWatchdog.reload();
-    powerCheck(readBattery(),readPowerSupply());
-    }
-    // POWER_RELAY_ON;
     
-  
-   
-    buttonchek();
-    Muxread(muxPosition);
-    Linechek();
-   
+     while(1){
+       IWatchdog.reload();
+       Muxread(muxPosition);
+       for(int j=0 ;j<=10;j++){
+        powerCheck(readBattery(),readPowerSupply());
+       }
+      
+     
+     }
+     Muxread(muxPosition);
     
+     buttonchek();
+     Linechek();
+   
+      
+
      if (firstRepeat>12)
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         { 
+             
             //if(lineStatus[i]!=1) handelShortCircuit(i);
             handelShortCircuit(i);
             lineStatus[i] = processCurrentConditions(i);
@@ -160,7 +162,7 @@ while(1){
     IWatchdog.reload();
     updateMuxPosition();
     checkAndEnableBeeper();
-
+   
 
 }
 
@@ -1091,6 +1093,9 @@ void Update_IT_callback1(void) {  // 10hz
 }
 void Update_IT_callback2(void) { 
 
+
+ for(int i=0;i<=10;i++) {flow[i].update();}
+
  readMUXPowerSupplyTimer.update();
  readMUXBatteryTimer.update();
 
@@ -1123,13 +1128,13 @@ float readBattery(void){
   static char state;
   static float result;
    if( state==0) readMUXBatteryTimer.status=START;
-   if (readMUXBatteryTimer.value > 100){
+   if (readMUXBatteryTimer.value > 50){
 
     digitalWrite(Sela, HIGH);
     digitalWrite(Selb, HIGH);
     digitalWrite(Selc, LOW);
     } 
-   if ((readMUXBatteryTimer.value>200)){
+   if ((readMUXBatteryTimer.value>50)){
 
      readMUXBatteryTimer.status=STOP;
      state=readMUXPowerSupplyTimer.status=START;
@@ -1143,17 +1148,17 @@ float readPowerSupply(void){
   static float result;
   static char state;
    if( state==0) readMUXPowerSupplyTimer.status=START;
-   if ((readMUXPowerSupplyTimer.value > 100)){ 
+   if ((readMUXPowerSupplyTimer.value > 50)){ 
 
       digitalWrite(Sela, LOW);
       digitalWrite(Selb, LOW);
       digitalWrite(Selc, LOW);
     } 
-   if ((readMUXPowerSupplyTimer.value>200)){ 
+   if ((readMUXPowerSupplyTimer.value>50)){ 
 
     readMUXPowerSupplyTimer.status=STOP;
     state=readMUXBatteryTimer.status=START;
-    result =((analogRead(Analog4)*0.1020408163265)-26.857142857127);
+    result =(analogRead(Analog4)*0.1020408163265)-26.857142857127;
    
     } 
  return result;
