@@ -22,12 +22,12 @@ void setup() {
 
  
 
-// Timers configuration
-#if defined(TIM1)
-  TIM_TypeDef *Instance = TIM1;
-#else
-  TIM_TypeDef *Instance = TIM2;
-#endif
+  // Timers configuration
+  #if defined(TIM1)
+    TIM_TypeDef *Instance = TIM1;
+  #else
+    TIM_TypeDef *Instance = TIM2;
+  #endif
 
   HardwareTimer *MyTim = new HardwareTimer(Instance);
   MyTim->setOverflow(10, HERTZ_FORMAT);  // 10 Hz
@@ -35,14 +35,14 @@ void setup() {
   MyTim->resume();
 
 
- TIM_TypeDef *Instance1 =TIM3;
- HardwareTimer *MyTim2 = new HardwareTimer(Instance1);
+  TIM_TypeDef *Instance1 =TIM3;
+  HardwareTimer *MyTim2 = new HardwareTimer(Instance1);
   MyTim2->setOverflow(1000, HERTZ_FORMAT);  // 10 Hz
   MyTim2->attachInterrupt(Update_IT_callback2);
   MyTim2->resume();
 
-readMuxBatteryTimer.status== START;
-SUPPLY_VOLTAGE_IS_24_V
+  readMuxBatteryTimer.status== START;
+  SUPPLY_VOLTAGE_IS_24_V
 
 
   // Check if Card 1 is present
@@ -126,14 +126,17 @@ void loop() {
      checkButtons();
      distributionMuxValues();
    
-     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
      
      if (firstRepeat>12)
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
-        { 
-             
-            //if(lineStatus[i]!=1) handelShortCircuit(i);
+        {   
+             mySerial.print("\n line ") ;
+             mySerial.print(i) ;
+             mySerial.print("=") ;
+             mySerial.print(mux1Values[i]) ;
+            
             handelShortCircuit(i);
             lineStatus[i] = processCurrentConditions(i);
         }
@@ -185,7 +188,7 @@ void handelShortCircuit(byte numberLine)
     if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime>1 )) {
 
   
-    LINE_STATUS_DEBUG("========ShortCircuit line========&");
+    LINE_STATUS_DEBUG("========ShortCircuit line======== &");
 
   
 
@@ -213,18 +216,18 @@ void handleThresholdFaults() {
   }
 }
 // Function to check if a supply failure is detected
-bool supplyFailureDetected() {
-  return (0.55 < mux4Values[0]);
-}
+// bool supplyFailureDetected() {
+//   return (0.55 < mux4Values[0]);
+// }
 // Function to check if a power failure is detected
 
-bool powerFailureDetected() {
-  return (mux4Values[0] < 0.1);
-}
+// bool powerFailureDetected() {
+//   return (mux4Values[0] < 0.1);
+// }
 
 // Function to handle supply and power failures
 void handleSupplyAndpowerFailures() {
-  if (supplyFailureDetected()) {
+  if (0.55 < mux4Values[0]) {
     supplyFault = false;
     buzzerControl = true;
     batteryChecking = false;
@@ -235,7 +238,7 @@ void handleSupplyAndpowerFailures() {
       batteryChecking = false;
   }
 
-  if (powerFailureDetected()) {
+  if (mux4Values[0] < 0.1){
     powerFail = true;
     buzzerControl = true;
   } else {
@@ -249,8 +252,8 @@ bool timeForLedBlink() {
 
 void checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
-static bool battery=false;
-static bool supply=false;
+  static bool battery=false;
+  static bool supply=false;
 
   typedef enum
   {
@@ -298,7 +301,7 @@ static bool supply=false;
     }
    if((supply==false) && (battery == false))state = POWER_OFF;
 
- 
+
   switch(state)
   { 
    
@@ -362,8 +365,6 @@ static bool supply=false;
  if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
 
 }
-
-
 
 void batteryCheck() {
   batteryChecking = true;
@@ -538,15 +539,6 @@ bool enableBeeper() {
 status processCurrentConditions(byte line) {
 
   static int repeatFireDetection = 0;
-
-  // #ifdef LINE_STATUS_DEBUG
-
- 
-   
-
-
-  // #endif
-
  if (line > 3)//extera lines(card 1 or 2 or bouth)
  {
     MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
@@ -570,16 +562,10 @@ if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
     LINE_STATUS_DEBUG("=========================================================================");
     LINE_STATUS_DEBUG("\n");
 
-
-      repeatFireDetection = 0;
-      Timer.value = 0;
-      Timer.status = STOP;
+    repeatFireDetection = 0;
+    Timer.value = 0;
+    Timer.status = STOP;
     }
-
-   
-
- 
-
 
   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
@@ -658,7 +644,6 @@ if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
    {
     //repeatFireDetection=0;
       if (firstSence[line] == 0)
-
       return SHORT_CIRCUIT;
   }
 }
