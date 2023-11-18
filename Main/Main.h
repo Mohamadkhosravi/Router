@@ -17,15 +17,38 @@
 #define MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES 1
 #define LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES 2
 
+int MAXIMUM_TIME_FIER_DETECT= MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES;
 int MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
 int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
-int MAXIMUM_TIME_FIER_DETECT= MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES;
 
 
-// #define FIER_DEBUG
-// #define SHORT_CIRCUIT_DEBUG
-// #define OPEN_CIRCUIT_DEBUG
-#define CHECK_BATTERY_DEBUG
+
+
+
+
+#define DEBUG_ON  mySerial.print
+#define DEBUG_OFF 
+
+#define POWER_CHECK_DEBUG 
+#define LINE_STATUS_DEBUG
+
+
+
+
+#ifdef  POWER_CHECK_DEBUG 
+  #define POWER_CHECK_DEBUG   DEBUG_ON
+#else
+  #define POWER_CHECK_DEBUG   DEBUG_OFF
+#endif
+
+
+#ifdef  LINE_STATUS_DEBUG
+  #define LINE_STATUS_DEBUG   DEBUG_ON
+#else
+  #define LINE_STATUS_DEBUG   DEBUG_OFF 
+#endif
+
+
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
@@ -207,7 +230,6 @@ class timerMS {
 
 class flowDelay: public timerMS {
   public:
-
 
   bool Delay(long unsigned time_ms ){
     
