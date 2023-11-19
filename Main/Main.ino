@@ -1,5 +1,5 @@
 #include <Main.h>
-#include <cstdio>
+
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
@@ -107,38 +107,44 @@ void setup() {
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4));
+  mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4))*100;
   delay(15);
   digitalWrite(Sela, HIGH);
   digitalWrite(Selb, HIGH);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4));
+  mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4))*100;
  
 }
 
 
 void loop() {
-
+POWER_RELAY_ON
      IWatchdog.reload();
-     checkPower(readBattery(),readPowerSupply());
+    //  checkPower(readBattery(),readPowerSupply());
      readMux(muxPosition);
-     checkButtons();
+    //  checkButtons();
      distributionMuxValues();
    
-     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
      
      if (firstRepeat>12)
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
-             mySerial.print("\n line ") ;
-             mySerial.print(i) ;
-             mySerial.print("=") ;
-             mySerial.print(mux1Values[i]) ;
-            
-            handelShortCircuit(i);
-            lineStatus[i] = processCurrentConditions(i);
+        
+        // LINE_STATUS_DEBUG("\n");
+        // LINE_STATUS_DEBUG("line");
+        // LINE_STATUS_DEBUG(i);
+        // LINE_STATUS_DEBUG(" , Voltage =");
+        // LINE_STATUS_DEBUG(lineVoltage[i]);
+        // LINE_STATUS_DEBUG(", Current=");
+        // LINE_STATUS_DEBUG(lineCurrent[i]);
+        // LINE_STATUS_DEBUG(" ");
+ 
+
+           handelShortCircuit(i);
+           lineStatus[i] = processCurrentConditions(i);
         }
       }
       else
@@ -155,7 +161,7 @@ void loop() {
     Relaycont();
     IWatchdog.reload();
     updateMuxPosition();
-    checkAndEnableBeeper();
+    // checkAndEnableBeeper();
    
 }
 
@@ -188,7 +194,7 @@ void handelShortCircuit(byte numberLine)
     if ((lineVoltage[numberLine] < SHORT_CIRCUIT_THRESHOLD) && (currentTime - shortCircuitTime>1 )) {
 
   
-    LINE_STATUS_DEBUG("========ShortCircuit line======== &");
+    LINE_STATUS_DEBUG("ShortCircuit line(detect from Current) &");
 
   
 
@@ -227,7 +233,7 @@ void handleThresholdFaults() {
 
 // Function to handle supply and power failures
 void handleSupplyAndpowerFailures() {
-  if (0.55 < mux4Values[0]) {
+  if ( (mux4Values[0])>0.55) {
     supplyFault = false;
     buzzerControl = true;
     batteryChecking = false;
@@ -238,7 +244,7 @@ void handleSupplyAndpowerFailures() {
       batteryChecking = false;
   }
 
-  if (mux4Values[0] < 0.1){
+  if ((mux4Values[0] ) < 0.1){
     powerFail = true;
     buzzerControl = true;
   } else {
@@ -552,7 +558,7 @@ status processCurrentConditions(byte line) {
     MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
  }
 
-if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+  if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
 
     LINE_STATUS_DEBUG("\n");
     LINE_STATUS_DEBUG("=========================================================================");
@@ -565,7 +571,7 @@ if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
     repeatFireDetection = 0;
     Timer.value = 0;
     Timer.status = STOP;
-    }
+  }
 
   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
   // Process the current conditions for the line
@@ -575,29 +581,24 @@ if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
     if (lineCurrent[line] < OPEN_THRESHOLD) {
 
 
-         LINE_STATUS_DEBUG(" OOOOOOOO>OPEN_CIRCUIT<OOOOOOOO " );
-   
-
-       
-
+         LINE_STATUS_DEBUG("OPEN_CIRCUIT" );
         return OPEN_CIRCUIT;
 
     } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
+       LINE_STATUS_DEBUG(" NORMAL  ");
       return NORMAL;
     }
   }
 
   if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)) {
 
-    repeatFireDetection++;
-   Timer.status = START;
-
+        repeatFireDetection++;
+        Timer.status = START;
         LINE_STATUS_DEBUG(", time detect Fier = ");
         LINE_STATUS_DEBUG(Timer.value);
         LINE_STATUS_DEBUG(", repeat Fire Detection =");
         LINE_STATUS_DEBUG(repeatFireDetection);
         LINE_STATUS_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
- 
 
   }
 
@@ -608,7 +609,7 @@ if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_
     Timer.status = STOP;
 
      LINE_STATUS_DEBUG("\n");
-     LINE_STATUS_DEBUG("<<<!!!!!!!!!!!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!>>>");
+     LINE_STATUS_DEBUG("<<<!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!>>>");
      LINE_STATUS_DEBUG("\n");
 
     // Handle fire detection conditions
@@ -768,10 +769,14 @@ void readMux(byte add) {
 
   // Read analog values and store them in the mux arrays
   for (int i = 0; i < 4; i++) {
-    mux1Values[add] = (3.3 / 1023.00) * analogRead(Analog1);
-    mux2Values[add] = (3.3 / 1023.00) * analogRead(Analog2);
-    mux3Values[add] = (3.3 / 1023.00) * analogRead(Analog3);
-    mux4Values[add] = (3.3 / 1023.00) * analogRead(Analog4);
+    mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100;
+    mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100;
+    mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100;
+    mux4Values[add] = (3.3 / 1023.000) * analogRead(Analog4)*100;
+    // mux1Values[add] = analogRead(Analog1);
+    // mux2Values[add] = analogRead(Analog2);
+    // mux3Values[add] = analogRead(Analog3);
+    // mux4Values[add] = analogRead(Analog4);
   }
 
   // Delay as needed
@@ -1043,11 +1048,9 @@ void Update_IT_callback1(void) {  // 10hz
 }
 void Update_IT_callback2(void) { 
 
-
  for(int i=0;i<=10;i++) {flow[i].update();}
-
- readMuxPowerSupplyTimer.update();
- readMuxBatteryTimer.update();
+  readMuxPowerSupplyTimer.update();
+  readMuxBatteryTimer.update();
 
 
 }

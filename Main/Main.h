@@ -1,10 +1,12 @@
+
 #ifndef MAIN_H
 #define  MAIN_H
 
+#include <Arduino.h>
 #include <IWatchdog.h>
 #include <ShiftRegister74HC595.h>
 #include <SoftwareSerial.h>
-#include <Arduino.h>
+
 
 
 
@@ -29,8 +31,8 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
-// #define POWER_CHECK_DEBUG 
-// #define LINE_STATUS_DEBUG
+#define POWER_CHECK_DEBUG 
+#define LINE_STATUS_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
   #define POWER_CHECK_DEBUG   DEBUG_ON
@@ -50,14 +52,14 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
 // Threshold values
-#define OPEN_THRESHOLD  0.09
-#define NORMAL_THRESHOLD  0.24
+#define OPEN_THRESHOLD  9
+#define NORMAL_THRESHOLD  24
 //#define FIRE_THRESHOLD  1.1
-#define FIRE_THRESHOLD  0.8
+#define FIRE_THRESHOLD 80
 //#define SHORT_CIRCUIT_THRESHOLD  0.4
-#define SHORT_CIRCUIT_THRESHOLD  0.95
-#define LOWER_THRESHOLD_OUT 0.1
-#define UPPER_THRESHOLD_OUT  0.49
+#define SHORT_CIRCUIT_THRESHOLD  95
+#define LOWER_THRESHOLD_OUT 10
+#define UPPER_THRESHOLD_OUT  49
 
 
 // Defines Relys
