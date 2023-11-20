@@ -99,7 +99,7 @@ void setup() {
     digitalWrite(Line10, HIGH);
     digitalWrite(Line11, HIGH);
     digitalWrite(Line12, HIGH);
-  IWatchdog.begin(5000000);  // 5000ms
+  IWatchdog.begin(7000000);  // 5000ms
   shortCircuitTime = currentTime;
 
   digitalWrite(LEDerror, HIGH);
@@ -119,11 +119,12 @@ void setup() {
 
 
 void loop() {
-POWER_RELAY_ON
+
      IWatchdog.reload();
-    //  checkPower(readBattery(),readPowerSupply());
+     checkPower(readBattery(),readPowerSupply());
      readMux(muxPosition);
-    //  checkButtons();
+     
+      checkButtons();
      distributionMuxValues();
    
      LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -143,8 +144,8 @@ POWER_RELAY_ON
         // LINE_STATUS_DEBUG(" ");
  
 
-           handelShortCircuit(i);
-           lineStatus[i] = processCurrentConditions(i);
+        handelShortCircuit(i);
+       lineStatus[i] = processCurrentConditions(i);
         }
       }
       else
@@ -161,7 +162,7 @@ POWER_RELAY_ON
     Relaycont();
     IWatchdog.reload();
     updateMuxPosition();
-    // checkAndEnableBeeper();
+     checkAndEnableBeeper();
    
 }
 
@@ -314,21 +315,26 @@ void checkPower(float VoltageBattery, float VoltagePowerSupply) {
     case NORMAL:
         POWER_CHECK_DEBUG(" Normal"); 
         batteryCheckTime.status = START;
-        if( batteryCheckTime.value >100)
-         {
+        if( batteryCheckTime.value >95)
+         { 
+           fierCheckLock =true;
+           
+           if( batteryCheckTime.value >100){
             SUPPLY_VOLTAGE_IS_16_V
-        
-          POWER_CHECK_DEBUG(" Check Battery ");
-          
+           }
+         
         }
         else {
         
         POWER_RELAY_ON;
        SUPPLY_VOLTAGE_IS_24_V
+      
     
+   
+      
        }
       if( batteryCheckTime.value >120) {
-
+       fierCheckLock=false;
        batteryCheckTime.status = STOP;
     
       }
@@ -544,7 +550,11 @@ bool enableBeeper() {
 // Function to process current conditions
 status processCurrentConditions(byte line) {
 
-  static int repeatFireDetection = 0;
+   static int repeatFireDetection = 0;
+
+     
+
+
  if (line > 3)//extera lines(card 1 or 2 or bouth)
  {
     MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
@@ -560,13 +570,13 @@ status processCurrentConditions(byte line) {
 
   if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
 
-    LINE_STATUS_DEBUG("\n");
-    LINE_STATUS_DEBUG("=========================================================================");
-    LINE_STATUS_DEBUG("\n");
-    LINE_STATUS_DEBUG("============================RESET DEBUNCE================================");
-    LINE_STATUS_DEBUG("\n");
-    LINE_STATUS_DEBUG("=========================================================================");
-    LINE_STATUS_DEBUG("\n");
+    LINE_FIER_DEBUG("\n");
+    LINE_FIER_DEBUG("=========================================================================");
+    LINE_FIER_DEBUG("\n");
+    LINE_FIER_DEBUG("============================RESET DEBUNCE================================");
+    LINE_FIER_DEBUG("\n");
+    LINE_FIER_DEBUG("=========================================================================");
+    LINE_FIER_DEBUG("\n");
 
     repeatFireDetection = 0;
     Timer.value = 0;
@@ -590,16 +600,11 @@ status processCurrentConditions(byte line) {
     }
   }
 
-  if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)) {
+  if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)&&(fierCheckLock == false)) {
 
         repeatFireDetection++;
         Timer.status = START;
-        LINE_STATUS_DEBUG(", time detect Fier = ");
-        LINE_STATUS_DEBUG(Timer.value);
-        LINE_STATUS_DEBUG(", repeat Fire Detection =");
-        LINE_STATUS_DEBUG(repeatFireDetection);
-        LINE_STATUS_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
-
+     LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
   }
 
   if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {
@@ -608,9 +613,9 @@ status processCurrentConditions(byte line) {
     repeatFireDetection = 0;
     Timer.status = STOP;
 
-     LINE_STATUS_DEBUG("\n");
-     LINE_STATUS_DEBUG("<<<!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!>>>");
-     LINE_STATUS_DEBUG("\n");
+     LINE_FIER_DEBUG("\n");
+     LINE_FIER_DEBUG("<<<!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!>>>");
+     LINE_FIER_DEBUG("\n");
 
     // Handle fire detection conditions
     fultSencetimer = 0;  // fire alarming
