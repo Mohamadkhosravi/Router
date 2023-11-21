@@ -315,19 +315,26 @@ void checkPower(float VoltageBattery, float VoltagePowerSupply) {
     case NORMAL:
         POWER_CHECK_DEBUG(" Normal"); 
         batteryCheckTime.status = START;
-        if( batteryCheckTime.value >95)
-         { 
-           fierCheckLock =true;
-           
-           if( batteryCheckTime.value >100){
+          if( batteryCheckTime.value >100)
+          { 
+          
+           //Timer.status=PAUSE;
+           //if( batteryCheckTime.value >100){
+             //fierCheckLock =true;
             SUPPLY_VOLTAGE_IS_16_V
-           }
-         
+          //  }
+          //  if( batteryCheckTime.value >120) {
+           // fierCheckLock=false;
+            batteryCheckTime.status = STOP;
+            Timer.status=START;
+    
+          // }
+  
         }
         else {
-        
+       
         POWER_RELAY_ON;
-       SUPPLY_VOLTAGE_IS_24_V
+        SUPPLY_VOLTAGE_IS_24_V
       
     
    
@@ -551,9 +558,9 @@ bool enableBeeper() {
 status processCurrentConditions(byte line) {
 
    static int repeatFireDetection = 0;
-
-     
-
+   static int repeat= 0;
+  
+    delay(20);
 
  if (line > 3)//extera lines(card 1 or 2 or bouth)
  {
@@ -579,6 +586,7 @@ status processCurrentConditions(byte line) {
     LINE_FIER_DEBUG("\n");
 
     repeatFireDetection = 0;
+    repeat=0;
     Timer.value = 0;
     Timer.status = STOP;
   }
@@ -601,10 +609,15 @@ status processCurrentConditions(byte line) {
   }
 
   if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)&&(fierCheckLock == false)) {
-
+         Timer.status = START;
+        repeat++;
+        if (repeat>9){
         repeatFireDetection++;
-        Timer.status = START;
-     LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
+         // LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
+          LINE_FIER_DEBUG(repeatFireDetection);
+       }
+        //LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
+       // mySerial.printf("\n repeatFireDetection= %d repeat= %d Timer value=%d",repeatFireDetection,repeat,Timer.value); 
   }
 
   if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {

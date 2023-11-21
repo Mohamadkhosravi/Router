@@ -7,17 +7,13 @@
 #include <ShiftRegister74HC595.h>
 #include <SoftwareSerial.h>
 
+#define MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES 800
+#define MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES 2000
+#define LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES 2000
 
-
-
-
-#define MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES 40
-#define MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES 9
-#define LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES 9
-
-#define MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES 40
-#define MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES 9
-#define LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES 9
+#define MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES 80
+#define MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES 200
+#define LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES 200
 
 int MAXIMUM_TIME_FIER_DETECT= MAXIMUM_TIME_FIER_DETECT_FOR_MAIN_LINES;
 int MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
@@ -62,12 +58,12 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
 // Threshold values
-#define OPEN_THRESHOLD  7
-#define NORMAL_THRESHOLD  15
+#define OPEN_THRESHOLD  9
+#define NORMAL_THRESHOLD  24
 //#define FIRE_THRESHOLD  1.1
 #define FIRE_THRESHOLD 80
 //#define SHORT_CIRCUIT_THRESHOLD  0.4
-#define SHORT_CIRCUIT_THRESHOLD 40
+#define SHORT_CIRCUIT_THRESHOLD 95
 #define LOWER_THRESHOLD_OUT 10
 #define UPPER_THRESHOLD_OUT  49
 
@@ -218,7 +214,8 @@ status lineStatus[12] = { NON_STATUS };
  byte limitLowPower =18;
 typedef enum {
   STOP,
-  START
+  START,
+  PAUSE
 
 } STATE;
 
@@ -234,7 +231,10 @@ class timerMS {
          value++;
     } else if (status == STOP) {
         value = 0;
+    } else if (status == PAUSE ) {
+
     }
+
 }
 
 class flowDelay: public timerMS {
