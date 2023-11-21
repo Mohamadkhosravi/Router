@@ -7,6 +7,7 @@ timerMS Timer;
 timerMS batteryCheckTime;
 timerMS readMuxBatteryTimer;
 timerMS readMuxPowerSupplyTimer;
+timerMS lineConditionTimer;
 flowDelay flow[10];
 
 void Update_IT_callback1(void);
@@ -134,18 +135,12 @@ void loop() {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
         
-        // LINE_STATUS_DEBUG("\n");
-        // LINE_STATUS_DEBUG("line");
-        // LINE_STATUS_DEBUG(i);
-        // LINE_STATUS_DEBUG(" , Voltage =");
-        // LINE_STATUS_DEBUG(lineVoltage[i]);
-        // LINE_STATUS_DEBUG(", Current=");
-        // LINE_STATUS_DEBUG(lineCurrent[i]);
-        // LINE_STATUS_DEBUG(" ");
+       
  
 
-        handelShortCircuit(i);
-       lineStatus[i] = processCurrentConditions(i);
+        //handelShortCircuit(i);
+        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i);
+       // lineStatus[i] = processCurrentConditions(i);
         }
       }
       else
@@ -259,19 +254,19 @@ bool timeForLedBlink() {
 
 void checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
-  static bool battery=false;
-  static bool supply=false;
+  static bool battery= false;
+  static bool supply= false;
 
-  typedef enum
-  {
-    NORMAL,
-    BATTERY,
-    LOW_BATTERY,
-    POWER_SUPPLY,
-    BATTERY_BROKEN,
-    POWER_OFF
+    typedef enum
+    {
+      NORMAL,
+      BATTERY,
+      LOW_BATTERY,
+      POWER_SUPPLY,
+      BATTERY_BROKEN,
+      POWER_OFF
 
-  } powerState;
+    } powerState;
    static powerState state;
  
    
@@ -315,36 +310,22 @@ void checkPower(float VoltageBattery, float VoltagePowerSupply) {
     case NORMAL:
         POWER_CHECK_DEBUG(" Normal"); 
         batteryCheckTime.status = START;
-          if( batteryCheckTime.value >100)
-          { 
-          
-           //Timer.status=PAUSE;
-           //if( batteryCheckTime.value >100){
-             //fierCheckLock =true;
+
+        if( batteryCheckTime.value >100)
+        { 
             SUPPLY_VOLTAGE_IS_16_V
-          //  }
-          //  if( batteryCheckTime.value >120) {
-           // fierCheckLock=false;
             batteryCheckTime.status = STOP;
-            Timer.status=START;
-    
-          // }
-  
         }
-        else {
-       
-        POWER_RELAY_ON;
-        SUPPLY_VOLTAGE_IS_24_V
-      
-    
-   
-      
-       }
-      if( batteryCheckTime.value >120) {
-       fierCheckLock=false;
-       batteryCheckTime.status = STOP;
-    
-      }
+        else 
+        {
+          POWER_RELAY_ON;
+          SUPPLY_VOLTAGE_IS_24_V
+        }
+       if( batteryCheckTime.value >120) 
+       {
+        fierCheckLock=false;
+        batteryCheckTime.status = STOP;
+        }
 
     break;
 
@@ -554,118 +535,271 @@ bool enableBeeper() {
   return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
-// Function to process current conditions
-status processCurrentConditions(byte line) {
+status processCurrentConditions(float current , float voltage,int numberLine)
+{
 
-   static int repeatFireDetection = 0;
-   static int repeat= 0;
+
   
-    delay(20);
+static status state;
 
- if (line > 3)//extera lines(card 1 or 2 or bouth)
- {
-    MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
-    LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
-    MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
- }
- else{
+#define MINIMUM_LIMIT_OPEN_CIRCUIT 0
+#define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
+#define MINIMUM_LIMIT_NORMAL 7
+#define MAXIMUM_LIMIT_NORMAL 15
+#define MINIMUM_LIMIT_FIER 16
+#define MAXIMUM_LIMIT_FIER 80
+#define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
+#define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
 
-    MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
-    LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
-    MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
- }
+#define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
+#define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
 
-  if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+static struct 
+{
+  float minimumOpenCircuit =0;
+  float maximumOpenCircuit =0;
 
-    LINE_FIER_DEBUG("\n");
-    LINE_FIER_DEBUG("=========================================================================");
-    LINE_FIER_DEBUG("\n");
-    LINE_FIER_DEBUG("============================RESET DEBUNCE================================");
-    LINE_FIER_DEBUG("\n");
-    LINE_FIER_DEBUG("=========================================================================");
-    LINE_FIER_DEBUG("\n");
+  float minimumNormal=0;
+  float maximumNormal=0;
 
-    repeatFireDetection = 0;
-    repeat=0;
-    Timer.value = 0;
-    Timer.status = STOP;
-  }
+  float minimumFier=0;
+  float maximumFier=0;
+  
+  float minimumCurrentShortCircuit =0;
+  float maximumCurrentShortCircuit =0;
 
-  // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-  // Process the current conditions for the line
+  float minimumVoltageShortCircuit =0;
+  float maximumVoltageShortCircuit =0;
+  
+}Limit;
 
-  if (firstSence[line] == 0) {
+//static limit Limit;
+#define MINIMUM_LIMIT_OPEN_CIRCUIT 0
+#define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
+#define MINIMUM_LIMIT_NORMAL 7
+#define MAXIMUM_LIMIT_NORMAL 15
+#define MINIMUM_LIMIT_FIER 16
+#define MAXIMUM_LIMIT_FIER 80
+#define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
+#define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
 
-    if (lineCurrent[line] < OPEN_THRESHOLD) {
+#define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
+#define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
+
+Limit.minimumOpenCircuit = MINIMUM_LIMIT_OPEN_CIRCUIT ;
+Limit.maximumOpenCircuit = MAXIMUM_LIMIT_OPEN_CIRCUIT ;
+Limit.minimumNormal = MINIMUM_LIMIT_NORMAL ;
+Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
+Limit.minimumFier= MINIMUM_LIMIT_FIER ;
+Limit.maximumFier= MAXIMUM_LIMIT_FIER ;
+
+Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
+Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
+
+Limit.minimumVoltageShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
+Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
 
 
-         LINE_STATUS_DEBUG("OPEN_CIRCUIT" );
-        return OPEN_CIRCUIT;
-
-    } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
-       LINE_STATUS_DEBUG(" NORMAL  ");
-      return NORMAL;
-    }
-  }
-
-  if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)&&(fierCheckLock == false)) {
-         Timer.status = START;
-        repeat++;
-        if (repeat>9){
-        repeatFireDetection++;
-         // LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
-          LINE_FIER_DEBUG(repeatFireDetection);
-       }
-        //LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
-       // mySerial.printf("\n repeatFireDetection= %d repeat= %d Timer value=%d",repeatFireDetection,repeat,Timer.value); 
-  }
-
-  if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {
-
-    fierLouckBit = 1;
-    repeatFireDetection = 0;
-    Timer.status = STOP;
-
-     LINE_FIER_DEBUG("\n");
-     LINE_FIER_DEBUG("<<<!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!>>>");
-     LINE_FIER_DEBUG("\n");
-
-    // Handle fire detection conditions
-    fultSencetimer = 0;  // fire alarming
-    delay(55);
-
-    if (firstSence[line] == 1) {
-
-      digitalWrite(lineControlPins[line], LOW);
-      delay(55);
-    }
-    if (firstSence[line] == 2) {
-
-      digitalWrite(lineControlPins[line], HIGH);
-    }
-
-    if (firstSence[line] == 3) {
-
-      fireTrace = true;
-      fireFlag = true;
-      relayControl = false;
-      relayCustomOn = false;
-      sr.set(ledebuz, HIGH);
-      sr.set(ledesounder, HIGH);
-      return FIER;
-    }
-
-    firstSence[line] = firstSence[line] + 1;
-    delay(55);
-
-  } 
-  else
-   {
-    //repeatFireDetection=0;
-      if (firstSence[line] == 0)
-      return SHORT_CIRCUIT;
-  }
+if (( voltage <=Limit.minimumVoltageShortCircuit))
+{
+  state = SHORT_CIRCUIT;
 }
+else if (( current >=Limit.minimumOpenCircuit)&&(current <=Limit.maximumOpenCircuit))
+{
+  state = OPEN_CIRCUIT;
+}
+else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
+{
+   state =NORMAL;
+
+}
+else if (( current >=Limit.minimumFier)&&(current <=Limit.maximumFier))
+{
+  state = FIER;
+}
+else if ( current <Limit.minimumCurrentShortCircuit)
+{
+ state = SHORT_CIRCUIT;
+}
+
+   
+
+
+switch(state)
+{
+
+  case OPEN_CIRCUIT:
+    LINE_STATUS_DEBUG("OPEN_CIRCUIT");
+   // return OPEN_CIRCUIT;
+  break;
+
+  case NORMAL:
+    LINE_STATUS_DEBUG("NORMAL");
+    //return NORMAL;
+  break;
+
+  case FIER:
+      LINE_STATUS_DEBUG("FIER");
+      //return FIER;
+  break;
+
+  case SHORT_CIRCUIT:
+      lineOFF(numberLine);
+      lineConditionTimer.status=START;
+
+      LINE_FIER_DEBUG("lineConditionTimer.value");
+      LINE_FIER_DEBUG(lineConditionTimer.value);
+      if (lineConditionTimer.value >=200)
+      {
+        lineON(numberLine);
+        lineConditionTimer.status=STOP;
+        lineConditionTimer.value=0;
+      }
+    
+     return SHORT_CIRCUIT;
+  break;
+
+}
+      
+       LINE_STATUS_DEBUG("\n");
+        LINE_STATUS_DEBUG("line");
+        LINE_STATUS_DEBUG(numberLine);
+        LINE_STATUS_DEBUG(" , Voltage =");
+        LINE_STATUS_DEBUG(voltage);
+        LINE_STATUS_DEBUG(", Current=");
+        LINE_STATUS_DEBUG(current);
+        LINE_STATUS_DEBUG("STATE");
+        LINE_STATUS_DEBUG(state);
+        LINE_STATUS_DEBUG(" ");
+
+
+
+return state;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+// // Function to process current conditions
+// status processCurrentConditions(byte line) {
+
+//    static int repeatFireDetection = 0;
+//    static int repeat= 0;
+  
+//     delay(20);
+
+//  if (line > 3)//extera lines(card 1 or 2 or bouth)
+//  {
+//     MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEAT_FIER_DETECT_FOR_EXTERA_LINES;
+//     LIMIT_REPEAT_FOR_FIER_DETECT =  LIMIT_REPEAT_FOR_FIER_DETECT_EXTERA_LINES;
+//     MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+//  }
+//  else{
+
+//     MINIMUM_REPEAT_FIER_DETECT = MINIMUM_REPEA_FIER_DETECT_FOR_MAIN_LINES;
+//     LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
+//     MAXIMUM_TIME_FIER_DETECT = MAXIMUM_TIME_FIER_DETECT_FOR_EXTERA_LINES;
+//  }
+
+//   if ((Timer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+
+//     LINE_FIER_DEBUG("\n");
+//     LINE_FIER_DEBUG("=========================================================================");
+//     LINE_FIER_DEBUG("\n");
+//     LINE_FIER_DEBUG("============================RESET DEBUNCE================================");
+//     LINE_FIER_DEBUG("\n");
+//     LINE_FIER_DEBUG("=========================================================================");
+//     LINE_FIER_DEBUG("\n");
+
+//     repeatFireDetection = 0;
+//     repeat=0;
+//     Timer.value = 0;
+//     Timer.status = STOP;
+//   }
+
+//   // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
+//   // Process the current conditions for the line
+
+//   if (firstSence[line] == 0) {
+
+//     if (lineCurrent[line] < OPEN_THRESHOLD) {
+
+
+//          LINE_STATUS_DEBUG("OPEN_CIRCUIT" );
+//         return OPEN_CIRCUIT;
+
+//     } else if ((lineCurrent[line] > OPEN_THRESHOLD) && (lineCurrent[line] < NORMAL_THRESHOLD)) {
+//        LINE_STATUS_DEBUG(" NORMAL  ");
+//       return NORMAL;
+//     }
+//   }
+
+//   if ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD) && (fierLouckBit == 0)&&(fierCheckLock == false)) {
+//          Timer.status = START;
+//         repeat++;
+//         if (repeat>9){
+//         repeatFireDetection++;
+//          // LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
+//           LINE_FIER_DEBUG(repeatFireDetection);
+//        }
+//         //LINE_FIER_DEBUG(">>>>>>>>>>>> Detect Fier <<<<<<<<<<<<<<<<<<");
+//        // mySerial.printf("\n repeatFireDetection= %d repeat= %d Timer value=%d",repeatFireDetection,repeat,Timer.value); 
+//   }
+
+//   if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) && ((lineCurrent[line] > NORMAL_THRESHOLD) && (lineCurrent[line] < FIRE_THRESHOLD)) || (fierLouckBit == 1)) {
+
+//     fierLouckBit = 1;
+//     repeatFireDetection = 0;
+//     Timer.status = STOP;
+
+//      LINE_FIER_DEBUG("\n");
+//      LINE_FIER_DEBUG("<<<!!!!!!!!!!!!!>>> FIER <<<!!!!!!!!!!!!!!>>>");
+//      LINE_FIER_DEBUG("\n");
+
+//     // Handle fire detection conditions
+//     fultSencetimer = 0;  // fire alarming
+//     delay(55);
+
+//     if (firstSence[line] == 1) {
+
+//       digitalWrite(lineControlPins[line], LOW);
+//       delay(55);
+//     }
+//     if (firstSence[line] == 2) {
+
+//       digitalWrite(lineControlPins[line], HIGH);
+//     }
+
+//     if (firstSence[line] == 3) {
+
+//       fireTrace = true;
+//       fireFlag = true;
+//       relayControl = false;
+//       relayCustomOn = false;
+//       sr.set(ledebuz, HIGH);
+//       sr.set(ledesounder, HIGH);
+//       return FIER;
+//     }
+
+//     firstSence[line] = firstSence[line] + 1;
+//     delay(55);
+
+//   } 
+//   else
+//    {
+//     //repeatFireDetection=0;
+//       if (firstSence[line] == 0)
+//       return SHORT_CIRCUIT;
+//   }
+// }
 
 // Function to check if all values in a range are zero
 bool allZerosInRange(int start, int end) {
@@ -1033,7 +1167,7 @@ void Update_IT_callback1(void) {  // 10hz
   fultSencetimer++;
  batteryCheckTime.update();
  Timer.update();
-
+  lineConditionTimer.update();
 
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
@@ -1066,7 +1200,7 @@ void Update_IT_callback1(void) {  // 10hz
 }
 void Update_IT_callback2(void) { 
 
- for(int i=0;i<=10;i++) {flow[i].update();}
+ //for(int i=0;i<=10;i++) {flow[i].update();}
   readMuxPowerSupplyTimer.update();
   readMuxBatteryTimer.update();
 

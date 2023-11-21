@@ -24,11 +24,14 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 
 
 
+
+
+
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
 //#define POWER_CHECK_DEBUG 
-//#define LINE_STATUS_DEBUG  
+#define LINE_STATUS_DEBUG  
 #define LINE_FIER_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
@@ -211,13 +214,17 @@ status lineStatus[12] = { NON_STATUS };
 
 #define POWER_RELAY_ON   digitalWrite(Batcharges,HIGH);
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
- byte limitLowPower =18;
+
+byte limitLowPower =18;
+
 typedef enum {
   STOP,
   START,
   PAUSE
 
 } STATE;
+
+
 
 class timerMS {
   public:
