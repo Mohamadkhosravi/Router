@@ -217,6 +217,26 @@ status lineStatus[12] = { NON_STATUS };
 
 byte limitLowPower =18;
 
+typedef struct 
+{
+  float minimumOpenCircuit =0;
+  float maximumOpenCircuit =0;
+
+  float minimumNormal=0;
+  float maximumNormal=0;
+
+  float minimumFier=0;
+  float maximumFier=0;
+  
+  float minimumCurrentShortCircuit =0;
+  float maximumCurrentShortCircuit =0;
+
+  float minimumVoltageShortCircuit =0;
+  float maximumVoltageShortCircuit =0;
+  
+}limit;
+
+
 typedef enum {
   STOP,
   START,

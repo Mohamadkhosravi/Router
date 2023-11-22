@@ -8,6 +8,7 @@ timerMS batteryCheckTime;
 timerMS readMuxBatteryTimer;
 timerMS readMuxPowerSupplyTimer;
 timerMS lineConditionTimer;
+timerMS fierTimer;
 flowDelay flow[10];
 
 void Update_IT_callback1(void);
@@ -134,10 +135,6 @@ void loop() {
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
-        
-       
- 
-
         //handelShortCircuit(i);
         lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i);
        // lineStatus[i] = processCurrentConditions(i);
@@ -535,146 +532,132 @@ bool enableBeeper() {
   return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
-status processCurrentConditions(float current , float voltage,int numberLine)
-{
+status processCurrentConditions(float current , float voltage,int numberLine){
 
 
-  
-static status state;
-
-#define MINIMUM_LIMIT_OPEN_CIRCUIT 0
-#define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
-#define MINIMUM_LIMIT_NORMAL 7
-#define MAXIMUM_LIMIT_NORMAL 15
-#define MINIMUM_LIMIT_FIER 16
-#define MAXIMUM_LIMIT_FIER 80
-#define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
-#define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
-
-#define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
-#define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
-
-static struct 
-{
-  float minimumOpenCircuit =0;
-  float maximumOpenCircuit =0;
-
-  float minimumNormal=0;
-  float maximumNormal=0;
-
-  float minimumFier=0;
-  float maximumFier=0;
-  
-  float minimumCurrentShortCircuit =0;
-  float maximumCurrentShortCircuit =0;
-
-  float minimumVoltageShortCircuit =0;
-  float maximumVoltageShortCircuit =0;
-  
-}Limit;
-
-//static limit Limit;
-#define MINIMUM_LIMIT_OPEN_CIRCUIT 0
-#define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
-#define MINIMUM_LIMIT_NORMAL 7
-#define MAXIMUM_LIMIT_NORMAL 15
-#define MINIMUM_LIMIT_FIER 16
-#define MAXIMUM_LIMIT_FIER 80
-#define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
-#define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
-
-#define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
-#define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
-
-Limit.minimumOpenCircuit = MINIMUM_LIMIT_OPEN_CIRCUIT ;
-Limit.maximumOpenCircuit = MAXIMUM_LIMIT_OPEN_CIRCUIT ;
-Limit.minimumNormal = MINIMUM_LIMIT_NORMAL ;
-Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
-Limit.minimumFier= MINIMUM_LIMIT_FIER ;
-Limit.maximumFier= MAXIMUM_LIMIT_FIER ;
-
-Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
-Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
-
-Limit.minimumVoltageShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
-Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
-
-
-if (( voltage <=Limit.minimumVoltageShortCircuit))
-{
-  state = SHORT_CIRCUIT;
-}
-else if (( current >=Limit.minimumOpenCircuit)&&(current <=Limit.maximumOpenCircuit))
-{
-  state = OPEN_CIRCUIT;
-}
-else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
-{
-   state =NORMAL;
-
-}
-else if (( current >=Limit.minimumFier)&&(current <=Limit.maximumFier))
-{
-  state = FIER;
-}
-else if ( current <Limit.minimumCurrentShortCircuit)
-{
- state = SHORT_CIRCUIT;
-}
-
-   
-
-
-switch(state)
-{
-
-  case OPEN_CIRCUIT:
-    LINE_STATUS_DEBUG("OPEN_CIRCUIT");
-   // return OPEN_CIRCUIT;
-  break;
-
-  case NORMAL:
-    LINE_STATUS_DEBUG("NORMAL");
-    //return NORMAL;
-  break;
-
-  case FIER:
-      LINE_STATUS_DEBUG("FIER");
-      //return FIER;
-  break;
-
-  case SHORT_CIRCUIT:
-      lineOFF(numberLine);
-      lineConditionTimer.status=START;
-
-      LINE_FIER_DEBUG("lineConditionTimer.value");
-      LINE_FIER_DEBUG(lineConditionTimer.value);
-      if (lineConditionTimer.value >=200)
-      {
-        lineON(numberLine);
-        lineConditionTimer.status=STOP;
-        lineConditionTimer.value=0;
-      }
     
-     return SHORT_CIRCUIT;
-  break;
-
-}
-      
-       LINE_STATUS_DEBUG("\n");
-        LINE_STATUS_DEBUG("line");
-        LINE_STATUS_DEBUG(numberLine);
-        LINE_STATUS_DEBUG(" , Voltage =");
-        LINE_STATUS_DEBUG(voltage);
-        LINE_STATUS_DEBUG(", Current=");
-        LINE_STATUS_DEBUG(current);
-        LINE_STATUS_DEBUG("STATE");
-        LINE_STATUS_DEBUG(state);
-        LINE_STATUS_DEBUG(" ");
+  static status state;
+  static limit Limit;
+  static unsigned long repeatFireDetection = 0;
+  static unsigned long repeat= 0;
 
 
+  #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
+  #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
+  #define MINIMUM_LIMIT_NORMAL 7
+  #define MAXIMUM_LIMIT_NORMAL 15
+  #define MINIMUM_LIMIT_FIER 16
+  #define MAXIMUM_LIMIT_FIER 80
+  #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
+  #define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
+  #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
+  #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 0.80
 
-return state;
+  Limit.minimumOpenCircuit = MINIMUM_LIMIT_OPEN_CIRCUIT ;
+  Limit.maximumOpenCircuit = MAXIMUM_LIMIT_OPEN_CIRCUIT ;
+  Limit.minimumNormal = MINIMUM_LIMIT_NORMAL ;
+  Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
+  Limit.minimumFier= MINIMUM_LIMIT_FIER ;
+  Limit.maximumFier= MAXIMUM_LIMIT_FIER ;
+  Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
+  Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
+  Limit.minimumVoltageShortCircuit= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT ;
+  Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT;
+
+
+  if (( voltage <=Limit.minimumVoltageShortCircuit)||( current <Limit.minimumCurrentShortCircuit))
+  {
+    state = SHORT_CIRCUIT;
+  }
+  else if (( current >=Limit.minimumOpenCircuit)&&(current <=Limit.maximumOpenCircuit))
+  {
+    state = OPEN_CIRCUIT;
+  }
+  else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
+  {
+    state = NORMAL;
+
+  }
+  else if (( current >=Limit.minimumFier)&&(current <=Limit.maximumFier))
+  {
+        fierTimer.status = START;
+          repeat++;
+        if (repeat>9)repeatFireDetection++;
+          
+        if ((fierTimer.value > MAXIMUM_TIME_FIER_DETECT) && (repeatFireDetection <= MINIMUM_REPEAT_FIER_DETECT) && (fierLouckBit == 0)) {
+          repeatFireDetection = 0;
+          repeat=0;
+          fierTimer.value = 0;
+          fierTimer.status = STOP;
+          state = NORMAL;
+      }
+      if ((repeatFireDetection > LIMIT_REPEAT_FOR_FIER_DETECT) || (fierLouckBit == 1)) {
+          fierLouckBit = 1;
+          repeatFireDetection = 0;
+          fierTimer.status = STOP;
+          state =FIER;
+        }
+
+
+  }
+
+  switch(state)
+  {
+
+    case OPEN_CIRCUIT:
+      LINE_STATUS_DEBUG("OPEN_CIRCUIT");
+    // return OPEN_CIRCUIT;
+    break;
+
+    case NORMAL:
+      LINE_STATUS_DEBUG("NORMAL");
+      //return NORMAL;
+    break;
+
+    case FIER:
+        LINE_STATUS_DEBUG("FIER");
+        return FIER;
+    break;
+
+    case SHORT_CIRCUIT:
+    
+
+        LINE_FIER_DEBUG("lineConditionTimer.value");
+        LINE_FIER_DEBUG(lineConditionTimer.value);
+        if (lineConditionTimer.value >=200)
+        {
+          lineON(numberLine);
+          if (lineConditionTimer.value >=250)
+          {
+          lineConditionTimer.status=STOP;
+          lineConditionTimer.value=0;
+          lineOFF(numberLine);
+          }
+        }
+        else{
+          lineOFF(numberLine);
+          lineConditionTimer.status=START;
+        }
+        return SHORT_CIRCUIT;
+        
+    break;
+
+  }
+        
+          LINE_STATUS_DEBUG("\n");
+          LINE_STATUS_DEBUG("line");
+          LINE_STATUS_DEBUG(numberLine);
+          LINE_STATUS_DEBUG(" , Voltage =");
+          LINE_STATUS_DEBUG(voltage);
+          LINE_STATUS_DEBUG(", Current=");
+          LINE_STATUS_DEBUG(current);
+          LINE_STATUS_DEBUG("STATE");
+          LINE_STATUS_DEBUG(state);
+          LINE_STATUS_DEBUG(" ");
+
+
+
+  return state;
 
 }
 
@@ -1167,7 +1150,8 @@ void Update_IT_callback1(void) {  // 10hz
   fultSencetimer++;
  batteryCheckTime.update();
  Timer.update();
-  lineConditionTimer.update();
+lineConditionTimer.update();
+fierTimer.update();
 
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
@@ -1198,6 +1182,7 @@ void Update_IT_callback1(void) {  // 10hz
   } else
     faultFlag = false;
 }
+
 void Update_IT_callback2(void) { 
 
  //for(int i=0;i<=10;i++) {flow[i].update();}
