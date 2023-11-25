@@ -200,12 +200,15 @@ float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
 
+
 typedef enum {
   NON_STATUS,
   OPEN_CIRCUIT,
   NORMAL,
   FIER,
-  SHORT_CIRCUIT
+  SHORT_CIRCUIT,
+  DAMAGED
+
 } status;
 status lineStatus[12] = { NON_STATUS };
 
@@ -231,7 +234,7 @@ typedef struct
   float minimumCurrentShortCircuit =0;
   float maximumCurrentShortCircuit =0;
 
-  float minimumVoltageShortCircuit =0;
+  float minimumVoltageShortCircuit =95;
   float maximumVoltageShortCircuit =0;
   
 }limit;
@@ -240,7 +243,7 @@ typedef struct
 typedef enum {
   STOP,
   START,
-  PAUSE
+  PAUSE,
 
 } STATE;
 
@@ -270,6 +273,7 @@ class flowDelay: public timerMS {
   bool Delay(long unsigned time_ms ){
     
     status= START;
+
      if (value>= time_ms){
         status= STOP;
 
