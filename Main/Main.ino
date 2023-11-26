@@ -124,6 +124,7 @@ void setup() {
 void loop() {
 
      IWatchdog.reload();
+     
      checkPower(readBattery(),readPowerSupply());
      //for(i=0;i<=5;i++){
       readMux(muxPosition);
@@ -555,8 +556,8 @@ status processCurrentConditions(float current , float voltage,int numberLine){
   #define MAXIMUM_LIMIT_FIER 80
   #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
   #define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
-  #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 95
-  #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 95
+  #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
+  #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
 
   #define SHORT_CIRCUIT_LINE_ON_TIME 1000
 
@@ -570,16 +571,16 @@ status processCurrentConditions(float current , float voltage,int numberLine){
  // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
   Limit.minimumVoltageShortCircuit= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT ;
  Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT;
-        // LINE_STATUS_DEBUG("\n");
-        // LINE_STATUS_DEBUG("line");
-        // LINE_STATUS_DEBUG(numberLine);
-        // LINE_STATUS_DEBUG(" , Voltage =");
-        // LINE_STATUS_DEBUG(voltage);
-        // LINE_STATUS_DEBUG(", Current=");
-        // LINE_STATUS_DEBUG(current);
+        LINE_STATUS_DEBUG("\n");
+        LINE_STATUS_DEBUG("line");
+        LINE_STATUS_DEBUG(numberLine);
+        LINE_STATUS_DEBUG(" , Voltage =");
+        LINE_STATUS_DEBUG(voltage);
+        LINE_STATUS_DEBUG(", Current=");
+        LINE_STATUS_DEBUG(current);
  
   
-  if (( voltage <=Limit.minimumVoltageShortCircuit)||current > Limit.minimumCurrentShortCircuit)
+  if (( voltage <=Limit.minimumVoltageShortCircuit))
   {
     state = SHORT_CIRCUIT;
      //lineOFF(numberLine);
@@ -601,10 +602,10 @@ status processCurrentConditions(float current , float voltage,int numberLine){
           fierTimer.status = START;
            repeat++;
            if(repeat>8){repeatFireDetection++;}
-            // LINE_STATUS_DEBUG(" repeat=");LINE_STATUS_DEBUG(repeat);
-            // LINE_STATUS_DEBUG(" repeatFireDetection=");LINE_STATUS_DEBUG(repeatFireDetection);LINE_STATUS_DEBUG("|  fierTimer.value="); LINE_STATUS_DEBUG(fierTimer.value);
+            LINE_STATUS_DEBUG(" repeat=");LINE_STATUS_DEBUG(repeat);
+            LINE_STATUS_DEBUG(" repeatFireDetection=");LINE_STATUS_DEBUG(repeatFireDetection);LINE_STATUS_DEBUG("|  fierTimer.value="); LINE_STATUS_DEBUG(fierTimer.value);
            
-            // LINE_STATUS_DEBUG(" ||");
+            LINE_STATUS_DEBUG(" ||");
              
             
 
@@ -663,18 +664,18 @@ status processCurrentConditions(float current , float voltage,int numberLine){
 
     case SHORT_CIRCUIT:
  
-        if( flow[numberLine].Delay(5000)==false)
-        {
-          lineOFF(numberLine);
-        }
-        if(flow[numberLine].value>=5000-SHORT_CIRCUIT_LINE_ON_TIME)
-        {
-          lineON(numberLine);
-        }
-        else
-        {
-          lineOFF(numberLine);
-        }
+        // if( flow[numberLine].Delay(5000)==false)
+        // {
+        //   lineOFF(numberLine);
+        // }
+        // if(flow[numberLine].value>=5000-SHORT_CIRCUIT_LINE_ON_TIME)
+        // {
+        //   lineON(numberLine);
+        // }
+        // else
+        // {
+        //   lineOFF(numberLine);
+        // }
         LINE_STATUS_DEBUG("SHORT_CIRCUIT");
 
         return SHORT_CIRCUIT;

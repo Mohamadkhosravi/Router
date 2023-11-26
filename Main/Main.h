@@ -30,7 +30,7 @@ int LIMIT_REPEAT_FOR_FIER_DETECT = LIMIT_REPEAT_FOR_FIER_DETECT_MAIN_LINES;
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
-//#define POWER_CHECK_DEBUG 
+#define POWER_CHECK_DEBUG 
 #define LINE_STATUS_DEBUG  
 #define LINE_FIER_DEBUG
 
@@ -234,10 +234,11 @@ typedef struct
   float minimumCurrentShortCircuit =0;
   float maximumCurrentShortCircuit =0;
 
-  float minimumVoltageShortCircuit =95;
+  float minimumVoltageShortCircuit =90;
   float maximumVoltageShortCircuit =0;
   
 }limit;
+
 
 
 typedef enum {
