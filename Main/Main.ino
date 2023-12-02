@@ -46,7 +46,7 @@ void setup() {
 
   readMuxBatteryTimer.status== START;
   SUPPLY_VOLTAGE_IS_24_V
-
+  POWER_RELAY_ON
 
   // Check if Card 1 is present
   if (digitalRead(CS1) == 0)
@@ -126,16 +126,16 @@ void loop() {
      IWatchdog.reload();
      
      float voltage =checkPower(readBattery(),readPowerSupply());
-     //for(i=0;i<=5;i++){
+   
       readMux(muxPosition);
      
       checkButtons();
 
       distributionMuxValues();
    
-     //}
   
-     //LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+  
+     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
      
      if (firstRepeat>12)
      {
@@ -258,11 +258,15 @@ bool timeForLedBlink() {
 
 float checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
-  static bool battery= false;
-  static bool supply= false;
-  static float  existVoltage;
+  static float  outputVoltage;
+  #define MINIMUM_VOLTAGE_VALIDE 6
+  #define EXIST_POWER_SUPPLY_THRESHOLD 10
+  #define EXIST_BATTERY_THRESHOLD 10
+  #define NORMAL_BATTERY_THRESHOLD 18
+  #define LOW_BATTERY_THRESHOLD 17
+ 
 
-    typedef enum
+    static enum
     {
       NORMAL,
       BATTERY,
@@ -271,39 +275,37 @@ float checkPower(float VoltageBattery, float VoltagePowerSupply) {
       BATTERY_BROKEN,
       POWER_OFF
 
-    } powerState;
-   static powerState state;
+    } state;
+
   
    // Fiter VoltagePowerSupply & VoltageBattery Value
-    if (VoltagePowerSupply<=6)VoltagePowerSupply=0;
-    if (VoltageBattery<=6)VoltageBattery=0;
+    if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
+    if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
 
    //Debug
-
-    POWER_CHECK_DEBUG("\n => STATE ==");        
-    POWER_CHECK_DEBUG(state);
-    POWER_CHECK_DEBUG(", VoltageBattery==");
-    POWER_CHECK_DEBUG(VoltageBattery,10);
-    POWER_CHECK_DEBUG(", VoltagePowerSupply==");
-    POWER_CHECK_DEBUG(VoltagePowerSupply,10);
-    POWER_CHECK_DEBUG(" |");
+    POWER_CHECK_DEBUG("\n\n checkPower >>> ");        
+    POWER_CHECK_DEBUG(" VoltageBattery=");
+    POWER_CHECK_DEBUG(VoltageBattery,3);
+    POWER_CHECK_DEBUG(", VoltagePowerSupply=");
+    POWER_CHECK_DEBUG(VoltagePowerSupply,3);
+    POWER_CHECK_DEBUG(", Battery state is :");
 
    
-    supply=( VoltagePowerSupply >10 )? true : false;
-    battery=( VoltageBattery >10 )? true : false;
+     static bool supply=( VoltagePowerSupply > EXIST_POWER_SUPPLY_THRESHOLD )? true : false;
+     static bool battery=( VoltageBattery > EXIST_BATTERY_THRESHOLD )? true : false;
 
     if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
    
-      if (VoltageBattery<18)state= BATTERY_BROKEN;
-      else if (VoltageBattery>18)state= NORMAL;
+      if (VoltageBattery <= NORMAL_BATTERY_THRESHOLD) state = BATTERY_BROKEN;
+      else if (VoltageBattery > NORMAL_BATTERY_THRESHOLD) state = NORMAL;
      
     }
     if((supply==true) && (battery == false))state = POWER_SUPPLY;
     if((supply==false) && (battery == true)){
        
-        if((VoltageBattery<18)&&(VoltageBattery>17))state=LOW_BATTERY;
-        else if(VoltageBattery<17)state= BATTERY_BROKEN;
-        else if(VoltageBattery>18) state = BATTERY;
+      if((VoltageBattery < NORMAL_BATTERY_THRESHOLD) && (VoltageBattery > LOW_BATTERY_THRESHOLD)) state = LOW_BATTERY;
+      else if(VoltageBattery < LOW_BATTERY_THRESHOLD ) state = BATTERY_BROKEN;
+      else if(VoltageBattery >= NORMAL_BATTERY_THRESHOLD) state = BATTERY;
     }
    if((supply==false) && (battery == false))state = POWER_OFF;
 
@@ -312,69 +314,62 @@ float checkPower(float VoltageBattery, float VoltagePowerSupply) {
   { 
    
     case NORMAL:
-        POWER_CHECK_DEBUG(" Normal"); 
-        batteryCheckTime.status = START;
-
-        if( batteryCheckTime.value >100)
-        { 
-          existVoltage=VoltagePowerSupply;
-            SUPPLY_VOLTAGE_IS_16_V
-            batteryCheckTime.status = STOP;
-        }
-        else 
-        {
-          POWER_RELAY_ON;
-          SUPPLY_VOLTAGE_IS_24_V
-          existVoltage=VoltagePowerSupply;
-        }
-       if( batteryCheckTime.value >120) 
-       {
+      POWER_CHECK_DEBUG(" Normal"); 
+      batteryCheckTime.status = START;
+      if( batteryCheckTime.value >100)
+      { 
+        SUPPLY_VOLTAGE_IS_16_V
+        outputVoltage=VoltagePowerSupply;
+        batteryCheckTime.status = STOP;
+      }
+      else 
+      {
+        POWER_RELAY_ON;
+        SUPPLY_VOLTAGE_IS_24_V
+        outputVoltage=VoltagePowerSupply;
+      }
+      if( batteryCheckTime.value >120) 
+      {
         fierCheckLock=false;
         batteryCheckTime.status = STOP;
-
-        }
-
+      }
     break;
 
     case BATTERY:
       POWER_CHECK_DEBUG(" Battery");
-            existVoltage=VoltageBattery;
+      outputVoltage=VoltageBattery;
     break; 
 
     case LOW_BATTERY:
-       SUPPLY_VOLTAGE_IS_24_V
+      SUPPLY_VOLTAGE_IS_24_V
       POWER_CHECK_DEBUG(" LowBattery");
-      existVoltage=VoltageBattery;
-
+      outputVoltage=VoltageBattery;
     break;
 
     case POWER_SUPPLY:
-     SUPPLY_VOLTAGE_IS_24_V
-     POWER_RELAY_OFF
-     POWER_CHECK_DEBUG(" PowerSupply");
-     if((supply==true) && (battery == true))state=NORMAL;
-     existVoltage=VoltagePowerSupply;
-
+      SUPPLY_VOLTAGE_IS_24_V
+      POWER_RELAY_OFF
+      POWER_CHECK_DEBUG(" PowerSupply");
+      outputVoltage=VoltagePowerSupply;
+      if((supply==true) && (battery == true))state=NORMAL;
     break;
 
     case BATTERY_BROKEN:
-     SUPPLY_VOLTAGE_IS_24_V
-     POWER_RELAY_OFF
-     POWER_CHECK_DEBUG(" Battery is Broken"); 
-     existVoltage=VoltagePowerSupply;
+      SUPPLY_VOLTAGE_IS_24_V
+      POWER_RELAY_OFF
+      POWER_CHECK_DEBUG(" Battery is Broken"); 
+      outputVoltage=VoltagePowerSupply;
     break;
 
     case POWER_OFF:
-     SUPPLY_VOLTAGE_IS_24_V
-    POWER_CHECK_DEBUG("Power is OFF"); 
+      SUPPLY_VOLTAGE_IS_24_V
+      POWER_CHECK_DEBUG("Power is OFF"); 
     break;
 
 
   } ;
-  
- if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
-
-    return existVoltage;
+  if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
+  return outputVoltage;
 }
 
 void batteryCheck() {
@@ -546,113 +541,119 @@ bool enableBeeper() {
   return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
-status processCurrentConditions(float current , float voltage,int numberLine,float existVotage){
+status processCurrentConditions(float current , float voltage,int numberLine,float supplyVoltage){
 
-
-    
+ 
+  if(current < 2)current=0; 
   static status state;
   static limit Limit;
-  static unsigned long repeatFireDetection;
+  static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
 
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
+
   #define MINIMUM_LIMIT_NORMAL 7
   #define MAXIMUM_LIMIT_NORMAL 15
+
   #define MINIMUM_LIMIT_FIER 16
   #define MAXIMUM_LIMIT_FIER 80
+
   #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
   #define MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 10000
+
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
   #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
-
+ 
+  #define SHORT_CIRCUIT_TIME 5000
   #define SHORT_CIRCUIT_LINE_ON_TIME 1000
+ 
+  
+  #define FIER_DETECTION_TIME 3200
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  8
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
+  Limit.minimumFier= MINIMUM_LIMIT_FIER ;
+  Limit.maximumFier= MAXIMUM_LIMIT_FIER ;
   Limit.minimumOpenCircuit = MINIMUM_LIMIT_OPEN_CIRCUIT ;
   Limit.maximumOpenCircuit = MAXIMUM_LIMIT_OPEN_CIRCUIT ;
   Limit.minimumNormal = MINIMUM_LIMIT_NORMAL ;
   Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
-  Limit.minimumFier= MINIMUM_LIMIT_FIER ;
-  Limit.maximumFier= MAXIMUM_LIMIT_FIER ;
+
+  int acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER;
+  if (numberLine>3)acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES;
+
   Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
- // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
-  Limit.minimumVoltageShortCircuit= ( existVotage*2.941176470);
+  // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
+  Limit.minimumVoltageShortCircuit= ( supplyVoltage*2.941176470);
+  //Limit.minimumVoltageShortCircuit= ( supplyVoltage*3.9564093091983);
   Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT;
-         LINE_STATUS_DEBUG("\n");
-        LINE_STATUS_DEBUG("line");
-        LINE_STATUS_DEBUG(numberLine);
-        LINE_STATUS_DEBUG(" , Votage =");
-        LINE_STATUS_DEBUG(voltage);
-        LINE_STATUS_DEBUG(" , existVotage =");
-        LINE_STATUS_DEBUG(existVotage);
-         LINE_STATUS_DEBUG(", Current=");
-        //  LINE_STATUS_DEBUG(current);
-          LINE_STATUS_DEBUG(", Limit=");
-        LINE_STATUS_DEBUG(Limit.minimumVoltageShortCircuit);
- 
-  
-  if (voltage <= Limit.minimumVoltageShortCircuit)
+
+  LINE_CS_DEBUG("\n");
+  LINE_CS_DEBUG("line");
+  LINE_CS_DEBUG(numberLine+1);
+  LINE_CS_DEBUG(" , Voltage =");
+  LINE_CS_DEBUG(voltage,3);
+  LINE_CS_DEBUG(", Limit=");
+  LINE_CS_DEBUG(Limit.minimumVoltageShortCircuit);
+  LINE_CS_DEBUG(" , supplyVoltage =");
+  LINE_CS_DEBUG(supplyVoltage,2);
+  LINE_CS_DEBUG(", Current=");
+  LINE_CS_DEBUG(current,2);
+         
+  if ((voltage <= Limit.minimumVoltageShortCircuit)&&(current!= 0))
   {
      state = SHORT_CIRCUIT;
       lineOFF(numberLine);
   }
   else 
   {
-     if (( current >= Limit.minimumOpenCircuit)&&(current <= Limit.maximumOpenCircuit))
+     if ((( current >= Limit.minimumOpenCircuit)&&(current <= Limit.maximumOpenCircuit))||(current==0))
       {
         state = OPEN_CIRCUIT;
       }
       else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
       {
         state = NORMAL;
-
       }
       else if (( current >= Limit.minimumFier)&&(current <= Limit.maximumFier))
       {
         
-          fierTimer.status = START;
-           repeat++;
-           if(repeat>8){repeatFireDetection++;}
-            LINE_STATUS_DEBUG(" repeat=");LINE_STATUS_DEBUG(repeat);
-            LINE_STATUS_DEBUG(" repeatFireDetection=");LINE_STATUS_DEBUG(repeatFireDetection);LINE_STATUS_DEBUG("|  fierTimer.value="); LINE_STATUS_DEBUG(fierTimer.value);
-           
-            LINE_STATUS_DEBUG(" ||");
-             
-            
+        fierTimer.status = START;
+        repeatFireDetection++;
+        LINE_FIER_DEBUG(" repeatFireDetection=");
+        LINE_FIER_DEBUG(repeatFireDetection);
+        LINE_FIER_DEBUG(" fierTimer.value="); 
+        LINE_FIER_DEBUG(fierTimer.value);
 
-            if ((fierTimer.value > 3200) && (repeatFireDetection <3) && (fierLouckBit == 0)) 
-            {
-               
-              repeatFireDetection = 0;
-              repeat=0;
-              fierTimer.value = 0;
-              fierTimer.status = STOP;
-              state = NORMAL;
-            } 
-            if ((fierTimer.value > 3200) && (repeatFireDetection >=3)  || (fierLouckBit == 1))
-            {
-              fierLouckBit = 1;
-              repeatFireDetection = 0;
-              
-              repeat=0;
-              fierTimer.status = STOP;
-              state =FIER;
-            
-            }
-             if (fierTimer.value > 3200)
-            {
-                 
-              repeat=0;
-             repeatFireDetection = 0;
-              fierTimer.status = STOP;
-            }
+        if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < acceptRepeatFier) && (fierLouckBit == 0)) 
+        {  
+          repeatFireDetection = 0;
+          fierTimer.value = 0;
+          fierTimer.status = STOP;
+          state = NORMAL;
+        } 
+        if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= acceptRepeatFier)  || (fierLouckBit == 1))
+        {
+          fierLouckBit = 1;
+          repeatFireDetection = 0;
+          fierTimer.status = STOP;
+          state =FIER;
+        
+        }
+        if (fierTimer.value > FIER_DETECTION_TIME)
+        {    
+          repeatFireDetection = 0;
+          fierTimer.status = STOP;
+        }
 
       }
-      else if (( voltage ==0)||( current ==0))
+      else if (( voltage == 0) && ( current == 0))
       {
         state = DAMAGED;
-    }
+      }
+      
   }
 
 
@@ -660,27 +661,27 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   {
 
     case OPEN_CIRCUIT:
-     //LINE_STATUS_DEBUG("OPEN_CIRCUIT");
-    // return OPEN_CIRCUIT;
+     LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
+     //return OPEN_CIRCUIT;
     break;
 
     case NORMAL:
-      //LINE_STATUS_DEBUG("NORMAL");
+      LINE_STATUS_DEBUG(" NORMAL ");
       //return NORMAL;
     break;
 
     case FIER:
-        LINE_STATUS_DEBUG("FIER");
+        LINE_STATUS_DEBUG(" FIER ");
         return FIER;
     break;
 
     case SHORT_CIRCUIT:
  
-        if( flow[numberLine].Delay(5000)==false)
+        if( flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false)
         {
           lineOFF(numberLine);
         }
-        if(flow[numberLine].value>=5000-SHORT_CIRCUIT_LINE_ON_TIME)
+        if(flow[numberLine].value>= SHORT_CIRCUIT_TIME - SHORT_CIRCUIT_LINE_ON_TIME )
         {
           lineON(numberLine);
         }
@@ -688,17 +689,19 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
         {
           lineOFF(numberLine);
         }
-        LINE_STATUS_DEBUG("SHORT_CIRCUIT");
+        LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");
 
         return SHORT_CIRCUIT;
         
     break;
 
+    case DAMAGED:
+
+      LINE_STATUS_DEBUG(" DAMAGED ");
+      return DAMAGED;
+        
+    break;
   }
-        
-        
-
-
 
   return state;
 
