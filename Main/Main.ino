@@ -124,13 +124,12 @@ void setup() {
 
 
 void loop() {
-
+float voltage;
      IWatchdog.reload();
      
-     float voltage =checkPower(readBattery(),readPowerSupply());
-   
-      readMux(muxPosition);
-     
+       readMux(muxPosition);
+       voltage =checkPower( (mux4Values[3]*0.0819672131) - 1.3770491803 , (mux4Values[0]*0.1020408163265) - 26.857142857127 );
+    
       checkButtons();
 
       distributionMuxValues();
@@ -144,7 +143,7 @@ void loop() {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
        // handelShortCircuit(i);
-        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,voltage);
+        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,26);
         
        // lineStatus[i] = processCurrentConditions(i);
         }
@@ -162,9 +161,16 @@ void loop() {
     }
     Relaycont();
     IWatchdog.reload();
+  //   if (muxPosition==0){ 
+  //   voltage =checkPower(readBattery(),readPowerSupply());
+  // digitalWrite(Sela, HIGH);
+  // digitalWrite(Selb, HIGH);
+  // digitalWrite(Selc,HIGH);
+
+  //   }
     updateMuxPosition();
      checkAndEnableBeeper();
-   
+  
 }
 
 void handelShortCircuit(byte numberLine)
@@ -584,7 +590,7 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
 
   int acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER;
-  if (numberLine>3)acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES;
+  //if (numberLine>3)acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES;
 
   Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
   // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
@@ -758,14 +764,22 @@ void distributionMuxValues() {
       break;
     case 1:
       lineVoltage[3] = mux1Values[0];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[2] = mux1Values[2];
       lineVoltage[2] = mux1Values[1];
+      lineCurrent[2] = mux1Values[2];
+      lineCurrent[3] = mux1Values[3];
       lineCurrent[1] = mux1Values[4];
       lineVoltage[1] = mux1Values[6];
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
 
+      // lineVoltage[3-3+4] = mux2Values[0];
+      // lineCurrent[3-2+4] = mux2Values[1];
+      // lineVoltage[3-2+4] =  mux2Values[2];
+      // lineCurrent[3-3+4] =  mux2Values[3];
+      // lineVoltage[3-1+4] =  mux2Values[4];
+      // lineVoltage[3-0+4] =  mux2Values[5];
+      // lineCurrent[3-1+4] =  mux2Values[6];
+      // lineCurrent[3-0+4] =  mux2Values[7];
       lineVoltage[7] = mux2Values[0];
       lineCurrent[7] = mux2Values[3];
       lineCurrent[6] = mux2Values[1];
@@ -774,6 +788,7 @@ void distributionMuxValues() {
       lineVoltage[5] = mux2Values[4];
       lineVoltage[4] = mux2Values[5];
       lineCurrent[4] = mux2Values[7];
+     
       break;
     case 2:
       lineVoltage[3] = mux1Values[0];
@@ -784,6 +799,25 @@ void distributionMuxValues() {
       lineVoltage[1] = mux1Values[6];
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
+
+      
+      // lineVoltage[3-3+4] = mux2Values[0];
+      // lineCurrent[3-2+4] = mux2Values[1];
+      // lineVoltage[3-2+4] =  mux2Values[2];
+      // lineCurrent[3-3+4] =  mux2Values[3];
+      // lineVoltage[3-1+4] =  mux2Values[4];
+      // lineVoltage[3-0+4] =  mux2Values[5];
+      // lineCurrent[3-1+4] =  mux2Values[6];
+      // lineCurrent[3-0+4] =  mux2Values[7];
+      
+      // lineVoltage[3-3+8] = mux3Values[0];
+      // lineCurrent[3-2+8] = mux3Values[1];
+      // lineVoltage[3-2+8] = mux3Values[2];
+      // lineCurrent[3-3+8] = mux3Values[3];
+      // lineVoltage[3-1+8] = mux3Values[4];
+      // lineVoltage[3-0+8] = mux3Values[5];
+      // lineCurrent[3-1+8] = mux3Values[6];
+      // lineCurrent[3-3+8] = mux3Values[7];
 
       lineVoltage[7] = mux2Values[0];
       lineCurrent[7] = mux2Values[3];
@@ -802,7 +836,11 @@ void distributionMuxValues() {
       lineVoltage[9] = mux3Values[4];
       lineVoltage[8] = mux3Values[5];
       lineCurrent[8] = mux3Values[7];
+
+
+
       break;
+
     default:
       break;
   }
@@ -832,7 +870,7 @@ void readMux(byte add) {
     mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100;
     mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100;
     mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100;
-    mux4Values[add] = (3.3 / 1023.000) * analogRead(Analog4)*100;
+    mux4Values[add] = analogRead(Analog4);
 
   }
 
@@ -1138,6 +1176,9 @@ float readBattery(void){
       result =(analogRead(Analog4)*0.0819672131)-1.3770491803;
      
     //  } 
+    digitalWrite(Sela, LOW);
+    digitalWrite(Selb, LOW);
+    digitalWrite(Selc, LOW);
      return result;
 }
 float readPowerSupply(void){
