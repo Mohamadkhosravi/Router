@@ -23,10 +23,10 @@
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
- #define POWER_CHECK_DEBUG 
-// #define LINE_STATUS_DEBUG  
-// #define LINE_FIER_DEBUG
-// #define LINE_CS_DEBUG
+ //#define POWER_CHECK_DEBUG 
+ //#define LINE_STATUS_DEBUG  
+ #define LINE_FIER_DEBUG
+ #define LINE_CS_DEBUG
 
 
 
@@ -200,6 +200,11 @@ float mux3Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float mux4Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+
+float voltage;
+float batteryVoltage;
+float powerSupplyVoltage;
 
 
 const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };

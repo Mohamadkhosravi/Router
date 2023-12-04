@@ -47,7 +47,7 @@ void setup() {
   MyTim2->resume();
 
   readMuxBatteryTimer.status== START;
-  SUPPLY_VOLTAGE_IS_24_V
+  //////////////////////////////////////////////////////SUPPLY_VOLTAGE_IS_24_V
   POWER_RELAY_ON
 
   // Check if Card 1 is present
@@ -124,11 +124,17 @@ void setup() {
 
 
 void loop() {
-float voltage;
+   
      IWatchdog.reload();
-     
+
        readMux(muxPosition);
-       voltage =checkPower( (mux4Values[3]*0.0819672131) - 1.3770491803 , (mux4Values[0]*0.1020408163265) - 26.857142857127 );
+       //batteryVoltage=mux4Values[3]*0.2243157656080861;
+       //powerSupplyVoltage=(mux4Values[0]/0.3225806451612903)*0.040979697*1.303529646264329;
+       batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
+       powerSupplyVoltage=((mux4Values[0]/0.3225806451612903)*0.1020408163265)-26.857142857127;
+        voltage =checkPower(batteryVoltage ,powerSupplyVoltage );
+      
+          
     
       checkButtons();
 
@@ -143,8 +149,7 @@ float voltage;
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
        // handelShortCircuit(i);
-        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,26);
-        
+        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,voltage);
        // lineStatus[i] = processCurrentConditions(i);
         }
       }
@@ -162,7 +167,7 @@ float voltage;
     Relaycont();
     IWatchdog.reload();
   //   if (muxPosition==0){ 
-  //   voltage =checkPower(readBattery(),readPowerSupply());
+ //voltage =checkPower(readBattery(),readPowerSupply());
   // digitalWrite(Sela, HIGH);
   // digitalWrite(Selb, HIGH);
   // digitalWrite(Selc,HIGH);
@@ -265,16 +270,11 @@ bool timeForLedBlink() {
 }
 
 float checkPower(float VoltageBattery, float VoltagePowerSupply) {
+   static bool battery= false;
+  static bool supply= false;
+  static float  existVoltage;
 
-  static float  outputVoltage;
-  #define MINIMUM_VOLTAGE_VALIDE 6
-  #define EXIST_POWER_SUPPLY_THRESHOLD 10
-  #define EXIST_BATTERY_THRESHOLD 10
-  #define NORMAL_BATTERY_THRESHOLD 18
-  #define LOW_BATTERY_THRESHOLD 17
- 
-
-    static enum
+    typedef enum
     {
       NORMAL,
       BATTERY,
@@ -283,37 +283,39 @@ float checkPower(float VoltageBattery, float VoltagePowerSupply) {
       BATTERY_BROKEN,
       POWER_OFF
 
-    } state;
-
+    } powerState;
+   static powerState state;
   
    // Fiter VoltagePowerSupply & VoltageBattery Value
-    if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
-    if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
+    if (VoltagePowerSupply<=6)VoltagePowerSupply=0;
+    if (VoltageBattery<=6)VoltageBattery=0;
 
    //Debug
-    POWER_CHECK_DEBUG("\n\n checkPower >>> ");        
-    POWER_CHECK_DEBUG(" VoltageBattery=");
-    POWER_CHECK_DEBUG(VoltageBattery,3);
-    POWER_CHECK_DEBUG(", VoltagePowerSupply=");
-    POWER_CHECK_DEBUG(VoltagePowerSupply,3);
-    POWER_CHECK_DEBUG(", Battery state is :");
+
+    POWER_CHECK_DEBUG("\n => STATE ==");        
+    POWER_CHECK_DEBUG(state);
+    POWER_CHECK_DEBUG(", VoltageBattery==");
+    POWER_CHECK_DEBUG(VoltageBattery,10);
+    POWER_CHECK_DEBUG(", VoltagePowerSupply==");
+    POWER_CHECK_DEBUG(VoltagePowerSupply,10);
+    POWER_CHECK_DEBUG(" |");
 
    
-     static bool supply=( VoltagePowerSupply > EXIST_POWER_SUPPLY_THRESHOLD )? true : false;
-     static bool battery=( VoltageBattery > EXIST_BATTERY_THRESHOLD )? true : false;
+    supply=( VoltagePowerSupply >10 )? true : false;
+    battery=( VoltageBattery >10 )? true : false;
 
     if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
    
-      if (VoltageBattery <= NORMAL_BATTERY_THRESHOLD) state = BATTERY_BROKEN;
-      else if (VoltageBattery > NORMAL_BATTERY_THRESHOLD) state = NORMAL;
+      if (VoltageBattery<18)state= BATTERY_BROKEN;
+      else if (VoltageBattery>18)state= NORMAL;
      
     }
     if((supply==true) && (battery == false))state = POWER_SUPPLY;
     if((supply==false) && (battery == true)){
        
-      if((VoltageBattery < NORMAL_BATTERY_THRESHOLD) && (VoltageBattery > LOW_BATTERY_THRESHOLD)) state = LOW_BATTERY;
-      else if(VoltageBattery < LOW_BATTERY_THRESHOLD ) state = BATTERY_BROKEN;
-      else if(VoltageBattery >= NORMAL_BATTERY_THRESHOLD) state = BATTERY;
+        if((VoltageBattery<18)&&(VoltageBattery>17))state=LOW_BATTERY;
+        else if(VoltageBattery<17)state= BATTERY_BROKEN;
+        else if(VoltageBattery>18) state = BATTERY;
     }
    if((supply==false) && (battery == false))state = POWER_OFF;
 
@@ -322,62 +324,183 @@ float checkPower(float VoltageBattery, float VoltagePowerSupply) {
   { 
    
     case NORMAL:
-      POWER_CHECK_DEBUG(" Normal"); 
-      batteryCheckTime.status = START;
-      if( batteryCheckTime.value >100)
-      { 
-        SUPPLY_VOLTAGE_IS_16_V
-        outputVoltage=VoltagePowerSupply;
-        batteryCheckTime.status = STOP;
-      }
-      else 
-      {
-        POWER_RELAY_ON;
-        SUPPLY_VOLTAGE_IS_24_V
-        outputVoltage=VoltagePowerSupply;
-      }
-      if( batteryCheckTime.value >120) 
-      {
+        POWER_CHECK_DEBUG(" Normal"); 
+        batteryCheckTime.status = START;
+
+        if( batteryCheckTime.value >100)
+        { 
+          existVoltage=VoltagePowerSupply;
+            SUPPLY_VOLTAGE_IS_16_V
+           // batteryCheckTime.status = STOP;
+             POWER_CHECK_DEBUG(" SUPPLY_VOLTAGE_IS_16_V"); 
+        }
+        else 
+        {
+          POWER_RELAY_ON;
+          POWER_CHECK_DEBUG(" 24>>>>>>>>>>>>>>>>>>>>>>>>>"); 
+          SUPPLY_VOLTAGE_IS_24_V
+          existVoltage=VoltagePowerSupply;
+        }
+       if( batteryCheckTime.value >150) 
+       {
         fierCheckLock=false;
         batteryCheckTime.status = STOP;
-      }
+
+        }
+
     break;
 
     case BATTERY:
       POWER_CHECK_DEBUG(" Battery");
-      outputVoltage=VoltageBattery;
+            existVoltage=VoltageBattery;
     break; 
 
     case LOW_BATTERY:
-      SUPPLY_VOLTAGE_IS_24_V
+       SUPPLY_VOLTAGE_IS_24_V
       POWER_CHECK_DEBUG(" LowBattery");
-      outputVoltage=VoltageBattery;
+      existVoltage=VoltageBattery;
+
     break;
 
     case POWER_SUPPLY:
-      SUPPLY_VOLTAGE_IS_24_V
-      POWER_RELAY_OFF
-      POWER_CHECK_DEBUG(" PowerSupply");
-      outputVoltage=VoltagePowerSupply;
-      if((supply==true) && (battery == true))state=NORMAL;
+     SUPPLY_VOLTAGE_IS_24_V
+     POWER_RELAY_OFF
+     POWER_CHECK_DEBUG(" PowerSupply");
+     if((supply==true) && (battery == true))state=NORMAL;
+     existVoltage=VoltagePowerSupply;
+
     break;
 
     case BATTERY_BROKEN:
-      SUPPLY_VOLTAGE_IS_24_V
-      POWER_RELAY_OFF
-      POWER_CHECK_DEBUG(" Battery is Broken"); 
-      outputVoltage=VoltagePowerSupply;
+     SUPPLY_VOLTAGE_IS_24_V
+     POWER_RELAY_OFF
+     POWER_CHECK_DEBUG(" Battery is Broken"); 
+     existVoltage=VoltagePowerSupply;
     break;
 
     case POWER_OFF:
-      SUPPLY_VOLTAGE_IS_24_V
-      POWER_CHECK_DEBUG("Power is OFF"); 
+     SUPPLY_VOLTAGE_IS_24_V
+    POWER_CHECK_DEBUG("Power is OFF"); 
     break;
 
 
   } ;
-  if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
-  return outputVoltage;
+  
+ if( batteryCheckTime.value >1500) batteryCheckTime.status = STOP;
+
+    return existVoltage;
+  // static float  outputVoltage;
+  // #define MINIMUM_VOLTAGE_VALIDE 6
+  // #define EXIST_POWER_SUPPLY_THRESHOLD 10
+  // #define EXIST_BATTERY_THRESHOLD 10
+  // #define NORMAL_BATTERY_THRESHOLD 18
+  // #define LOW_BATTERY_THRESHOLD 17
+ 
+
+  //   static enum
+  //   {
+  //     NORMAL,
+  //     BATTERY,
+  //     LOW_BATTERY,
+  //     POWER_SUPPLY,
+  //     BATTERY_BROKEN,
+  //     POWER_OFF
+
+  //   } state;
+
+  
+  //  // Fiter VoltagePowerSupply & VoltageBattery Value
+  //   if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
+  //   if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
+
+  //  //Debug
+  //   POWER_CHECK_DEBUG("\n\n checkPower >>> ");        
+  //   POWER_CHECK_DEBUG(" VoltageBattery=");
+  //   POWER_CHECK_DEBUG(VoltageBattery,3);
+  //   POWER_CHECK_DEBUG(", VoltagePowerSupply=");
+  //   POWER_CHECK_DEBUG(VoltagePowerSupply,3);
+  //   POWER_CHECK_DEBUG(", Battery state is :");
+
+   
+  //    static bool supply=( VoltagePowerSupply > EXIST_POWER_SUPPLY_THRESHOLD )? true : false;
+  //    static bool battery=( VoltageBattery > EXIST_BATTERY_THRESHOLD )? true : false;
+
+  //   if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
+   
+  //     if (VoltageBattery <= NORMAL_BATTERY_THRESHOLD) state = BATTERY_BROKEN;
+  //     else if (VoltageBattery > NORMAL_BATTERY_THRESHOLD) state = NORMAL;
+     
+  //   }
+  //   if((supply==true) && (battery == false))state = POWER_SUPPLY;
+  //   if((supply==false) && (battery == true)){
+       
+  //     if((VoltageBattery < NORMAL_BATTERY_THRESHOLD) && (VoltageBattery > LOW_BATTERY_THRESHOLD)) state = LOW_BATTERY;
+  //     else if(VoltageBattery < LOW_BATTERY_THRESHOLD ) state = BATTERY_BROKEN;
+  //     else if(VoltageBattery >= NORMAL_BATTERY_THRESHOLD) state = BATTERY;
+  //   }
+  //  if((supply==false) && (battery == false))state = POWER_OFF;
+
+
+  // switch(state)
+  // { 
+   
+  //   case NORMAL:
+  //     POWER_CHECK_DEBUG(" Normal"); 
+  //     batteryCheckTime.status = START;
+  //     if( batteryCheckTime.value >100)
+  //     { 
+  //       SUPPLY_VOLTAGE_IS_16_V
+  //       outputVoltage=VoltagePowerSupply;
+  //       batteryCheckTime.status = STOP;
+  //     }
+  //     else 
+  //     {
+  //       POWER_RELAY_ON;
+  //       SUPPLY_VOLTAGE_IS_24_V
+  //       outputVoltage=VoltagePowerSupply;
+  //     }
+  //     if( batteryCheckTime.value >120) 
+  //     {
+  //       fierCheckLock=false;
+  //       batteryCheckTime.status = STOP;
+  //     }
+  //   break;
+
+  //   case BATTERY:
+  //     POWER_CHECK_DEBUG(" Battery");
+  //     outputVoltage=VoltageBattery;
+  //   break; 
+
+  //   case LOW_BATTERY:
+  //     SUPPLY_VOLTAGE_IS_24_V
+  //     POWER_CHECK_DEBUG(" LowBattery");
+  //     outputVoltage=VoltageBattery;
+  //   break;
+
+  //   case POWER_SUPPLY:
+  //     SUPPLY_VOLTAGE_IS_24_V
+  //     POWER_RELAY_OFF
+  //     POWER_CHECK_DEBUG(" PowerSupply");
+  //     outputVoltage=VoltagePowerSupply;
+  //     if((supply==true) && (battery == true))state=NORMAL;
+  //   break;
+
+  //   case BATTERY_BROKEN:
+  //     SUPPLY_VOLTAGE_IS_24_V
+  //     POWER_RELAY_OFF
+  //     POWER_CHECK_DEBUG(" Battery is Broken"); 
+  //     outputVoltage=VoltagePowerSupply;
+  //   break;
+
+  //   case POWER_OFF:
+  //     SUPPLY_VOLTAGE_IS_24_V
+  //     POWER_CHECK_DEBUG("Power is OFF"); 
+  //   break;
+
+
+  // } ;
+  // if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
+  // return outputVoltage;
 }
 
 void batteryCheck() {
@@ -579,7 +702,7 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
  
   
   #define FIER_DETECTION_TIME 3200
-  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  8
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  12
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
   Limit.minimumFier= MINIMUM_LIMIT_FIER ;
@@ -860,23 +983,22 @@ void readMux(byte add) {
   digitalWrite(Sela, controlValues[0]);
   digitalWrite(Selb, controlValues[1]);
   digitalWrite(Selc, controlValues[2]);
-
   // Delay as needed
 
-   delay(25);
+   delay(50);
 
   // Read analog values and store them in the mux arrays
   for (int i = 0; i < 4; i++) {
     mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100;
     mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100;
     mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100;
-    mux4Values[add] = analogRead(Analog4);
+    mux4Values[add] =  (3.3 / 1023.000) * analogRead(Analog4)*100;
 
   }
 
   // Delay as needed
 
-  delay(15);
+  delay(50);
   
  
  
@@ -1176,9 +1298,6 @@ float readBattery(void){
       result =(analogRead(Analog4)*0.0819672131)-1.3770491803;
      
     //  } 
-    digitalWrite(Sela, LOW);
-    digitalWrite(Selb, LOW);
-    digitalWrite(Selc, LOW);
      return result;
 }
 float readPowerSupply(void){
