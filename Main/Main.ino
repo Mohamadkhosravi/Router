@@ -686,9 +686,9 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
 
   #define MINIMUM_LIMIT_NORMAL 7
-  #define MAXIMUM_LIMIT_NORMAL 15
+  #define MAXIMUM_LIMIT_NORMAL 19
 
-  #define MINIMUM_LIMIT_FIER 16
+  #define MINIMUM_LIMIT_FIER 20
   #define MAXIMUM_LIMIT_FIER 80
 
   #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 80
@@ -701,8 +701,8 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   #define SHORT_CIRCUIT_LINE_ON_TIME 1000
  
   
-  #define FIER_DETECTION_TIME 3200
-  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  12
+  #define FIER_DETECTION_TIME 3500
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  30
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
   Limit.minimumFier= MINIMUM_LIMIT_FIER ;
