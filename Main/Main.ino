@@ -1,5 +1,4 @@
 
-
 #include <Main.h>
 
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
@@ -12,6 +11,7 @@ timerMS readMuxPowerSupplyTimer;
 timerMS lineConditionTimer;
 timerMS fierTimer;
 flowDelay flow[12];
+
 
 void Update_IT_callback1(void);
 void Update_IT_callback2(void);
@@ -136,7 +136,7 @@ void loop() {
       
           
     
-      checkButtons();
+     // checkButtons();
 
       distributionMuxValues();
    
@@ -189,8 +189,6 @@ void handelShortCircuit(byte numberLine)
       LINE_STATUS_DEBUG(lineCurrent[numberLine]);
       LINE_STATUS_DEBUG(" ");
       LINE_STATUS_DEBUG(", STATUS =");
-
-  
 
     if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
 
@@ -270,9 +268,15 @@ bool timeForLedBlink() {
 }
 
 float checkPower(float VoltageBattery, float VoltagePowerSupply) {
-   static bool battery= false;
+
+  #define MINIMUM_VOLTAGE_VALIDE 6
+  #define EXIST_POWER_SUPPLY_THRESHOLD 10
+  #define EXIST_BATTERY_THRESHOLD 10
+  #define NORMAL_BATTERY_THRESHOLD 18
+  #define LOW_BATTERY_THRESHOLD 17
+  static bool battery= false;
   static bool supply= false;
-  static float  existVoltage;
+  static float  outputVoltage;
 
     typedef enum
     {
@@ -285,222 +289,101 @@ float checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
     } powerState;
    static powerState state;
-  
-   // Fiter VoltagePowerSupply & VoltageBattery Value
-    if (VoltagePowerSupply<=6)VoltagePowerSupply=0;
-    if (VoltageBattery<=6)VoltageBattery=0;
+
+   //  // Fiter VoltagePowerSupply and  VoltageBattery Values
+    if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
+    if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
+ 
 
    //Debug
+ 
+    POWER_CHECK_DEBUG("\n\nVoltageBattery=");
+    POWER_CHECK_DEBUG(VoltageBattery,5);
+    POWER_CHECK_DEBUG(", VoltagePowerSupply=");
+    POWER_CHECK_DEBUG(VoltagePowerSupply,5);
+    POWER_CHECK_DEBUG(" state :");
 
-    POWER_CHECK_DEBUG("\n => STATE ==");        
-    POWER_CHECK_DEBUG(state);
-    POWER_CHECK_DEBUG(", VoltageBattery==");
-    POWER_CHECK_DEBUG(VoltageBattery,10);
-    POWER_CHECK_DEBUG(", VoltagePowerSupply==");
-    POWER_CHECK_DEBUG(VoltagePowerSupply,10);
-    POWER_CHECK_DEBUG(" |");
-
-   
-    supply=( VoltagePowerSupply >10 )? true : false;
-    battery=( VoltageBattery >10 )? true : false;
+    supply=( VoltagePowerSupply > EXIST_POWER_SUPPLY_THRESHOLD )? true : false;
+    battery=( VoltageBattery > EXIST_BATTERY_THRESHOLD )? true : false;
 
     if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
-   
-      if (VoltageBattery<18)state= BATTERY_BROKEN;
-      else if (VoltageBattery>18)state= NORMAL;
-     
+
+      if (VoltageBattery < NORMAL_BATTERY_THRESHOLD) state = BATTERY_BROKEN;
+      else if (VoltageBattery > NORMAL_BATTERY_THRESHOLD) state = NORMAL;
+      
     }
     if((supply==true) && (battery == false))state = POWER_SUPPLY;
     if((supply==false) && (battery == true)){
-       
-        if((VoltageBattery<18)&&(VoltageBattery>17))state=LOW_BATTERY;
-        else if(VoltageBattery<17)state= BATTERY_BROKEN;
-        else if(VoltageBattery>18) state = BATTERY;
+        
+      if((VoltageBattery < NORMAL_BATTERY_THRESHOLD) && (VoltageBattery > LOW_BATTERY_THRESHOLD)) state = LOW_BATTERY;
+      else if(VoltageBattery < LOW_BATTERY_THRESHOLD ) state = BATTERY_BROKEN;
+      else if(VoltageBattery >  NORMAL_BATTERY_THRESHOLD) state = BATTERY;
+      
     }
-   if((supply==false) && (battery == false))state = POWER_OFF;
+    if((supply==false) && (battery == false))state = POWER_OFF;
 
 
-  switch(state)
-  { 
-   
-    case NORMAL:
-        POWER_CHECK_DEBUG(" Normal"); 
+    switch(state)
+    { 
+    
+      case NORMAL:
+        POWER_CHECK_DEBUG(" Normal  >>>"); 
         batteryCheckTime.status = START;
-
         if( batteryCheckTime.value >100)
         { 
-          existVoltage=VoltagePowerSupply;
-            SUPPLY_VOLTAGE_IS_16_V
-           // batteryCheckTime.status = STOP;
-             POWER_CHECK_DEBUG(" SUPPLY_VOLTAGE_IS_16_V"); 
+          outputVoltage=VoltagePowerSupply;
+          SUPPLY_VOLTAGE_IS_16_V
+          POWER_CHECK_DEBUG(" SUPPLY_VOLTAGE_LEVEL_IS_16_V"); 
         }
         else 
         {
           POWER_RELAY_ON;
-          POWER_CHECK_DEBUG(" 24>>>>>>>>>>>>>>>>>>>>>>>>>"); 
+          POWER_CHECK_DEBUG(" SUPPLY_VOLTAGE_LEVEL_IS_24_V"); 
           SUPPLY_VOLTAGE_IS_24_V
-          existVoltage=VoltagePowerSupply;
+          outputVoltage=VoltagePowerSupply;
         }
-       if( batteryCheckTime.value >150) 
-       {
-        fierCheckLock=false;
-        batteryCheckTime.status = STOP;
-
+        if( batteryCheckTime.value >150) 
+        {
+          fierCheckLock=false;
+          batteryCheckTime.status = STOP;
         }
+      break;
 
-    break;
+      case BATTERY:
+        POWER_CHECK_DEBUG(" Battery");
+        outputVoltage=VoltageBattery;
+      break; 
 
-    case BATTERY:
-      POWER_CHECK_DEBUG(" Battery");
-            existVoltage=VoltageBattery;
-    break; 
+      case LOW_BATTERY:
+        SUPPLY_VOLTAGE_IS_24_V
+        POWER_CHECK_DEBUG(" LowBattery");
+        outputVoltage=VoltageBattery;
+      break;
 
-    case LOW_BATTERY:
-       SUPPLY_VOLTAGE_IS_24_V
-      POWER_CHECK_DEBUG(" LowBattery");
-      existVoltage=VoltageBattery;
+      case POWER_SUPPLY:
+        SUPPLY_VOLTAGE_IS_24_V
+        POWER_RELAY_OFF
+        POWER_CHECK_DEBUG(" PowerSupply");
+        if((supply==true) && (battery == true))state=NORMAL;
+        outputVoltage=VoltagePowerSupply;
+      break;
 
-    break;
+      case BATTERY_BROKEN:
+        SUPPLY_VOLTAGE_IS_24_V
+        POWER_RELAY_OFF
+        POWER_CHECK_DEBUG(" Battery is Broken"); 
+        outputVoltage=VoltagePowerSupply;
+      break;
 
-    case POWER_SUPPLY:
-     SUPPLY_VOLTAGE_IS_24_V
-     POWER_RELAY_OFF
-     POWER_CHECK_DEBUG(" PowerSupply");
-     if((supply==true) && (battery == true))state=NORMAL;
-     existVoltage=VoltagePowerSupply;
-
-    break;
-
-    case BATTERY_BROKEN:
-     SUPPLY_VOLTAGE_IS_24_V
-     POWER_RELAY_OFF
-     POWER_CHECK_DEBUG(" Battery is Broken"); 
-     existVoltage=VoltagePowerSupply;
-    break;
-
-    case POWER_OFF:
-     SUPPLY_VOLTAGE_IS_24_V
-    POWER_CHECK_DEBUG("Power is OFF"); 
-    break;
+      case POWER_OFF:
+        SUPPLY_VOLTAGE_IS_24_V
+        POWER_CHECK_DEBUG("Power is OFF"); 
+      break;
 
 
-  } ;
-  
- if( batteryCheckTime.value >1500) batteryCheckTime.status = STOP;
-
-    return existVoltage;
-  // static float  outputVoltage;
-  // #define MINIMUM_VOLTAGE_VALIDE 6
-  // #define EXIST_POWER_SUPPLY_THRESHOLD 10
-  // #define EXIST_BATTERY_THRESHOLD 10
-  // #define NORMAL_BATTERY_THRESHOLD 18
-  // #define LOW_BATTERY_THRESHOLD 17
- 
-
-  //   static enum
-  //   {
-  //     NORMAL,
-  //     BATTERY,
-  //     LOW_BATTERY,
-  //     POWER_SUPPLY,
-  //     BATTERY_BROKEN,
-  //     POWER_OFF
-
-  //   } state;
-
-  
-  //  // Fiter VoltagePowerSupply & VoltageBattery Value
-  //   if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
-  //   if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
-
-  //  //Debug
-  //   POWER_CHECK_DEBUG("\n\n checkPower >>> ");        
-  //   POWER_CHECK_DEBUG(" VoltageBattery=");
-  //   POWER_CHECK_DEBUG(VoltageBattery,3);
-  //   POWER_CHECK_DEBUG(", VoltagePowerSupply=");
-  //   POWER_CHECK_DEBUG(VoltagePowerSupply,3);
-  //   POWER_CHECK_DEBUG(", Battery state is :");
-
-   
-  //    static bool supply=( VoltagePowerSupply > EXIST_POWER_SUPPLY_THRESHOLD )? true : false;
-  //    static bool battery=( VoltageBattery > EXIST_BATTERY_THRESHOLD )? true : false;
-
-  //   if((supply==true) && (battery == true)&&(state!=POWER_SUPPLY)&&(state!=BATTERY_BROKEN)){
-   
-  //     if (VoltageBattery <= NORMAL_BATTERY_THRESHOLD) state = BATTERY_BROKEN;
-  //     else if (VoltageBattery > NORMAL_BATTERY_THRESHOLD) state = NORMAL;
-     
-  //   }
-  //   if((supply==true) && (battery == false))state = POWER_SUPPLY;
-  //   if((supply==false) && (battery == true)){
-       
-  //     if((VoltageBattery < NORMAL_BATTERY_THRESHOLD) && (VoltageBattery > LOW_BATTERY_THRESHOLD)) state = LOW_BATTERY;
-  //     else if(VoltageBattery < LOW_BATTERY_THRESHOLD ) state = BATTERY_BROKEN;
-  //     else if(VoltageBattery >= NORMAL_BATTERY_THRESHOLD) state = BATTERY;
-  //   }
-  //  if((supply==false) && (battery == false))state = POWER_OFF;
-
-
-  // switch(state)
-  // { 
-   
-  //   case NORMAL:
-  //     POWER_CHECK_DEBUG(" Normal"); 
-  //     batteryCheckTime.status = START;
-  //     if( batteryCheckTime.value >100)
-  //     { 
-  //       SUPPLY_VOLTAGE_IS_16_V
-  //       outputVoltage=VoltagePowerSupply;
-  //       batteryCheckTime.status = STOP;
-  //     }
-  //     else 
-  //     {
-  //       POWER_RELAY_ON;
-  //       SUPPLY_VOLTAGE_IS_24_V
-  //       outputVoltage=VoltagePowerSupply;
-  //     }
-  //     if( batteryCheckTime.value >120) 
-  //     {
-  //       fierCheckLock=false;
-  //       batteryCheckTime.status = STOP;
-  //     }
-  //   break;
-
-  //   case BATTERY:
-  //     POWER_CHECK_DEBUG(" Battery");
-  //     outputVoltage=VoltageBattery;
-  //   break; 
-
-  //   case LOW_BATTERY:
-  //     SUPPLY_VOLTAGE_IS_24_V
-  //     POWER_CHECK_DEBUG(" LowBattery");
-  //     outputVoltage=VoltageBattery;
-  //   break;
-
-  //   case POWER_SUPPLY:
-  //     SUPPLY_VOLTAGE_IS_24_V
-  //     POWER_RELAY_OFF
-  //     POWER_CHECK_DEBUG(" PowerSupply");
-  //     outputVoltage=VoltagePowerSupply;
-  //     if((supply==true) && (battery == true))state=NORMAL;
-  //   break;
-
-  //   case BATTERY_BROKEN:
-  //     SUPPLY_VOLTAGE_IS_24_V
-  //     POWER_RELAY_OFF
-  //     POWER_CHECK_DEBUG(" Battery is Broken"); 
-  //     outputVoltage=VoltagePowerSupply;
-  //   break;
-
-  //   case POWER_OFF:
-  //     SUPPLY_VOLTAGE_IS_24_V
-  //     POWER_CHECK_DEBUG("Power is OFF"); 
-  //   break;
-
-
-  // } ;
-  // if( batteryCheckTime.value >110) batteryCheckTime.status = STOP;
-  // return outputVoltage;
+    } ;
+    if( batteryCheckTime.value >1500) batteryCheckTime.status = STOP;
+    return outputVoltage;
 }
 
 void batteryCheck() {
@@ -675,12 +558,12 @@ bool enableBeeper() {
 status processCurrentConditions(float current , float voltage,int numberLine,float supplyVoltage){
 
  
-  if(current < 2)current=0; 
+
   static status state;
   static limit Limit;
   static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
-
+  static bool shortCircuitLock =false;
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
@@ -697,8 +580,8 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
   #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
  
-  #define SHORT_CIRCUIT_TIME 5000
-  #define SHORT_CIRCUIT_LINE_ON_TIME 1000
+  #define SHORT_CIRCUIT_TIME 10000
+  #define SHORT_CIRCUIT_LINE_ON_TIME 200
  
   
   #define FIER_DETECTION_TIME 3500
@@ -717,9 +600,11 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
 
   Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
   // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
-  Limit.minimumVoltageShortCircuit= ( supplyVoltage*2.941176470);
-  //Limit.minimumVoltageShortCircuit= ( supplyVoltage*3.9564093091983);
+  Limit.minimumVoltageShortCircuit= ( supplyVoltage*2.941176470*1.416248229689713 );
+
   Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT;
+  if(current < 2)current=0; 
+  if(voltage <2)voltage=0; 
 
   LINE_CS_DEBUG("\n");
   LINE_CS_DEBUG("line");
@@ -733,14 +618,14 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   LINE_CS_DEBUG(", Current=");
   LINE_CS_DEBUG(current,2);
          
-  if ((voltage <= Limit.minimumVoltageShortCircuit)&&(current!= 0))
+  if (((voltage <= Limit.minimumVoltageShortCircuit)||(current > Limit.maximumFier))&&(current>0))
   {
-     state = SHORT_CIRCUIT;
+      state = SHORT_CIRCUIT;
       lineOFF(numberLine);
   }
   else 
   {
-     if ((( current >= Limit.minimumOpenCircuit)&&(current <= Limit.maximumOpenCircuit))||(current==0))
+     if ((( current >= Limit.minimumOpenCircuit)&&(current <= Limit.maximumOpenCircuit))&&(shortCircuitLock == false))
       {
         state = OPEN_CIRCUIT;
       }
@@ -771,19 +656,18 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
           repeatFireDetection = 0;
           fierTimer.status = STOP;
           state =FIER;
-        
         }
         if (fierTimer.value > FIER_DETECTION_TIME)
         {    
           repeatFireDetection = 0;
           fierTimer.status = STOP;
         }
-
+        if (( voltage == 0) && ( current == 0))
+        {
+          state = DAMAGED;
+        }
       }
-      else if (( voltage == 0) && ( current == 0))
-      {
-        state = DAMAGED;
-      }
+      
       
   }
 
@@ -792,45 +676,47 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   {
 
     case OPEN_CIRCUIT:
-     LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
-     //return OPEN_CIRCUIT;
+      lineON(numberLine);
+      LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
+      //return OPEN_CIRCUIT;
     break;
 
     case NORMAL:
+      lineON(numberLine);
       LINE_STATUS_DEBUG(" NORMAL ");
+      shortCircuitLock=false;
       //return NORMAL;
     break;
 
     case FIER:
-        LINE_STATUS_DEBUG(" FIER ");
-        return FIER;
+      LINE_STATUS_DEBUG(" FIER ");
+      return FIER;
     break;
 
     case SHORT_CIRCUIT:
- 
-        if( flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false)
-        {
-          lineOFF(numberLine);
-        }
-        if(flow[numberLine].value>= SHORT_CIRCUIT_TIME - SHORT_CIRCUIT_LINE_ON_TIME )
-        {
-          lineON(numberLine);
-        }
-        else
-        {
-          lineOFF(numberLine);
-        }
-        LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");
-
-        return SHORT_CIRCUIT;
-        
+      shortCircuitLock = true;
+      if( flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false)
+      {
+        lineOFF(numberLine);
+       // LINE_STATUS_DEBUG(" LINE SC OFF ");
+      }
+      if(flow[numberLine].value>= SHORT_CIRCUIT_TIME - SHORT_CIRCUIT_LINE_ON_TIME )
+      {
+        lineON(numberLine);
+       // LINE_STATUS_DEBUG(" LINE SC ON ");
+      }
+      else
+      {
+        lineOFF(numberLine);
+        //LINE_STATUS_DEBUG(" LINE SC OFF ");
+      }
+      LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");
+      return SHORT_CIRCUIT;    
     break;
 
     case DAMAGED:
-
       LINE_STATUS_DEBUG(" DAMAGED ");
-      return DAMAGED;
-        
+      return DAMAGED; 
     break;
   }
 
@@ -971,34 +857,37 @@ void distributionMuxValues() {
 
 
 void readMux(byte add) {
- // Define control values for Sela, Selb, and Selc
-  byte controlValues[3] = { LOW, LOW, LOW };
 
-  // Calculate control values based on the address (add)
-  if (add & 0b001) controlValues[0] = HIGH;
-  if (add & 0b010) controlValues[1] = HIGH;
-  if (add & 0b100) controlValues[2] = HIGH;
 
-  // Set the control values
-  digitalWrite(Sela, controlValues[0]);
-  digitalWrite(Selb, controlValues[1]);
-  digitalWrite(Selc, controlValues[2]);
-  // Delay as needed
 
-   delay(50);
+   
+    // Define control values for Sela, Selb, and Selc
+    byte controlValues[3] = { LOW, LOW, LOW };
 
-  // Read analog values and store them in the mux arrays
-  for (int i = 0; i < 4; i++) {
-    mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100;
-    mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100;
-    mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100;
-    mux4Values[add] =  (3.3 / 1023.000) * analogRead(Analog4)*100;
+    // Calculate control values based on the address (add)
+    if (add & 0b001) controlValues[0] = HIGH;
+    if (add & 0b010) controlValues[1] = HIGH;
+    if (add & 0b100) controlValues[2] = HIGH;
 
-  }
+    // Set the control values
+    digitalWrite(Sela, controlValues[0]);
+    digitalWrite(Selb, controlValues[1]);
+    digitalWrite(Selc, controlValues[2]);
 
-  // Delay as needed
+    // Delay as needed
+   delay(5);
+    // Read analog values and store them in the mux arrays
+    for (int i = 0; i < 4; i++) {
+      mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100;
+      mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100;
+      mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100;
+      mux4Values[add] =  (3.3 / 1023.000) * analogRead(Analog4)*100;
 
-  delay(50);
+    }
+  
+    // Delay as needed
+
+   delay(5);
   
  
  
@@ -1214,49 +1103,46 @@ void GPIOInit(void) {
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
-   readMuxBatteryTimer.update();
- batteryCheckTime.update();
- Timer.update();
+  readMuxBatteryTimer.update();
+  batteryCheckTime.update();
+  Timer.update();
   lineConditionTimer.update();
-fierTimer.update();
+  fierTimer.update();
 
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
-    if (CardPresentError == 1) {
-      sr.set(ledErrorsPins[4], ledBlinker2);
-      sr.set(ledErrorsPins[5], ledBlinker2);
-      sr.set(ledErrorsPins[6], ledBlinker2);
-      sr.set(ledErrorsPins[7], ledBlinker2);
-    } else if (CardPresentError == 2) {
-      sr.set(ledErrorsPins[8], ledBlinker2);
-      sr.set(ledErrorsPins[9], ledBlinker2);
-      sr.set(ledErrorsPins[10], ledBlinker2);
-      sr.set(ledErrorsPins[11], ledBlinker2);
-    } else if (CardPresentError == 3) {
-      sr.set(ledErrorsPins[4], ledBlinker2);
-      sr.set(ledErrorsPins[5], ledBlinker2);
-      sr.set(ledErrorsPins[6], ledBlinker2);
-      sr.set(ledErrorsPins[7], ledBlinker2);
-      sr.set(ledErrorsPins[8], ledBlinker2);
-      sr.set(ledErrorsPins[9], ledBlinker2);
-      sr.set(ledErrorsPins[10], ledBlinker2);
-      sr.set(ledErrorsPins[11], ledBlinker2);
-    }
+  if (CardPresentError == 1) {
+    sr.set(ledErrorsPins[4], ledBlinker2);
+    sr.set(ledErrorsPins[5], ledBlinker2);
+    sr.set(ledErrorsPins[6], ledBlinker2);
+    sr.set(ledErrorsPins[7], ledBlinker2);
+  } else if (CardPresentError == 2) {
+    sr.set(ledErrorsPins[8], ledBlinker2);
+    sr.set(ledErrorsPins[9], ledBlinker2);
+    sr.set(ledErrorsPins[10], ledBlinker2);
+    sr.set(ledErrorsPins[11], ledBlinker2);
+  } else if (CardPresentError == 3) {
+    sr.set(ledErrorsPins[4], ledBlinker2);
+    sr.set(ledErrorsPins[5], ledBlinker2);
+    sr.set(ledErrorsPins[6], ledBlinker2);
+    sr.set(ledErrorsPins[7], ledBlinker2);
+    sr.set(ledErrorsPins[8], ledBlinker2);
+    sr.set(ledErrorsPins[9], ledBlinker2);
+    sr.set(ledErrorsPins[10], ledBlinker2);
+    sr.set(ledErrorsPins[11], ledBlinker2);
+  }
   }
   if (fultCounter > 0) {
-    fultCounter = fultCounter - 1;
-    faultFlag = true;
+  fultCounter = fultCounter - 1;
+  faultFlag = true;
   } else
-    faultFlag = false;
+  faultFlag = false;
 }
 
 void Update_IT_callback2(void) { 
   
   for(int i=0;i<=12;i++) {flow[i].update();}
   readMuxPowerSupplyTimer.update();
- 
-
-
 }
 
 

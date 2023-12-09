@@ -23,10 +23,10 @@
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
- #define POWER_CHECK_DEBUG 
- #define LINE_STATUS_DEBUG  
- #define LINE_FIER_DEBUG
- #define LINE_CS_DEBUG
+ //#define POWER_CHECK_DEBUG 
+// #define LINE_STATUS_DEBUG  
+//  #define LINE_FIER_DEBUG
+// // #define LINE_CS_DEBUG
 
 
 
