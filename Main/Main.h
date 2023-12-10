@@ -1,37 +1,21 @@
 
-
-
 #ifndef MAIN_H
 #define  MAIN_H
 
 #include <Arduino.h>
-
 #include <IWatchdog.h>
 #include <ShiftRegister74HC595.h>
 #include <SoftwareSerial.h>
 
-
-
-
-
-
-
-
-
-
-
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
- //#define POWER_CHECK_DEBUG 
-// #define LINE_STATUS_DEBUG  
+//  #define POWER_CHECK_DEBUG 
+//
+
+ // #define LINE_STATUS_DEBUG  
 //  #define LINE_FIER_DEBUG
-// // #define LINE_CS_DEBUG
-
-
-
-
-
+// #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
   #define POWER_CHECK_DEBUG   DEBUG_ON
@@ -54,10 +38,10 @@
   #define LINE_FIER_DEBUG   DEBUG_OFF 
 #endif
 
-#ifdef  LINE_CS_DEBUG 
-  #define LINE_CS_DEBUG   DEBUG_ON
+#ifdef  LINE_SC_DEBUG 
+  #define LINE_SC_DEBUG   DEBUG_ON
 #else
-  #define LINE_CS_DEBUG   DEBUG_OFF
+  #define LINE_SC_DEBUG   DEBUG_OFF
 #endif
 
 

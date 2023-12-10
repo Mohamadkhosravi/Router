@@ -11,7 +11,7 @@ timerMS readMuxPowerSupplyTimer;
 timerMS lineConditionTimer;
 timerMS fierTimer;
 flowDelay flow[12];
-
+timerMS shortCircuitTimer[12];
 
 void Update_IT_callback1(void);
 void Update_IT_callback2(void);
@@ -125,7 +125,39 @@ void setup() {
 
 void loop() {
    
-     IWatchdog.reload();
+//    while(1)
+//    {
+
+//     digitalWrite(Line1, LOW);
+//     digitalWrite(Line2, LOW);
+//     digitalWrite(Line3, LOW);
+//     digitalWrite(Line4, LOW);
+//     digitalWrite(Line5, LOW);
+//     digitalWrite(Line6, LOW);
+//     digitalWrite(Line7, LOW);
+//     digitalWrite(Line8, LOW);
+//     digitalWrite(Line9, LOW);
+//     digitalWrite(Line10, LOW);
+//     digitalWrite(Line11, LOW);
+//     digitalWrite(Line12, LOW);
+//    delay(50);
+
+//     digitalWrite(Line1, HIGH);
+//     digitalWrite(Line2, HIGH);
+//     digitalWrite(Line3, HIGH);
+//     digitalWrite(Line4, HIGH);
+//     digitalWrite(Line5, HIGH);
+//     digitalWrite(Line6, HIGH);
+//     digitalWrite(Line7, HIGH);
+//     digitalWrite(Line8, HIGH);
+//     digitalWrite(Line9, HIGH);
+//     digitalWrite(Line10, HIGH);
+//     digitalWrite(Line11, HIGH);
+//     digitalWrite(Line12, HIGH);
+//  delay(50);
+//  IWatchdog.reload();
+//   }
+     
 
        readMux(muxPosition);
        //batteryVoltage=mux4Values[3]*0.2243157656080861;
@@ -150,6 +182,7 @@ void loop() {
         {   
        // handelShortCircuit(i);
         lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,voltage);
+
        // lineStatus[i] = processCurrentConditions(i);
         }
       }
@@ -193,7 +226,7 @@ void handelShortCircuit(byte numberLine)
     if ((shortCircuitDetected[numberLine] > 0) && (currentTime - shortCircuitTime > limitTimeSC)) {
 
     shortCircuitTime = currentTime;
-    lineON(numberLine);
+    //lineON(numberLine);
     shortCircuitDetected[numberLine] = 0;
     limitTimeSC++;
     if (limitTimeSC > 55) limitTimeSC = 4;
@@ -209,7 +242,7 @@ void handelShortCircuit(byte numberLine)
 
   
 
-    lineOFF(numberLine);
+    //lineOFF(numberLine);
     shortCircuitDetected[numberLine] = shortCircuitDetected[numberLine] + 2;
     } 
  
@@ -557,13 +590,11 @@ bool enableBeeper() {
 
 status processCurrentConditions(float current , float voltage,int numberLine,float supplyVoltage){
 
- 
-
   static status state;
   static limit Limit;
   static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
-  static bool shortCircuitLock =false;
+  static bool shortCircuitLock[12] ={false};
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
@@ -580,7 +611,7 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
   #define MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 90
  
-  #define SHORT_CIRCUIT_TIME 10000
+  #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME 200
  
   
@@ -594,98 +625,93 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   Limit.maximumOpenCircuit = MAXIMUM_LIMIT_OPEN_CIRCUIT ;
   Limit.minimumNormal = MINIMUM_LIMIT_NORMAL ;
   Limit.maximumNormal = MAXIMUM_LIMIT_NORMAL ;
-
   int acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER;
-  //if (numberLine>3)acceptRepeatFier = ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES;
-
   Limit.minimumCurrentShortCircuit= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT ;
-  // Limit.maximumCurrentShortCircuit= MAXIMUM_LIMIT_CURRENT_SHORT_CIRCUIT;
   Limit.minimumVoltageShortCircuit= ( supplyVoltage*2.941176470*1.416248229689713 );
-
   Limit.maximumVoltageShortCircuit= MAXIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT;
-  if(current < 2)current=0; 
-  if(voltage <2)voltage=0; 
+  // if( current < 2 )current=0; 
+  if( voltage < 50 )voltage=0;
 
-  LINE_CS_DEBUG("\n");
-  LINE_CS_DEBUG("line");
-  LINE_CS_DEBUG(numberLine+1);
-  LINE_CS_DEBUG(" , Voltage =");
-  LINE_CS_DEBUG(voltage,3);
-  LINE_CS_DEBUG(", Limit=");
-  LINE_CS_DEBUG(Limit.minimumVoltageShortCircuit);
-  LINE_CS_DEBUG(" , supplyVoltage =");
-  LINE_CS_DEBUG(supplyVoltage,2);
-  LINE_CS_DEBUG(", Current=");
-  LINE_CS_DEBUG(current,2);
-         
-  if (((voltage <= Limit.minimumVoltageShortCircuit)||(current > Limit.maximumFier))&&(current>0))
+  LINE_SC_DEBUG("\n");
+  LINE_SC_DEBUG("line");
+  LINE_SC_DEBUG(numberLine+1);
+  LINE_SC_DEBUG(" Voltage =");
+  LINE_SC_DEBUG(voltage,3);
+  LINE_SC_DEBUG(", Current=");
+  LINE_SC_DEBUG(current,2);
+   
+  if ( ( (voltage >110)|| (current > Limit.maximumFier)  ) && (current>0) )
   {
-      state = SHORT_CIRCUIT;
-      lineOFF(numberLine);
+    state = SHORT_CIRCUIT;
+    lineOFF(numberLine);
+    shortCircuitTimer[numberLine].status= START;
   }
   else 
   {
-     if ((( current >= Limit.minimumOpenCircuit)&&(current <= Limit.maximumOpenCircuit))&&(shortCircuitLock == false))
-      {
-        state = OPEN_CIRCUIT;
-      }
-      else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
-      {
-        state = NORMAL;
-      }
-      else if (( current >= Limit.minimumFier)&&(current <= Limit.maximumFier))
-      {
-        
-        fierTimer.status = START;
-        repeatFireDetection++;
-        LINE_FIER_DEBUG(" repeatFireDetection=");
-        LINE_FIER_DEBUG(repeatFireDetection);
-        LINE_FIER_DEBUG(" fierTimer.value="); 
-        LINE_FIER_DEBUG(fierTimer.value);
 
-        if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < acceptRepeatFier) && (fierLouckBit == 0)) 
-        {  
-          repeatFireDetection = 0;
-          fierTimer.value = 0;
-          fierTimer.status = STOP;
-          state = NORMAL;
-        } 
-        if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= acceptRepeatFier)  || (fierLouckBit == 1))
-        {
-          fierLouckBit = 1;
-          repeatFireDetection = 0;
-          fierTimer.status = STOP;
-          state =FIER;
-        }
-        if (fierTimer.value > FIER_DETECTION_TIME)
-        {    
-          repeatFireDetection = 0;
-          fierTimer.status = STOP;
-        }
-        if (( voltage == 0) && ( current == 0))
-        {
-          state = DAMAGED;
-        }
+    if (( voltage == 0) && ( current == 0)&&(shortCircuitLock[numberLine] == false))
+    {
+      state = OPEN_CIRCUIT;
+    }
+    if ( (( current >= Limit.minimumOpenCircuit) && (current <= Limit.maximumOpenCircuit )) && (shortCircuitLock[numberLine] == false))
+    {
+      state = OPEN_CIRCUIT;
+    }
+    else  if ( (current >= Limit.minimumNormal)&&(current <= Limit.maximumNormal))
+    {
+      state = NORMAL;
+    }
+    else if (( current >= Limit.minimumFier)&&(current <= Limit.maximumFier))
+    {
+      fierTimer.status = START;
+      repeatFireDetection++;
+      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < acceptRepeatFier) && (fierLouckBit == 0)) 
+      {  
+        repeatFireDetection = 0;
+        fierTimer.value = 0;
+        fierTimer.status = STOP;
+        state = NORMAL;
+      } 
+      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= acceptRepeatFier)  || (fierLouckBit == 1))
+      {
+        fierLouckBit = 1;
+        repeatFireDetection = 0;
+        fierTimer.status = STOP;
+        state =FIER;
       }
-      
-      
+      if (fierTimer.value > FIER_DETECTION_TIME)
+      {    
+        repeatFireDetection = 0;
+        fierTimer.status = STOP;
+      }
+      LINE_FIER_DEBUG(" repeatFireDetection=");
+      LINE_FIER_DEBUG(repeatFireDetection);
+      LINE_FIER_DEBUG(" fierTimer.value="); 
+      LINE_FIER_DEBUG(fierTimer.value);
+    }
+    else{
+       state = SHORT_CIRCUIT;
+    }
+  
+
+            
   }
 
-
+//lineON(numberLine); 
   switch(state)
   {
 
     case OPEN_CIRCUIT:
-      lineON(numberLine);
+     //lineON(numberLine);
       LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
-      //return OPEN_CIRCUIT;
+      if (shortCircuitLock[numberLine]== true)state =SHORT_CIRCUIT;
+      else lineON(numberLine);
     break;
 
     case NORMAL:
-      lineON(numberLine);
+     // lineON(numberLine);
       LINE_STATUS_DEBUG(" NORMAL ");
-      shortCircuitLock=false;
-      //return NORMAL;
+     // shortCircuitLock=false;
     break;
 
     case FIER:
@@ -694,24 +720,11 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
     break;
 
     case SHORT_CIRCUIT:
-      shortCircuitLock = true;
-      if( flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false)
-      {
-        lineOFF(numberLine);
-       // LINE_STATUS_DEBUG(" LINE SC OFF ");
-      }
-      if(flow[numberLine].value>= SHORT_CIRCUIT_TIME - SHORT_CIRCUIT_LINE_ON_TIME )
-      {
-        lineON(numberLine);
-       // LINE_STATUS_DEBUG(" LINE SC ON ");
-      }
-      else
-      {
-        lineOFF(numberLine);
-        //LINE_STATUS_DEBUG(" LINE SC OFF ");
-      }
-      LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");
-      return SHORT_CIRCUIT;    
+
+      shortCircuitLock[numberLine] = true;
+      if(flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) {lineOFF(numberLine);}
+      if(flow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
+      LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
 
     case DAMAGED:
@@ -1141,7 +1154,9 @@ void Update_IT_callback1(void) {  // 10hz
 
 void Update_IT_callback2(void) { 
   
-  for(int i=0;i<=12;i++) {flow[i].update();}
+  for(int i=0;i<=12;i++) {
+    shortCircuitTimer[i].update();
+    flow[i].update();}
   readMuxPowerSupplyTimer.update();
 }
 
@@ -1167,48 +1182,5 @@ void Relaycont() {
   }
 }
 
-float readBattery(void){
-  static char state;
-  static float result;
-  //  if( state==0) readMuxBatteryTimer.status=START;
-  //  if (readMuxBatteryTimer.value > 50){
-   delay(25);
-    digitalWrite(Sela, HIGH);
-    digitalWrite(Selb, HIGH);
-    digitalWrite(Selc, LOW);
-  //  } 
-  //  if ((readMuxBatteryTimer.value>100)){
-    delay(25);
-    // readMuxBatteryTimer.status=STOP;
-     //state=readMuxPowerSupplyTimer.status=START;
-      result =(analogRead(Analog4)*0.0819672131)-1.3770491803;
-     
-    //  } 
-     return result;
-}
-float readPowerSupply(void){
 
-  static float result;
-  static char state;
-  delay(25);
-  //  if( state==0) readMuxPowerSupplyTimer.status=START;
-  //  if ((readMuxPowerSupplyTimer.value > 50)){ 
-
-      digitalWrite(Sela, LOW);
-      digitalWrite(Selb, LOW);
-      digitalWrite(Selc, LOW);
-    // } 
-  //  if ((readMuxPowerSupplyTimer.value>100)){ 
-  delay(25);
-    readMuxPowerSupplyTimer.status=STOP;
-    state=readMuxBatteryTimer.status=START;
-    result =(analogRead(Analog4)*0.1020408163265)-26.857142857127;
-
-    // } 
- return result;
-
-
-
-
-}
 
