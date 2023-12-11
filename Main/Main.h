@@ -11,11 +11,9 @@
 #define DEBUG_OFF 
 
 //  #define POWER_CHECK_DEBUG 
-//
-
- //#define LINE_STATUS_DEBUG  
-#define LINE_FIER_DEBUG
-// #define LINE_SC_DEBUG
+// #define LINE_STATUS_DEBUG  
+// #define LINE_FIER_DEBUG
+//  #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
   #define POWER_CHECK_DEBUG   DEBUG_ON
@@ -142,11 +140,6 @@
 #define ledefiremode 38
 #define panelon 39
 
-
-
-
-
-
 // Flags
 bool batteryChecking = false;
 bool card1Present = false;
@@ -173,7 +166,7 @@ bool ledBlinker1 = true;
 bool ledBlinker2 = true;
 bool buzzerControl = false;
 bool sounderLedStatus = false;
- int fierLouckBit = 0;
+int fierLouckBit = 0;
 bool fierCheckLock =false;
 //bool  stateUpdateMUX =false;
 
