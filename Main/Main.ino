@@ -7,8 +7,8 @@ ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
 
 timerMS batteryCheckTime;
 timerMS fierTimer;
-flowDelay flow[12];
-timerMS shortCircuitTimer[12];
+flowDelay shortCircuitFlow[12];
+flowDelay fierFlow;
 
 void Update_IT_callback1(void);
 void Update_IT_callback2(void);
@@ -579,41 +579,29 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   LINE_SC_DEBUG(", Current=");
   LINE_SC_DEBUG(current,2);
 
-    if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0)) state = SHORT_CIRCUIT;
+    if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0)&&!FIER_CURRENT) state = SHORT_CIRCUIT;
     else if ((V_I_IS_0||OPEN_CIRCUIT_CURRENT) &&(shortCircuitLock[numberLine] == false))state = OPEN_CIRCUIT;
     else if (NORMAL_CURRENT) state = NORMAL;
-    else{
+    else if (!FIER_CURRENT){
       state = SHORT_CIRCUIT;
      }     
     if (FIER_CURRENT)
     {
+
       lineON(numberLine);
-      fierTimer.status = START;
       repeatFireDetection++;
-      if((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && (fierLouckBit == 0)) 
-      {  
-        repeatFireDetection = 0;
-        fierTimer.value = 0;
-        fierTimer.status = STOP;
-        state = NORMAL;
-      } 
-      if((fierTimer.value > FIER_DETECTION_TIME)&&(repeatFireDetection >= ACCEPTABLE_NUMBER_OF_REPEAT_FIER)||(fierLouckBit == 1))
+      if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit )
       {
-        fierLouckBit = 1;
-        repeatFireDetection = 0;
-        fierTimer.status = STOP;
-        state =FIER;
-        fireTrace=true;
+          if ((repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && fierLouckBit == false)state = NORMAL; 
+          else state =FIER;
+          fierLouckBit = true;
+          repeatFireDetection = 0;
       }
-      if (fierTimer.value > FIER_DETECTION_TIME)
-      {    
-        repeatFireDetection = 0;
-        fierTimer.status = STOP;
-      }
+     
       LINE_FIER_DEBUG(" repeatFireDetection=");
       LINE_FIER_DEBUG(repeatFireDetection);
       LINE_FIER_DEBUG(" fierTimer.value="); 
-      LINE_FIER_DEBUG(fierTimer.value);
+      LINE_FIER_DEBUG(fierFlow.value);
     }
     
   switch(state)
@@ -626,18 +614,20 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
     break;
 
     case NORMAL:
+  
       LINE_STATUS_DEBUG(" NORMAL ");
     break;
 
     case FIER:
       LINE_STATUS_DEBUG(" FIER ");
+      fireTrace=true;
       return FIER;
     break;
 
     case SHORT_CIRCUIT:
       shortCircuitLock[numberLine] = true;
-      if(flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) {lineOFF(numberLine);}
-      if(flow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
+      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) {lineOFF(numberLine);}
+      if(shortCircuitFlow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
       LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
     
@@ -1012,8 +1002,7 @@ void Update_IT_callback1(void) {  // 10hz
 
   batteryCheckTime.update();
 
-  fierTimer.update();
-
+   
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
   if (CardPresentError == 1) {
@@ -1045,10 +1034,9 @@ void Update_IT_callback1(void) {  // 10hz
 }
 
 void Update_IT_callback2(void) { 
-  
+  fierFlow.update();
   for(int i=0;i<=12;i++) {
-    shortCircuitTimer[i].update();
-    flow[i].update();}
+    shortCircuitFlow[i].update();}
 
 }
 
