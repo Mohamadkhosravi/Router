@@ -543,8 +543,8 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
   static bool shortCircuitLock[12]={false};
-  static bool  fierLock[12]={false};
-  static char parity;
+  static bool  fierDetectLock[12]={false};
+
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
@@ -557,8 +557,12 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME 200
   #define FIER_DETECTION_TIME 3500
-  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  30
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  7
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
+
+
+
+  #define V_I_IS_0 ( voltage == 0) && ( current == 0)
   #define OPEN_CIRCUIT_CURRENT ( current >= MINIMUM_LIMIT_OPEN_CIRCUIT) && (current < MAXIMUM_LIMIT_OPEN_CIRCUIT) 
   #define NORMAL_CURRENT (current >= MINIMUM_LIMIT_NORMAL )&&(current < MINIMUM_LIMIT_FIER)
   #define FIER_CURRENT  (current >= MINIMUM_LIMIT_FIER )&&(current < MAXIMUM_LIMIT_FIER )
@@ -575,25 +579,25 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   LINE_SC_DEBUG(", Current=");
   LINE_SC_DEBUG(current,2);
 
-  if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0) ) state = SHORT_CIRCUIT;
-  else 
-  {
-
-    if (( voltage == 0) && ( current == 0)&&(shortCircuitLock[numberLine] == false))state = OPEN_CIRCUIT;
-    if ( OPEN_CIRCUIT_CURRENT && (shortCircuitLock[numberLine] == false)) state = OPEN_CIRCUIT;
+    if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0)) state = SHORT_CIRCUIT;
+    else if ((V_I_IS_0||OPEN_CIRCUIT_CURRENT) &&(shortCircuitLock[numberLine] == false))state = OPEN_CIRCUIT;
     else if (NORMAL_CURRENT) state = NORMAL;
-    else  if (FIER_CURRENT)
+    else{
+      state = SHORT_CIRCUIT;
+     }     
+    if (FIER_CURRENT)
     {
+      lineON(numberLine);
       fierTimer.status = START;
       repeatFireDetection++;
-      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && (fierLouckBit == 0)) 
+      if((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && (fierLouckBit == 0)) 
       {  
         repeatFireDetection = 0;
         fierTimer.value = 0;
         fierTimer.status = STOP;
         state = NORMAL;
       } 
-      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= ACCEPTABLE_NUMBER_OF_REPEAT_FIER)  || (fierLouckBit == 1))
+      if((fierTimer.value > FIER_DETECTION_TIME)&&(repeatFireDetection >= ACCEPTABLE_NUMBER_OF_REPEAT_FIER)||(fierLouckBit == 1))
       {
         fierLouckBit = 1;
         repeatFireDetection = 0;
@@ -611,13 +615,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
       LINE_FIER_DEBUG(" fierTimer.value="); 
       LINE_FIER_DEBUG(fierTimer.value);
     }
-    else{
-       state = SHORT_CIRCUIT;
-    }
-            
-  }
-
-//lineON(numberLine); 
+    
   switch(state)
   {
 
@@ -633,7 +631,6 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
 
     case FIER:
       LINE_STATUS_DEBUG(" FIER ");
-      fierLock[numberLine]=true;
       return FIER;
     break;
 
@@ -643,7 +640,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
       if(flow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
       LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
-
+    
     case DAMAGED:
       LINE_STATUS_DEBUG(" DAMAGED ");
       return DAMAGED; 
