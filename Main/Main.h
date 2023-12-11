@@ -13,8 +13,8 @@
 //  #define POWER_CHECK_DEBUG 
 //
 
- // #define LINE_STATUS_DEBUG  
-//  #define LINE_FIER_DEBUG
+ //#define LINE_STATUS_DEBUG  
+#define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 

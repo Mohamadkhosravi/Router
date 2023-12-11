@@ -4,11 +4,8 @@
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
-timerMS Timer;
+
 timerMS batteryCheckTime;
-timerMS readMuxBatteryTimer;
-timerMS readMuxPowerSupplyTimer;
-timerMS lineConditionTimer;
 timerMS fierTimer;
 flowDelay flow[12];
 timerMS shortCircuitTimer[12];
@@ -46,7 +43,7 @@ void setup() {
   MyTim2->attachInterrupt(Update_IT_callback2);
   MyTim2->resume();
 
-  readMuxBatteryTimer.status== START;
+
   //////////////////////////////////////////////////////SUPPLY_VOLTAGE_IS_24_V
   POWER_RELAY_ON
 
@@ -124,41 +121,6 @@ void setup() {
 
 
 void loop() {
-   
-//    while(1)
-//    {
-
-//     digitalWrite(Line1, LOW);
-//     digitalWrite(Line2, LOW);
-//     digitalWrite(Line3, LOW);
-//     digitalWrite(Line4, LOW);
-//     digitalWrite(Line5, LOW);
-//     digitalWrite(Line6, LOW);
-//     digitalWrite(Line7, LOW);
-//     digitalWrite(Line8, LOW);
-//     digitalWrite(Line9, LOW);
-//     digitalWrite(Line10, LOW);
-//     digitalWrite(Line11, LOW);
-//     digitalWrite(Line12, LOW);
-//    delay(50);
-
-//     digitalWrite(Line1, HIGH);
-//     digitalWrite(Line2, HIGH);
-//     digitalWrite(Line3, HIGH);
-//     digitalWrite(Line4, HIGH);
-//     digitalWrite(Line5, HIGH);
-//     digitalWrite(Line6, HIGH);
-//     digitalWrite(Line7, HIGH);
-//     digitalWrite(Line8, HIGH);
-//     digitalWrite(Line9, HIGH);
-//     digitalWrite(Line10, HIGH);
-//     digitalWrite(Line11, HIGH);
-//     digitalWrite(Line12, HIGH);
-//  delay(50);
-//  IWatchdog.reload();
-//   }
-     
-
        readMux(muxPosition);
        //batteryVoltage=mux4Values[3]*0.2243157656080861;
        //powerSupplyVoltage=(mux4Values[0]/0.3225806451612903)*0.040979697*1.303529646264329;
@@ -181,9 +143,9 @@ void loop() {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
        // handelShortCircuit(i);
-        lineStatus[i] = processCurrentConditions(lineCurrent[i],lineVoltage[i],i,voltage);
+        lineStatus[i] = evaluateLineStatus(lineCurrent[i],lineVoltage[i],i,voltage);
 
-       // lineStatus[i] = processCurrentConditions(i);
+       // lineStatus[i] = evaluateLineStatus(i);
         }
       }
       else
@@ -588,13 +550,14 @@ bool enableBeeper() {
   return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
-status processCurrentConditions(float current , float voltage,int numberLine,float supplyVoltage){
+status evaluateLineStatus(float current , float voltage,int numberLine,float supplyVoltage){
 
   static status state;
   static limit Limit;
   static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
-  static bool shortCircuitLock[12] ={false};
+  static bool shortCircuitLock[12]={false};
+  static bool  fierLock[12]={false};
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
   #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
@@ -661,7 +624,7 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
     {
       state = NORMAL;
     }
-    else if (( current >= Limit.minimumFier)&&(current <= Limit.maximumFier))
+    else if (( current >= Limit.minimumFier)&&(current <= Limit.maximumFier)||fierLock[numberLine])
     {
       fierTimer.status = START;
       repeatFireDetection++;
@@ -672,7 +635,7 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
         fierTimer.status = STOP;
         state = NORMAL;
       } 
-      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= acceptRepeatFier)  || (fierLouckBit == 1))
+      if ((fierTimer.value > FIER_DETECTION_TIME) && (repeatFireDetection >= acceptRepeatFier)  || (fierLouckBit == 1)||fierLock[numberLine])
       {
         fierLouckBit = 1;
         repeatFireDetection = 0;
@@ -692,8 +655,6 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
     else{
        state = SHORT_CIRCUIT;
     }
-  
-
             
   }
 
@@ -702,25 +663,22 @@ status processCurrentConditions(float current , float voltage,int numberLine,flo
   {
 
     case OPEN_CIRCUIT:
-     //lineON(numberLine);
       LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
       if (shortCircuitLock[numberLine]== true)state =SHORT_CIRCUIT;
       else lineON(numberLine);
     break;
 
     case NORMAL:
-     // lineON(numberLine);
       LINE_STATUS_DEBUG(" NORMAL ");
-     // shortCircuitLock=false;
     break;
 
     case FIER:
       LINE_STATUS_DEBUG(" FIER ");
+      fierLock[numberLine]=true;
       return FIER;
     break;
 
     case SHORT_CIRCUIT:
-
       shortCircuitLock[numberLine] = true;
       if(flow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) {lineOFF(numberLine);}
       if(flow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
@@ -822,25 +780,6 @@ void distributionMuxValues() {
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
 
-      
-      // lineVoltage[3-3+4] = mux2Values[0];
-      // lineCurrent[3-2+4] = mux2Values[1];
-      // lineVoltage[3-2+4] =  mux2Values[2];
-      // lineCurrent[3-3+4] =  mux2Values[3];
-      // lineVoltage[3-1+4] =  mux2Values[4];
-      // lineVoltage[3-0+4] =  mux2Values[5];
-      // lineCurrent[3-1+4] =  mux2Values[6];
-      // lineCurrent[3-0+4] =  mux2Values[7];
-      
-      // lineVoltage[3-3+8] = mux3Values[0];
-      // lineCurrent[3-2+8] = mux3Values[1];
-      // lineVoltage[3-2+8] = mux3Values[2];
-      // lineCurrent[3-3+8] = mux3Values[3];
-      // lineVoltage[3-1+8] = mux3Values[4];
-      // lineVoltage[3-0+8] = mux3Values[5];
-      // lineCurrent[3-1+8] = mux3Values[6];
-      // lineCurrent[3-3+8] = mux3Values[7];
-
       lineVoltage[7] = mux2Values[0];
       lineCurrent[7] = mux2Values[3];
       lineCurrent[6] = mux2Values[1];
@@ -858,8 +797,6 @@ void distributionMuxValues() {
       lineVoltage[9] = mux3Values[4];
       lineVoltage[8] = mux3Values[5];
       lineCurrent[8] = mux3Values[7];
-
-
 
       break;
 
@@ -1116,10 +1053,9 @@ void GPIOInit(void) {
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
   fultSencetimer++;
-  readMuxBatteryTimer.update();
+
   batteryCheckTime.update();
-  Timer.update();
-  lineConditionTimer.update();
+
   fierTimer.update();
 
   ledBlinker2 = !ledBlinker2;
@@ -1157,7 +1093,7 @@ void Update_IT_callback2(void) {
   for(int i=0;i<=12;i++) {
     shortCircuitTimer[i].update();
     flow[i].update();}
-  readMuxPowerSupplyTimer.update();
+
 }
 
 
