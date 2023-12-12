@@ -557,7 +557,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME 200
   #define FIER_DETECTION_TIME 3500
-  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  7
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  120
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
 
@@ -698,22 +698,22 @@ void distributionMuxValues() {
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
 
-      // lineVoltage[3-3+4] = mux2Values[0];
-      // lineCurrent[3-2+4] = mux2Values[1];
-      // lineVoltage[3-2+4] =  mux2Values[2];
-      // lineCurrent[3-3+4] =  mux2Values[3];
-      // lineVoltage[3-1+4] =  mux2Values[4];
-      // lineVoltage[3-0+4] =  mux2Values[5];
-      // lineCurrent[3-1+4] =  mux2Values[6];
-      // lineCurrent[3-0+4] =  mux2Values[7];
-      lineVoltage[7] = mux2Values[0];
-      lineCurrent[7] = mux2Values[3];
-      lineCurrent[6] = mux2Values[1];
-      lineVoltage[6] = mux2Values[2];
-      lineCurrent[5] = mux2Values[6];
-      lineVoltage[5] = mux2Values[4];
-      lineVoltage[4] = mux2Values[5];
-      lineCurrent[4] = mux2Values[7];
+      lineVoltage[0] = mux2Values[0];
+      lineCurrent[1] = mux2Values[1];
+      lineVoltage[2] =  mux2Values[2];
+      lineCurrent[3] =  mux2Values[3];
+      lineVoltage[1] =  mux2Values[4];
+      lineVoltage[0] =  mux2Values[5];
+      lineCurrent[1] =  mux2Values[6];
+      lineCurrent[0] =  mux2Values[7];
+      // lineVoltage[7] = mux2Values[0];
+      // lineCurrent[7] = mux2Values[3];
+      // lineCurrent[6] = mux2Values[1];
+      // lineVoltage[6] = mux2Values[2];
+      // lineCurrent[5] = mux2Values[6];
+      // lineVoltage[5] = mux2Values[4];
+      // lineVoltage[4] = mux2Values[5];
+      // lineCurrent[4] = mux2Values[7];
      
       break;
     case 2:
