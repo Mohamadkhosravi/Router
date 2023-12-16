@@ -121,6 +121,7 @@ void setup() {
 
 
 void loop() {
+
        readMux(muxPosition);
        //batteryVoltage=mux4Values[3]*0.2243157656080861;
        //powerSupplyVoltage=(mux4Values[0]/0.3225806451612903)*0.040979697*1.303529646264329;
@@ -138,8 +139,7 @@ void loop() {
      
      if (firstRepeat>12)
      {
-       // for (i = 0; i < ((cardSituation + 1) * 4); i++) 
-        for (i = 0; i < 12; i++) 
+        for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
           lineStatus[i] = evaluateLineStatus(lineCurrent[i],lineVoltage[i],i,voltage);
         }
@@ -157,12 +157,6 @@ void loop() {
     }
     Relaycont();
     IWatchdog.reload();
-  //   if (muxPosition==0){ 
- //voltage =checkPower(readBattery(),readPowerSupply());
-  // digitalWrite(Sela, HIGH);
-  // digitalWrite(Selb, HIGH);
-  // digitalWrite(Selc,HIGH);
-  //   }
     updateMuxPosition();
     checkAndEnableBeeper();
   
@@ -441,7 +435,13 @@ void batteryCheck() {
 // Function to print voltage alert
 
 void Ledcontrol(status lineSituations[12]) {
-  for (byte i = 0; i < 12; i++) {
+  static bool lockFier[12]={false};
+ for (byte i = 0; i < 12; i++) {
+  
+   if(lockFier[i]==true){
+    sr.set(ledFirePins[i], ledBlinker1);
+    }
+
 
     if ((lineSituations[i] == OPEN_CIRCUIT) || (lineSituations[i] == SHORT_CIRCUIT)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1);
@@ -451,15 +451,17 @@ void Ledcontrol(status lineSituations[12]) {
         digitalWrite(MCUbuzz, LOW);
 
     } else if (lineSituations[i] == FIER) {  // Fire mode
-      sr.set(ledFirePins[i], ledBlinker1);
-      sr.set(ledefiremode, LOW);
+       fireTrace=true;
+       lockFier[i]=true;
+      // sr.set(ledFirePins[i], ledBlinker1);
+      // sr.set(ledefiremode, LOW);
       if (fireTrace)
         digitalWrite(MCUbuzz, HIGH);
       else
         digitalWrite(MCUbuzz, LOW);
     } else {
       sr.set(ledErrorsPins[i], HIGH);
-      sr.set(ledFirePins[i], HIGH);
+      // sr.set(ledFirePins[i], HIGH);
       if ((batteryFail || powerFail || supplyFault) && !generalFault)
         digitalWrite(MCUbuzz, ledBlinker1);
       else
@@ -503,6 +505,7 @@ void Ledcontrol(status lineSituations[12]) {
       digitalWrite(MCUbuzz, relayOn);
   }
   sr.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
+
 }
 
 
@@ -558,7 +561,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME  SHORT_CIRCUIT_TIME-200
   #define FIER_DETECTION_TIME 3500
-  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  120
+  #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  46
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
 
@@ -639,7 +642,6 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   }
 
   return state;
-
 }
 
 // Function to check if all values in a range are zero
@@ -679,42 +681,34 @@ void distributionMuxValues() {
 
   switch (cardSituation) {
     case 0:
-      // lineVoltage[3] = mux1Values[0];
-      // lineCurrent[3] = mux1Values[3];
-      // lineCurrent[2] = mux1Values[2];
-      // lineVoltage[2] = mux1Values[1];
-      // lineCurrent[1] = mux1Values[4];
-      // lineVoltage[1] = mux1Values[6];
-      // lineVoltage[0] = mux1Values[5];
-      // lineCurrent[0] = mux1Values[7];
+      lineVoltage[3] = mux1Values[0];
+      lineCurrent[3] = mux1Values[3];
+      lineCurrent[2] = mux1Values[2];
+      lineVoltage[2] = mux1Values[1];
+      lineCurrent[1] = mux1Values[4];
+      lineVoltage[1] = mux1Values[6];
+      lineVoltage[0] = mux1Values[5];
+      lineCurrent[0] = mux1Values[7];
        
       break;
     case 1:
-      // lineVoltage[3] = mux1Values[0];
-      // lineVoltage[2] = mux1Values[1];
-      // lineCurrent[2] = mux1Values[2];
-      // lineCurrent[3] = mux1Values[3];
-      // lineCurrent[1] = mux1Values[4];
-      // lineVoltage[1] = mux1Values[6];
-      // lineVoltage[0] = mux1Values[5];
-      // lineCurrent[0] = mux1Values[7];
+      lineVoltage[3] = mux1Values[0];
+      lineVoltage[2] = mux1Values[1];
+      lineCurrent[2] = mux1Values[2];
+      lineCurrent[3] = mux1Values[3];
+      lineCurrent[1] = mux1Values[4];
+      lineVoltage[1] = mux1Values[6];
+      lineVoltage[0] = mux1Values[5];
+      lineCurrent[0] = mux1Values[7];
 
-      // // lineVoltage[0] = mux2Values[0];
-      // // lineCurrent[1] = mux2Values[1];
-      // // lineVoltage[2] =  mux2Values[2];
-      // // lineCurrent[3] =  mux2Values[3];
-      // // lineVoltage[1] =  mux2Values[4];
-      // // lineVoltage[0] =  mux2Values[5];
-      // // lineCurrent[1] =  mux2Values[6];
-      // // lineCurrent[0] =  mux2Values[7];
-      // lineVoltage[7] = mux2Values[0];
-      // lineCurrent[7] = mux2Values[3];
-      // lineCurrent[6] = mux2Values[1];
-      // lineVoltage[6] = mux2Values[2];
-      // lineCurrent[5] = mux2Values[6];
-      // lineVoltage[5] = mux2Values[4];
-      // lineVoltage[4] = mux2Values[5];
-      // lineCurrent[4] = mux2Values[7];
+      lineVoltage[4] = mux2Values[0];
+      lineCurrent[4] = mux2Values[3];
+      lineCurrent[5] = mux2Values[1];
+      lineVoltage[5] = mux2Values[2];
+      lineCurrent[6] = mux2Values[6];
+      lineVoltage[6] = mux2Values[4];
+      lineVoltage[7] = mux2Values[5];
+      lineCurrent[7] = mux2Values[7];
      
       break;
     case 2:
@@ -727,24 +721,15 @@ void distributionMuxValues() {
       lineVoltage[0] = mux1Values[5];
       lineCurrent[0] = mux1Values[7];
 
-      lineVoltage[7] = mux2Values[0];
-      lineCurrent[7] = mux2Values[3];
-      lineCurrent[6] = mux2Values[1];
-      lineVoltage[6] = mux2Values[2];
-      lineCurrent[5] = mux2Values[6];
-      lineVoltage[5] = mux2Values[4];
-      lineVoltage[4] = mux2Values[5];
-      lineCurrent[4] = mux2Values[7];
+      lineVoltage[4] = mux2Values[0];
+      lineCurrent[4] = mux2Values[3];
+      lineCurrent[5] = mux2Values[1];
+      lineVoltage[5] = mux2Values[2];
+      lineCurrent[6] = mux2Values[6];
+      lineVoltage[6] = mux2Values[4];
+      lineVoltage[7] = mux2Values[5];
+      lineCurrent[7] = mux2Values[7];
 
-      // lineVoltage[11] = mux3Values[0];
-      // lineCurrent[11] = mux3Values[3];
-      // lineCurrent[10] = mux3Values[1];
-      // lineVoltage[10] = mux3Values[2];
-      // lineCurrent[9] = mux3Values[6];
-      // lineVoltage[9] = mux3Values[4];
-      // lineVoltage[8] = mux3Values[5];
-      // lineCurrent[8] = mux3Values[7];
-      
       lineVoltage[8] = mux3Values[0];
       lineCurrent[8] = mux3Values[3];
       lineCurrent[9] = mux3Values[1];
@@ -756,45 +741,41 @@ void distributionMuxValues() {
 
       break;
 
-    default:
-      break;
   }
 }
 
 
 void readMux(byte add) {
 
-
-
-   
-    // Define control values for Sela, Selb, and Selc
-    byte controlValues[3] = { LOW, LOW, LOW };
-
-    // Calculate control values based on the address (add)
-    if (add & 0b001) controlValues[0] = HIGH;
-    if (add & 0b010) controlValues[1] = HIGH;
-    if (add & 0b100) controlValues[2] = HIGH;
-
-    // Set the control values
-    digitalWrite(Sela, controlValues[0]);
-    digitalWrite(Selb, controlValues[1]);
-    digitalWrite(Selc, controlValues[2]);
-
-    // Delay as needed
-   delay(5);
-    // Read analog values and store them in the mux arrays
-    for (int i = 0; i < 4; i++) {
-      mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100*2;
-      mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100*2;
-      mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100*2;
-      mux4Values[add] =  (3.3 / 1023.000) * analogRead(Analog4)*100;
-
-    }
   
-    // Delay as needed
+  // Define control values for Sela, Selb, and Selc
+  byte controlValues[3] = { LOW, LOW, LOW };
 
-   delay(5);
-  
+  // Calculate control values based on the address (add)
+  if (add & 0b001) controlValues[0] = HIGH;
+  if (add & 0b010) controlValues[1] = HIGH;
+  if (add & 0b100) controlValues[2] = HIGH;
+
+  // Set the control values
+  digitalWrite(Sela, controlValues[0]);
+  digitalWrite(Selb, controlValues[1]);
+  digitalWrite(Selc, controlValues[2]);
+
+  // Delay as needed
+    delay(5);
+  // Read analog values and store them in the mux arrays
+  for (int i = 0; i < 4; i++) {
+    mux1Values[add] = ((3.3 / 1023.000) * analogRead(Analog1))*100*2;
+    mux2Values[add] = (3.3 / 1023.000) * analogRead(Analog2)*100*2;
+    mux3Values[add] = (3.3 / 1023.000) * analogRead(Analog3)*100*2;
+    mux4Values[add] =  (3.3 / 1023.000) * analogRead(Analog4)*100;
+
+  }
+
+  // Delay as needed
+
+  delay(5);
+
  
  
 }
@@ -831,7 +812,7 @@ void checkButtons() {
   
  if((digitalRead(But3) == 0)&&(digitalRead(JUMPER) == 0)){  // All Line Reset
 
-    fierLouckBit=0;
+   /////////// fierLouckBit=0;
 
 
     for (byte i = 0; i < 12; i++) {
