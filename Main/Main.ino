@@ -138,7 +138,8 @@ void loop() {
      
      if (firstRepeat>12)
      {
-        for (i = 0; i < ((cardSituation + 1) * 4); i++) 
+       // for (i = 0; i < ((cardSituation + 1) * 4); i++) 
+        for (i = 0; i < 12; i++) 
         {   
           lineStatus[i] = evaluateLineStatus(lineCurrent[i],lineVoltage[i],i,voltage);
         }
@@ -442,14 +443,14 @@ void batteryCheck() {
 void Ledcontrol(status lineSituations[12]) {
   for (byte i = 0; i < 12; i++) {
 
-    if ((lineSituations[i] == 1) || (lineSituations[i] == 4)) {  // Fault mode
+    if ((lineSituations[i] == OPEN_CIRCUIT) || (lineSituations[i] == SHORT_CIRCUIT)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1);
       if (buzzerControl && !generalFault && !fireTrace)
         digitalWrite(MCUbuzz, ledBlinker1);
       else
         digitalWrite(MCUbuzz, LOW);
 
-    } else if (lineSituations[i] == 3) {  // Fire mode
+    } else if (lineSituations[i] == FIER) {  // Fire mode
       sr.set(ledFirePins[i], ledBlinker1);
       sr.set(ledefiremode, LOW);
       if (fireTrace)
@@ -555,7 +556,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 90
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 110
   #define SHORT_CIRCUIT_TIME 3000
-  #define SHORT_CIRCUIT_LINE_ON_TIME 200
+  #define SHORT_CIRCUIT_LINE_ON_TIME  SHORT_CIRCUIT_TIME-200
   #define FIER_DETECTION_TIME 3500
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  120
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
@@ -579,7 +580,7 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   LINE_SC_DEBUG(", Current=");
   LINE_SC_DEBUG(current,2);
 
-    if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0)&&!FIER_CURRENT) state = SHORT_CIRCUIT;
+    if ( (SHORT_CIRCUIT_VOLTAGE || SHORT_CIRCUIT_CURRENT ) && (current>0)) state = SHORT_CIRCUIT;
     else if ((V_I_IS_0||OPEN_CIRCUIT_CURRENT) &&(shortCircuitLock[numberLine] == false))state = OPEN_CIRCUIT;
     else if (NORMAL_CURRENT) state = NORMAL;
     else if (!FIER_CURRENT){
@@ -614,20 +615,20 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
     break;
 
     case NORMAL:
-  
       LINE_STATUS_DEBUG(" NORMAL ");
     break;
 
     case FIER:
       LINE_STATUS_DEBUG(" FIER ");
       fireTrace=true;
+       lineON(numberLine);
       return FIER;
     break;
 
     case SHORT_CIRCUIT:
       shortCircuitLock[numberLine] = true;
-      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) {lineOFF(numberLine);}
-      if(shortCircuitFlow[numberLine].value>= SHORT_CIRCUIT_TIME-SHORT_CIRCUIT_LINE_ON_TIME )lineON(numberLine);
+      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
+      if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
       LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
     
@@ -678,34 +679,34 @@ void distributionMuxValues() {
 
   switch (cardSituation) {
     case 0:
-      lineVoltage[3] = mux1Values[0];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[2] = mux1Values[2];
-      lineVoltage[2] = mux1Values[1];
-      lineCurrent[1] = mux1Values[4];
-      lineVoltage[1] = mux1Values[6];
-      lineVoltage[0] = mux1Values[5];
-      lineCurrent[0] = mux1Values[7];
+      // lineVoltage[3] = mux1Values[0];
+      // lineCurrent[3] = mux1Values[3];
+      // lineCurrent[2] = mux1Values[2];
+      // lineVoltage[2] = mux1Values[1];
+      // lineCurrent[1] = mux1Values[4];
+      // lineVoltage[1] = mux1Values[6];
+      // lineVoltage[0] = mux1Values[5];
+      // lineCurrent[0] = mux1Values[7];
        
       break;
     case 1:
-      lineVoltage[3] = mux1Values[0];
-      lineVoltage[2] = mux1Values[1];
-      lineCurrent[2] = mux1Values[2];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[1] = mux1Values[4];
-      lineVoltage[1] = mux1Values[6];
-      lineVoltage[0] = mux1Values[5];
-      lineCurrent[0] = mux1Values[7];
+      // lineVoltage[3] = mux1Values[0];
+      // lineVoltage[2] = mux1Values[1];
+      // lineCurrent[2] = mux1Values[2];
+      // lineCurrent[3] = mux1Values[3];
+      // lineCurrent[1] = mux1Values[4];
+      // lineVoltage[1] = mux1Values[6];
+      // lineVoltage[0] = mux1Values[5];
+      // lineCurrent[0] = mux1Values[7];
 
-      lineVoltage[0] = mux2Values[0];
-      lineCurrent[1] = mux2Values[1];
-      lineVoltage[2] =  mux2Values[2];
-      lineCurrent[3] =  mux2Values[3];
-      lineVoltage[1] =  mux2Values[4];
-      lineVoltage[0] =  mux2Values[5];
-      lineCurrent[1] =  mux2Values[6];
-      lineCurrent[0] =  mux2Values[7];
+      // // lineVoltage[0] = mux2Values[0];
+      // // lineCurrent[1] = mux2Values[1];
+      // // lineVoltage[2] =  mux2Values[2];
+      // // lineCurrent[3] =  mux2Values[3];
+      // // lineVoltage[1] =  mux2Values[4];
+      // // lineVoltage[0] =  mux2Values[5];
+      // // lineCurrent[1] =  mux2Values[6];
+      // // lineCurrent[0] =  mux2Values[7];
       // lineVoltage[7] = mux2Values[0];
       // lineCurrent[7] = mux2Values[3];
       // lineCurrent[6] = mux2Values[1];
@@ -735,14 +736,23 @@ void distributionMuxValues() {
       lineVoltage[4] = mux2Values[5];
       lineCurrent[4] = mux2Values[7];
 
-      lineVoltage[11] = mux3Values[0];
-      lineCurrent[11] = mux3Values[3];
-      lineCurrent[10] = mux3Values[1];
-      lineVoltage[10] = mux3Values[2];
-      lineCurrent[9] = mux3Values[6];
-      lineVoltage[9] = mux3Values[4];
-      lineVoltage[8] = mux3Values[5];
-      lineCurrent[8] = mux3Values[7];
+      // lineVoltage[11] = mux3Values[0];
+      // lineCurrent[11] = mux3Values[3];
+      // lineCurrent[10] = mux3Values[1];
+      // lineVoltage[10] = mux3Values[2];
+      // lineCurrent[9] = mux3Values[6];
+      // lineVoltage[9] = mux3Values[4];
+      // lineVoltage[8] = mux3Values[5];
+      // lineCurrent[8] = mux3Values[7];
+      
+      lineVoltage[8] = mux3Values[0];
+      lineCurrent[8] = mux3Values[3];
+      lineCurrent[9] = mux3Values[1];
+      lineVoltage[9] = mux3Values[2];
+      lineCurrent[10] = mux3Values[6];
+      lineVoltage[10] = mux3Values[4];
+      lineVoltage[11] = mux3Values[5];
+      lineCurrent[11] = mux3Values[7];
 
       break;
 
