@@ -643,9 +643,9 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
 
     case SHORT_CIRCUIT:
     lineON(numberLine);
-      // shortCircuitLock[numberLine] = true;
-      // if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
-      // if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
+      shortCircuitLock[numberLine] = true;
+      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
+      if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
        LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
     
