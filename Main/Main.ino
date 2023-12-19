@@ -15,7 +15,7 @@ void Update_IT_callback2(void);
 // Hardware Settings
 int firstRepeat=0;
 void setup() {
-
+ analogReadResolution(12);
 
   GPIOInit();
   mySerial.begin(9600);
@@ -109,23 +109,31 @@ void setup() {
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[0] = ((3.3 / 1023.00) * analogRead(Analog4))*100;
+  mux4Values[0] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
   delay(15);
   digitalWrite(Sela, HIGH);
   digitalWrite(Selb, HIGH);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[3] = ((3.3 / 1023.00) * analogRead(Analog4))*100;
+  mux4Values[3] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
  
  }
 
 
 void loop() {
+    float existVoltage=0.0;
+    float R1 = 22.0;   // in kilohms
+    float R2 =2.0;  //
+    float lineResistor=0.0;
+    readMux(muxPosition);
+    // batteryVoltage = (mux4Values[3] * (R1 + R2) / R1) ;
+
+
   
-       readMux(muxPosition);
-       batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
-       powerSupplyVoltage=((mux4Values[0]/0.3225806451612903)*0.1020408163265)-26.857142857127;
-       powerStatus =checkPower(batteryVoltage ,powerSupplyVoltage );
+         
+      existVoltage=((mux4Values[2]*(22+240))/22)+1.4;
+      powerStatus =checkPower( readBattery(mux4Values[3])  , readPowerSupply(mux4Values[0]) );
+
       
      // checkButtons();
 
@@ -139,7 +147,8 @@ void loop() {
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
-          lineStatus[i] = evaluateLineStatus(lineCurrent[i],lineVoltage[i],i,26);
+            lineResistor=(((readBattery(mux4Values[3]))/lineCurrent[i])*1000)-100;
+          lineStatus[i] = evaluateLineStatus(lineResistor,lineVoltage[i],i,26);
         }
       }
       else
@@ -255,8 +264,8 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
    static powerState state;
 
    //  // Fiter VoltagePowerSupply and  VoltageBattery Values
-    if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
-    if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
+    // if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
+    // if (VoltageBattery <= MINIMUM_VOLTAGE_VALIDE )VoltageBattery=0;
  
 
    //Debug
@@ -545,12 +554,12 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
 
 
   #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
-  #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
-  #define MINIMUM_LIMIT_NORMAL 6
-  #define MAXIMUM_LIMIT_NORMAL 20
-  #define MINIMUM_LIMIT_FIER 20
-  #define MAXIMUM_LIMIT_FIER 110
-  #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 110
+  #define MAXIMUM_LIMIT_OPEN_CIRCUIT 4289
+  #define MINIMUM_LIMIT_NORMAL 4289
+  #define MAXIMUM_LIMIT_NORMAL 1581
+  #define MINIMUM_LIMIT_FIER 1581
+  #define MAXIMUM_LIMIT_FIER 281
+  #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 287
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 120
   #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME  SHORT_CIRCUIT_TIME-200
@@ -559,21 +568,26 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
 
 
-
   #define V_I_IS_0 ( voltage == 0) && ( current == 0)
-  #define OPEN_CIRCUIT_CURRENT ( current >= MINIMUM_LIMIT_OPEN_CIRCUIT) && (current < MAXIMUM_LIMIT_OPEN_CIRCUIT) 
-  #define NORMAL_CURRENT (current >= MINIMUM_LIMIT_NORMAL )&&(current < MINIMUM_LIMIT_FIER)
-  #define FIER_CURRENT  (current >= MINIMUM_LIMIT_FIER )&&(current < MAXIMUM_LIMIT_FIER )
-  #define SHORT_CIRCUIT_VOLTAGE (voltage >= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT)
-  #define SHORT_CIRCUIT_CURRENT (current >= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
+  #define OPEN_CIRCUIT_CURRENT ((current >MAXIMUM_LIMIT_OPEN_CIRCUIT)) 
+  #define NORMAL_CURRENT ( (current >=MAXIMUM_LIMIT_NORMAL)&&(current < MINIMUM_LIMIT_NORMAL))
+  #define FIER_CURRENT ( (current >=MAXIMUM_LIMIT_FIER)&&(current < MINIMUM_LIMIT_FIER))
+  #define SHORT_CIRCUIT_CURRENT (current < MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
+
+  // #define V_I_IS_0 ( voltage == 0) && ( current == 0)
+  // #define OPEN_CIRCUIT_CURRENT ( current >= MINIMUM_LIMIT_OPEN_CIRCUIT) && (current < MAXIMUM_LIMIT_OPEN_CIRCUIT) 
+  // #define NORMAL_CURRENT (current >= MINIMUM_LIMIT_NORMAL )&&(current < MINIMUM_LIMIT_FIER)
+  // #define FIER_CURRENT  (current >= MINIMUM_LIMIT_FIER )&&(current < MAXIMUM_LIMIT_FIER )
+  // #define SHORT_CIRCUIT_VOLTAGE (voltage >= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT)
+  // #define SHORT_CIRCUIT_CURRENT (current >= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
   if( current < 2 )current=0; 
   if( voltage < 50 )voltage=0;
 
   LINE_SC_DEBUG("\n");
   LINE_SC_DEBUG("line");
   LINE_SC_DEBUG(numberLine+1);
-  LINE_SC_DEBUG(" Voltage =");
-  LINE_SC_DEBUG(voltage,3);
+  // LINE_SC_DEBUG(" Voltage =");
+  // LINE_SC_DEBUG(voltage,3);
   LINE_SC_DEBUG(", Current=");
   LINE_SC_DEBUG(current,2);
     
@@ -628,10 +642,11 @@ status evaluateLineStatus(float current , float voltage,int numberLine,float sup
     break;
 
     case SHORT_CIRCUIT:
-      shortCircuitLock[numberLine] = true;
-      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
-      if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
-      LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
+    lineON(numberLine);
+      // shortCircuitLock[numberLine] = true;
+      // if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
+      // if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
+       LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
     break;
     
     case DAMAGED:
@@ -768,10 +783,10 @@ void readMux(byte add) {
     delay(5);
   // Read analog values and store them in the mux arrays
   for (int i = 0; i < 4; i++) {
-    mux1Values[add] = ((((analogRead(Analog1)*3.3/1024)*2)+0.032)/18)*1000;
-    mux2Values[add] =  ((((analogRead(Analog2)*3.3/1024)*2)+0.032)/18)*1000;
-    mux3Values[add] =  ((((analogRead(Analog3)*3.3/1024)*2)+0.032)/18)*1000;
-    mux4Values[add] =  ((3.3 / 1024.000) * analogRead(Analog4))*1000;
+     mux1Values[add] = ((((analogRead(Analog1)*3.3/4096)*2)+0.032)/18)*1000;
+    mux2Values[add] =  ((((analogRead(Analog2)*3.3/4096)*2)+0.032)/18)*1000;
+    mux3Values[add] =  ((((analogRead(Analog3)*3.3/4096)*2)+0.032)/18)*1000;
+    mux4Values[add] = ( ((3.3 / 4096.000) * analogRead(Analog4)));
 
   }
 
@@ -1055,6 +1070,19 @@ void Relaycont() {
     }
   }
 }
+float readBattery(float VADC)
+{
+  //batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
+    batteryVoltage=((mux4Values[3]*11.5)/4.7)*10*0.955119893;
+    if((batteryVoltage>18)&&(batteryVoltage<20))batteryVoltage=batteryVoltage+0.2;
+    if((batteryVoltage>=20)&&(batteryVoltage<22))batteryVoltage=batteryVoltage+0.5;
+    if(batteryVoltage>=22)batteryVoltage=batteryVoltage+0.6;
+  return batteryVoltage;
+}
 
+float readPowerSupply(float VADC)
+{
+  return powerSupplyVoltage=((VADC/0.3225806451612903)*0.1020408163265)-26.857142857127; 
+}
 
 
