@@ -10,10 +10,11 @@
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
-#define POWER_CHECK_DEBUG 
-#define LINE_STATUS_DEBUG  
+// #define POWER_CHECK_DEBUG 
+#define LINE_STATUS_DEBUG 
+#define LINE_STATE_DEBUG 
 // #define LINE_FIER_DEBUG
-#define LINE_SC_DEBUG
+// #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
   #define POWER_CHECK_DEBUG   DEBUG_ON
@@ -21,13 +22,17 @@
   #define POWER_CHECK_DEBUG   DEBUG_OFF
 #endif
 
+#ifdef  LINE_STATE_DEBUG
+  #define LINE_STATE_DEBUG   DEBUG_ON
+#else
+  #define LINE_STATE_DEBUG   DEBUG_OFF 
+#endif
 
 #ifdef  LINE_STATUS_DEBUG
   #define LINE_STATUS_DEBUG   DEBUG_ON
 #else
   #define LINE_STATUS_DEBUG   DEBUG_OFF 
 #endif
-
 
 #ifdef  LINE_FIER_DEBUG
   #define LINE_FIER_DEBUG   DEBUG_ON

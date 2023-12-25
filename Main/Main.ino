@@ -120,40 +120,27 @@ void setup() {
  }
 
 
+ double existVoltage=0.0;
+
 void loop() {
-    float existVoltage=0.0;
-    float R1 = 22.0;   // in kilohms
-    float R2 =2.0;  //
-    float lineResistor=0.0;
-    readMux(muxPosition);
-    // batteryVoltage = (mux4Values[3] * (R1 + R2) / R1) ;
-
-
-  
-         
-      existVoltage=((mux4Values[2]*(22+240))/22)+1.4;
-      powerStatus =checkPower( readBattery(mux4Values[3])  , readPowerSupply(mux4Values[0]) );
-
-      
-     // checkButtons();
-
-      distributionMuxValues();
    
-  
-  
-     LINE_STATUS_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    readMux(muxPosition);
+    powerStatus =checkPower( readBattery(mux4Values[3])  , readPowerSupply(mux4Values[0]) );
+    // checkButtons();
+    distributionMuxValues();
+
+     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
      
      if (firstRepeat>12)
      {
         for (i = 0; i < ((cardSituation + 1) * 4); i++) 
         {   
-            lineResistor=(((readBattery(mux4Values[3]))/lineCurrent[i])*1000)-100;
-          lineStatus[i] = evaluateLineStatus(lineResistor,lineVoltage[i],i,26);
+          lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux4Values[2]) , i );
         }
       }
       else
       {
-          firstRepeat++;
+        firstRepeat++;
       }
     handleThresholdFaults( ) ;
     handleSupplyAndpowerFailures();
@@ -260,8 +247,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   static bool battery= false;
   static bool supply= false;
   static float  outputVoltage;
-
-   static powerState state;
+  static powerState state;
 
    //  // Fiter VoltagePowerSupply and  VoltageBattery Values
     // if (VoltagePowerSupply <= MINIMUM_VOLTAGE_VALIDE )VoltagePowerSupply=0;
@@ -543,122 +529,158 @@ bool enableBeeper() {
   return (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300));
 }
 
-status evaluateLineStatus(float current , float voltage,int numberLine,float supplyVoltage){
+status evaluateLineStatus(float current , float voltage,double supplyVoltage,int numberLine){
 
+ 
   static status state;
   static limit Limit;
   static unsigned long repeatFireDetection=0;
   static unsigned long repeat= 0;
   static bool shortCircuitLock[12]={false};
   static bool  fierDetectLock[12]={false};
+  float lineResistor= (supplyVoltage/current)*1000 ;
 
+  LINE_STATUS_DEBUG("\n");
+  LINE_STATUS_DEBUG("line");
+  LINE_STATUS_DEBUG(numberLine+1);
+  LINE_STATUS_DEBUG(", Current=");
+  LINE_STATUS_DEBUG(current,2);
+  LINE_SC_DEBUG(" Voltage =");
+  LINE_SC_DEBUG(voltage,3);
 
-  #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
-  #define MAXIMUM_LIMIT_OPEN_CIRCUIT 4289
-  #define MINIMUM_LIMIT_NORMAL 4289
-  #define MAXIMUM_LIMIT_NORMAL 1581
-  #define MINIMUM_LIMIT_FIER 1581
-  #define MAXIMUM_LIMIT_FIER 281
-  #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 287
+  // LINE_STATUS_DEBUG(", Current=");
+  // LINE_STATUS_DEBUG(current,2);
+  
   #define MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT 120
   #define SHORT_CIRCUIT_TIME 3000
   #define SHORT_CIRCUIT_LINE_ON_TIME  SHORT_CIRCUIT_TIME-200
   #define FIER_DETECTION_TIME 3500
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER  46
   #define ACCEPTABLE_NUMBER_OF_REPEAT_FIER_EXTERA_LINES  3
+  //============ change Moode ============//
+  /*
+  If defined "LINE_STATUS_BY_RESISTANCE", the line status reading is determined via 
+  the line resistance, otherwise via the line current.
+  */
+  //=====================================//
+  #define LINE_STATUS_BY_RESISTANCE;
+  //=====================================//
 
+  #ifndef LINE_STATUS_BY_RESISTANCE
+  // Determining the status of the line status with the line current
+  state=handleLineStatusByCurrent(current,voltage,shortCircuitLock[numberLine]);
+  #endif 
 
-  #define V_I_IS_0 ( voltage == 0) && ( current == 0)
-  #define OPEN_CIRCUIT_CURRENT ((current >MAXIMUM_LIMIT_OPEN_CIRCUIT)) 
-  #define NORMAL_CURRENT ( (current >=MAXIMUM_LIMIT_NORMAL)&&(current < MINIMUM_LIMIT_NORMAL))
-  #define FIER_CURRENT ( (current >=MAXIMUM_LIMIT_FIER)&&(current < MINIMUM_LIMIT_FIER))
-  #define SHORT_CIRCUIT_CURRENT (current < MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
+  #ifdef LINE_STATUS_BY_RESISTANCE
+  // Determining the condition of the line with line resistance
+  state=handleLineStatusByResistance(lineResistor,voltage,shortCircuitLock[numberLine]);
+  LINE_STATUS_DEBUG(", MainV=");
+  LINE_STATUS_DEBUG( supplyVoltage,2);
+  #endif 
 
-  // #define V_I_IS_0 ( voltage == 0) && ( current == 0)
-  // #define OPEN_CIRCUIT_CURRENT ( current >= MINIMUM_LIMIT_OPEN_CIRCUIT) && (current < MAXIMUM_LIMIT_OPEN_CIRCUIT) 
-  // #define NORMAL_CURRENT (current >= MINIMUM_LIMIT_NORMAL )&&(current < MINIMUM_LIMIT_FIER)
-  // #define FIER_CURRENT  (current >= MINIMUM_LIMIT_FIER )&&(current < MAXIMUM_LIMIT_FIER )
-  // #define SHORT_CIRCUIT_VOLTAGE (voltage >= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT)
-  // #define SHORT_CIRCUIT_CURRENT (current >= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
-  if( current < 2 )current=0; 
-  if( voltage < 50 )voltage=0;
-
-  LINE_SC_DEBUG("\n");
-  LINE_SC_DEBUG("line");
-  LINE_SC_DEBUG(numberLine+1);
-  // LINE_SC_DEBUG(" Voltage =");
-  // LINE_SC_DEBUG(voltage,3);
-  LINE_SC_DEBUG(", Current=");
-  LINE_SC_DEBUG(current,2);
-    
-    // else{
-        if ( (  (SHORT_CIRCUIT_CURRENT) ) && (current>0)) state = SHORT_CIRCUIT;
-        else if ((V_I_IS_0||OPEN_CIRCUIT_CURRENT) &&(shortCircuitLock[numberLine] == false))state = OPEN_CIRCUIT;
-        else if (NORMAL_CURRENT) state = NORMAL;
-        // else if (!FIER_CURRENT){
-        //   state = CHECK;
-        //  }     
-       if (FIER_CURRENT)
-        {
-
-          lineON(numberLine);
-          repeatFireDetection++;
-          if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit )
-          {
-              if ((repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && fierLouckBit == false)state = NORMAL; 
-              else state =FIER;
-              fierLouckBit = true;
-              repeatFireDetection = 0;
-        }
-      }
-    //   if((SHORT_CIRCUIT_VOLTAGE))
-    // {
-    //  state = SHORT_CIRCUIT;
-    // }
-      LINE_FIER_DEBUG(" repeatFireDetection=");
-      LINE_FIER_DEBUG(repeatFireDetection);
-      LINE_FIER_DEBUG(" fierTimer.value="); 
-      LINE_FIER_DEBUG(fierFlow.value);
-    // }
-    
   switch(state)
   {
-
     case OPEN_CIRCUIT:
-      LINE_STATUS_DEBUG(" OPEN_CIRCUIT ");
+      LINE_STATE_DEBUG(" OPEN_CIRCUIT ");
       if (shortCircuitLock[numberLine]== true)state =SHORT_CIRCUIT;
       else lineON(numberLine);
     break;
 
     case NORMAL:
-      LINE_STATUS_DEBUG(" NORMAL ");
+      LINE_STATE_DEBUG(" NORMAL ");
     break;
 
     case FIER:
-      LINE_STATUS_DEBUG(" FIER ");
+      LINE_STATE_DEBUG(" FIER ");
       fireTrace=true;
-       lineON(numberLine);
+      lineON(numberLine);
       return FIER;
     break;
 
     case SHORT_CIRCUIT:
-    lineON(numberLine);
+      lineON(numberLine);
       shortCircuitLock[numberLine] = true;
       if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
       if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
-       LINE_STATUS_DEBUG(" SHORT_CIRCUIT ");  
+      LINE_STATE_DEBUG(" SHORT_CIRCUIT ");  
     break;
     
     case DAMAGED:
-      LINE_STATUS_DEBUG(" DAMAGED ");
+      LINE_STATE_DEBUG(" DAMAGED ");
       return DAMAGED; 
     break;
-       case CHECK:
-      LINE_STATUS_DEBUG(" CHECK ");
+
+    case CHECK:
+      LINE_STATE_DEBUG(" CHECK ");
       lineON(numberLine);
+      repeatFireDetection++;
+      if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit )
+      {
+        if ((repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && fierLouckBit == false)state = NORMAL; 
+        else state =FIER;
+        fierLouckBit = true;
+        repeatFireDetection = 0;
+      }
+      LINE_FIER_DEBUG(" repeatFireDetection=");
+      LINE_FIER_DEBUG(repeatFireDetection);
+      LINE_FIER_DEBUG(" fierTimer.value="); 
+      LINE_FIER_DEBUG(fierFlow.value);
+
     break;
+
+    
   }
 
+  return state;
+}
+
+status handleLineStatusByResistance(double lineResistor,double voltage,bool shortCircuit)
+{
+  static status state;
+  LINE_STATUS_DEBUG(", Resistor=");
+  LINE_STATUS_DEBUG( lineResistor,4);
+  #define MINIMUM_LIMIT_RES_OPEN_CIRCUIT 0
+  #define MAXIMUM_LIMIT_RES_OPEN_CIRCUIT 4289
+  #define MINIMUM_LIMIT_RES_NORMAL 4289
+  #define MAXIMUM_LIMIT_RES_NORMAL 1581
+  #define MINIMUM_LIMIT_RES_FIER 1581
+  #define MAXIMUM_LIMIT_RES_FIER 400
+  #define MINIMUM_LIMIT_RES_CURRENT_SHORT_CIRCUIT 400
+  #define V_R_IS_0 ( voltage == 0) && ( lineResistor == 0)
+  #define OPEN_CIRCUIT_RESISTOR ((lineResistor >MAXIMUM_LIMIT_RES_OPEN_CIRCUIT)) 
+  #define NORMAL_RESISTOR ( (lineResistor >=MAXIMUM_LIMIT_RES_NORMAL)&&(lineResistor < MINIMUM_LIMIT_RES_NORMAL))
+  #define FIER_RESISTOR ( (lineResistor >=MAXIMUM_LIMIT_RES_FIER)&&(lineResistor < MINIMUM_LIMIT_RES_FIER))
+  #define SHORT_CIRCUIT_RESISTOR (lineResistor < MINIMUM_LIMIT_RES_CURRENT_SHORT_CIRCUIT)
+  if( lineResistor < 2 )lineResistor=0; 
+  if( voltage < 50 )voltage=0;
+  if ( (SHORT_CIRCUIT_RESISTOR)  && (lineResistor>0)) state = SHORT_CIRCUIT;
+  else if ((V_R_IS_0||OPEN_CIRCUIT_RESISTOR) && (shortCircuit == false))state = OPEN_CIRCUIT;
+  else if (NORMAL_RESISTOR) state = NORMAL;  
+  if (FIER_RESISTOR)state=CHECK;  
+  return state;
+}
+status handleLineStatusByCurrent(double current,double voltage,bool shortCircuit)
+{
+  static status state;
+  #define MINIMUM_LIMIT_OPEN_CIRCUIT 0
+  #define MAXIMUM_LIMIT_OPEN_CIRCUIT 6
+  #define MINIMUM_LIMIT_NORMAL 6
+  #define MAXIMUM_LIMIT_NORMAL 20
+  #define MINIMUM_LIMIT_FIER 20
+  #define MAXIMUM_LIMIT_FIER 110
+  #define MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT 110
+  #define V_I_IS_0 ( voltage == 0) && ( current == 0)
+  #define OPEN_CIRCUIT_CURRENT ( current >= MINIMUM_LIMIT_OPEN_CIRCUIT) && (current < MAXIMUM_LIMIT_OPEN_CIRCUIT) 
+  #define NORMAL_CURRENT (current >= MINIMUM_LIMIT_NORMAL )&&(current < MINIMUM_LIMIT_FIER)
+  #define FIER_CURRENT  (current >= MINIMUM_LIMIT_FIER )&&(current < MAXIMUM_LIMIT_FIER )
+  #define SHORT_CIRCUIT_VOLTAGE (voltage >= MINIMUM_LIMIT_VOLTAGE_SHORT_CIRCUIT)
+  #define SHORT_CIRCUIT_CURRENT (current >= MINIMUM_LIMIT_CURRENT_SHORT_CIRCUIT)
+  if( current < 2 )current=0; 
+  if( voltage < 50 )voltage=0;
+  if ((SHORT_CIRCUIT_CURRENT) && (current>0)) state = SHORT_CIRCUIT;
+  else if ((V_I_IS_0||OPEN_CIRCUIT_CURRENT) && (shortCircuit == false))state = OPEN_CIRCUIT;
+  else if (NORMAL_CURRENT) state = NORMAL;  
+  if (FIER_CURRENT) state=CHECK;
   return state;
 }
 
@@ -1072,17 +1094,23 @@ void Relaycont() {
 }
 float readBattery(float VADC)
 {
-  //batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
-    batteryVoltage=((mux4Values[3]*11.5)/4.7)*10*0.955119893;
-    if((batteryVoltage>18)&&(batteryVoltage<20))batteryVoltage=batteryVoltage+0.2;
-    if((batteryVoltage>=20)&&(batteryVoltage<22))batteryVoltage=batteryVoltage+0.5;
-    if(batteryVoltage>=22)batteryVoltage=batteryVoltage+0.6;
+//batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
+  batteryVoltage=((mux4Values[3]*11.5)/4.7)*10*0.955119893;
+  if((batteryVoltage>18)&&(batteryVoltage<20))batteryVoltage=batteryVoltage+0.2;
+  if((batteryVoltage>=20)&&(batteryVoltage<22))batteryVoltage=batteryVoltage+0.5;
+  if(batteryVoltage>=22)batteryVoltage=batteryVoltage+0.6;
   return batteryVoltage;
 }
 
 float readPowerSupply(float VADC)
 {
   return powerSupplyVoltage=((VADC/0.3225806451612903)*0.1020408163265)-26.857142857127; 
+}
+double readMainVoltage(double VADC) {
+  double voltage = VADC*((22.00+240.00)/22.00);
+  const double slope=1.9677367822;
+  const double yIntercept=-9.1576127392;
+  return slope * voltage + yIntercept;
 }
 
 
