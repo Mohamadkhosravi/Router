@@ -124,7 +124,7 @@ double existVoltage=0.0;
 void loop() {
    
     readMux(muxPosition);
-    powerStatus =checkPower( readBattery(mux4Values[3])*2+0.032 , readPowerSupply(mux4Values[0]) );
+    powerStatus =checkPower( readBattery(mux4Values[3]) , readPowerSupply(mux4Values[0]) );
     // checkButtons();
     distributionMuxValues();
 
@@ -807,18 +807,18 @@ void readMux(byte add) {
   digitalWrite(Selc, controlValues[2]);
 
   // Delay as needed
-    delay(20);
+    delay(5);
   // Read analog values and store them in the mux arrays
   // for (int i = 0; i < 4; i++) {
     mux1Values[add] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
     mux2Values[add] = ((((analogRead(Analog2)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
     mux3Values[add] = ((((analogRead(Analog3)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
-    mux4Values[add] =((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
+    mux4Values[add] = ((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
   // }
 
   // Delay as needed
 
-  delay(20);
+  delay(5);
 
  
  
@@ -1111,23 +1111,28 @@ float readPowerSupply(float VADC)
   return powerSupplyVoltage=((VADC/0.3225806451612903)*0.1020408163265)-26.857142857127; 
 }
 double readMainVoltage(double VADC) {
- // const float R1=163000.0;// the resistor connected to VCC
   const float R1=220;// the resistor connected to VCC
   const float R2=22;// the resistor connected to ground 
-  // const float RMUX=240;
-  //*((RMUX+RDEV1+RDEV2)/RDEV2)
-  // const float RDEV1=10000;
-  // const float RDEV2=10000;
   #define V_DIODE 0.48; //220.363kΩ
    double voltage =((VADC)*(R1+R2)/R2 )+ V_DIODE;
-    // const double slope=1.9677367822;
-    // const double yIntercept=-9.1576127392;
-    //return slope * voltage + yIntercept;
+   
+  
+  double a1 = 20.0;
+    double b1 = 20.0;
 
-  //return(VADC)*(1/0.49554)*(1/0.09091)+0.8;
+    double a2 = 28.0;
+    double b2 = 23.891;
 
+    // Calculate the conversion factor
+    double conversionFactor = (a2 - a1) / (b2 - b1);
 
-  return voltage;
-}
+   
+
+    // Calculate the corresponding value of a
+    double a = a1 + conversionFactor * (voltage - b1);
+return a;
+
+//  return voltage*1000;
+ }
 
 
