@@ -120,12 +120,11 @@ void setup() {
  }
 
 
- double existVoltage=0.0;
-
+double existVoltage=0.0;
 void loop() {
    
     readMux(muxPosition);
-    powerStatus =checkPower( readBattery(mux4Values[3])  , readPowerSupply(mux4Values[0]) );
+    powerStatus =checkPower( readBattery(mux4Values[3])*2+0.032 , readPowerSupply(mux4Values[0]) );
     // checkButtons();
     distributionMuxValues();
 
@@ -358,7 +357,6 @@ void batteryCheck() {
   if (relayCharging) {
 
     if (currentTime - batteryScanTime > 50) {
-    
       //24v Supply
       if ((mux4Values[0] * 41) > 16) {  //power check power 24 to 16v
         //chose mult chanel .0
@@ -787,11 +785,18 @@ void distributionMuxValues() {
 
 void readMux(byte add) {
 
+#define ADC_RESOLUTION 4096
+#define VREF 3.3
+#define VOLTAGE_ATTENUATION 2.00 //The ADC voltage is halved by resistive division
+#define VOLTAGE_DROP_MUX 0.032 //Voltage drop on the multiplexer
+#define RSHANT  18.00 //Voltage drop on the multiplexer
+
+
   
   // Define control values for Sela, Selb, and Selc
   byte controlValues[3] = { LOW, LOW, LOW };
 
-  // Calculate control values based on the address (add)
+  // // Calculate control values based on the address (add)
   if (add & 0b001) controlValues[0] = HIGH;
   if (add & 0b010) controlValues[1] = HIGH;
   if (add & 0b100) controlValues[2] = HIGH;
@@ -802,19 +807,18 @@ void readMux(byte add) {
   digitalWrite(Selc, controlValues[2]);
 
   // Delay as needed
-    delay(5);
+    delay(20);
   // Read analog values and store them in the mux arrays
-  for (int i = 0; i < 4; i++) {
-     mux1Values[add] = ((((analogRead(Analog1)*3.3/4096)*2)+0.032)/18)*1000;
-    mux2Values[add] =  ((((analogRead(Analog2)*3.3/4096)*2)+0.032)/18)*1000;
-    mux3Values[add] =  ((((analogRead(Analog3)*3.3/4096)*2)+0.032)/18)*1000;
-    mux4Values[add] = ( ((3.3 / 4096.000) * analogRead(Analog4)));
-
-  }
+  // for (int i = 0; i < 4; i++) {
+    mux1Values[add] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux2Values[add] = ((((analogRead(Analog2)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux3Values[add] = ((((analogRead(Analog3)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux4Values[add] =((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
+  // }
 
   // Delay as needed
 
-  delay(5);
+  delay(20);
 
  
  
@@ -1094,8 +1098,8 @@ void Relaycont() {
 }
 float readBattery(float VADC)
 {
-//batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
-  batteryVoltage=((mux4Values[3]*11.5)/4.7)*10*0.955119893;
+  //batteryVoltage=((mux4Values[3]/0.3225806451612903)*0.0819672131)-1.3770491803;
+  batteryVoltage=(((VADC/2)*11.5)/4.7)*10*0.955119893;
   if((batteryVoltage>18)&&(batteryVoltage<20))batteryVoltage=batteryVoltage+0.2;
   if((batteryVoltage>=20)&&(batteryVoltage<22))batteryVoltage=batteryVoltage+0.5;
   if(batteryVoltage>=22)batteryVoltage=batteryVoltage+0.6;
@@ -1107,10 +1111,23 @@ float readPowerSupply(float VADC)
   return powerSupplyVoltage=((VADC/0.3225806451612903)*0.1020408163265)-26.857142857127; 
 }
 double readMainVoltage(double VADC) {
-  double voltage = VADC*((22.00+240.00)/22.00);
-  const double slope=1.9677367822;
-  const double yIntercept=-9.1576127392;
-  return slope * voltage + yIntercept;
+ // const float R1=163000.0;// the resistor connected to VCC
+  const float R1=220;// the resistor connected to VCC
+  const float R2=22;// the resistor connected to ground 
+  // const float RMUX=240;
+  //*((RMUX+RDEV1+RDEV2)/RDEV2)
+  // const float RDEV1=10000;
+  // const float RDEV2=10000;
+  #define V_DIODE 0.48; //220.363kΩ
+   double voltage =((VADC)*(R1+R2)/R2 )+ V_DIODE;
+    // const double slope=1.9677367822;
+    // const double yIntercept=-9.1576127392;
+    //return slope * voltage + yIntercept;
+
+  //return(VADC)*(1/0.49554)*(1/0.09091)+0.8;
+
+
+  return voltage;
 }
 
 
