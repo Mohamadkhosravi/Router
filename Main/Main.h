@@ -50,15 +50,7 @@
 
 #define lineOFF(numberLine) digitalWrite(lineControlPins[numberLine], LOW);
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
-// Threshold values
-#define OPEN_THRESHOLD  9
-#define NORMAL_THRESHOLD  24
-//#define FIRE_THRESHOLD  1.1
-#define FIRE_THRESHOLD 80
-//#define SHORT_CIRCUIT_THRESHOLD  0.4
-#define SHORT_CIRCUIT_THRESHOLD 95
-#define LOWER_THRESHOLD_OUT 10
-#define UPPER_THRESHOLD_OUT  49
+
 
 
 // Defines Relys
@@ -183,9 +175,6 @@ float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
-float voltage;
-float batteryVoltage;
-float powerSupplyVoltage;
 
 
 const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
@@ -224,24 +213,6 @@ powerState powerStatus;
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
 
 
-typedef struct 
-{
-  float minimumOpenCircuit =0;
-  float maximumOpenCircuit =0;
-
-  float minimumNormal=0;
-  float maximumNormal=0;
-
-  float minimumFier=0;
-  float maximumFier=0;
-  
-  float minimumCurrentShortCircuit =0;
-  float maximumCurrentShortCircuit =0;
-
-  float minimumVoltageShortCircuit =90;
-  float maximumVoltageShortCircuit =0;
-  
-}limit;
 
 
 
@@ -290,16 +261,24 @@ class flowDelay: public timerMS {
   }
 
 };
-
+// Define SoftwareSerial for communication
+SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
+// Shiftregister setting
+ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
+// Define timers for various tasks
+timerMS batteryCheckTime;
+timerMS fierTimer;
+flowDelay shortCircuitFlow[12];
+flowDelay fierFlow;
   
-
+int firstRepeat=0;
 
 
 //timer.status = START;
 unsigned long currentTime = 0;
 unsigned long ledBlinkTime = 0;
 unsigned long buttonPressTime = 0;
-unsigned long shortCircuitTime = 0;
+
 unsigned long buzzerReadyTime = 0;
 unsigned long batteryScanTime = 0;
 
@@ -309,7 +288,7 @@ unsigned long fultCounter = 10;
 unsigned long learningProcessCounter = 10;
 
 int j = 0;
-char i = 0;
+int i = 0;
 
 
 char CardPresentError = 0;
