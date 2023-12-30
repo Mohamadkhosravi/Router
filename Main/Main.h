@@ -167,16 +167,18 @@ bool fierCheckLock =false;
 //bool  stateUpdateMUX =false;
 
 // Data arrays
-float mux1Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux2Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux3Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-float mux4Values[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-
-
-
+  // Define the structure for Mux
+struct Mux {
+    float Values1[8]={0};
+    float Values2[8]={0};
+    float Values3[8]={0};
+    float Values4[8]={0};
+};
+Mux mux;
 const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
 
 
@@ -301,6 +303,8 @@ const char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
 
 char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+ 
+
 
 
 #endif

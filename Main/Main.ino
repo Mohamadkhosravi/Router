@@ -6,7 +6,7 @@
     // Initialize GPIO pins
     GPIOInit();
 
-    // Set analog read resolution
+    // Set analog read resolution to 12 Bits
     analogReadResolution(12);
 
     // Initialize SoftwareSerial for communication
@@ -18,18 +18,11 @@
     // Configure and start hardware timers for periodic tasks
     configureTimers();
 
-    //////////////////////////////////////////////////////SUPPLY_VOLTAGE_IS_24_V
+   // Power relay trun on
     POWER_RELAY_ON
 
-    // Check if Card 1 is present
-    if (digitalRead(CS1) == 0)
-    card1Present = true;
-    // Check if Card 2 is present
-    if (digitalRead(CS2) == 0)
-    card2Present = true;
-
     // Set cardSituation based on card presence
-    setCardSituation();
+    cardSituation= setCardSituation();
 
     // Initialize watchdog timer
     IWatchdog.begin(7000000);
@@ -39,18 +32,18 @@
   }
 
   void loop() {
-
+   
     // Read values from analog mux
-    readMux(muxPosition);
+   readMux(muxPosition,mux);
 
     // Check power status
-    powerStatus =checkPower( readBattery(mux4Values[3]) , readPowerSupply(mux4Values[0]) );
+    powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
 
     // Check button inputs
     checkButtons();
 
     // Distribute mux values to corresponding lines based on cardSituation
-    distributionMuxValues();
+    distributionMuxValues(cardSituation,mux);
 
     // Print debug information
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
@@ -60,86 +53,37 @@
 
       for (i = 0; i < ((cardSituation + 1) * 4); i++){ 
 
-        lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux4Values[2]) , i );
+        lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux.Values4[2]) , i );
       }
-    }
+   }
     else{
       firstRepeat++;
     }
 
-    // Handle threshold faults 
-    handleThresholdFaults();
-
-    // Handle supply and power failures
-    handleSupplyAndpowerFailures();
-
     // Handle card present errors
-    handleCardPresentErrors();
+    handleCardPresentErrors(cardSituation);
 
     // Toggle LED state based on time
     if (timeForLedBlink()) {
-      toggleLedState();
-      Ledcontrol(lineStatus,powerStatus,readMainVoltage(mux4Values[2]));
+      
+      Ledcontrol(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState());
     }
 
-      // Control relay
+    // Control relay
     Relaycont();
 
     // Reload watchdog timer
     IWatchdog.reload();
 
     // Update mux position
-    updateMuxPosition();
+    updateMuxPosition(cardSituation);
 
     // Check and enable beeper 
     checkAndEnableBeeper();
     
   }
 
-// Function to handle threshold faults
-void handleThresholdFaults() {
 
-// Threshold values
-#define OPEN_THRESHOLD  9
-#define NORMAL_THRESHOLD  24
-//#define FIRE_THRESHOLD  1.1
-#define FIRE_THRESHOLD 80
-//#define SHORT_CIRCUIT_THRESHOLD  0.4
-#define SHORT_CIRCUIT_THRESHOLD 95
-#define LOWER_THRESHOLD_OUT 10
-#define UPPER_THRESHOLD_OUT  49
-
-
- #define thresholdFaultDetected ((mux4Values[4] > UPPER_THRESHOLD_OUT) || (mux4Values[4] < LOWER_THRESHOLD_OUT) || (mux4Values[5] > UPPER_THRESHOLD_OUT) || (mux4Values[5] < LOWER_THRESHOLD_OUT))
-  if (thresholdFaultDetected && !fireTrace && !relayControl) {
-
-    if (generalFault) generalFault = false;
-    relayOn = true;
-    buzzerControl = true;
-  } else {
-    relayOn = false;
-  }
-}
-// Function to handle supply and power failures
-void handleSupplyAndpowerFailures() {
-  if ( (mux4Values[0])>0.55) {
-    supplyFault = false;
-    buzzerControl = true;
-    batteryChecking = false;
-  } else {
-    if (!batteryChecking)
-      supplyFault = true;
-    else
-      batteryChecking = false;
-  }
-
-  if ((mux4Values[0] ) < 0.1){
-    powerFail = true;
-    buzzerControl = true;
-  } else {
-    powerFail = false;
-  }
-}
 // Function to check if it's time to toggle the LED
 bool timeForLedBlink() {
   return (currentTime - ledBlinkTime) > 6;
@@ -272,7 +216,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
 
   } ;
-  
+
   // Stop battery check after a certain time
   if( batteryCheckTime.value > MAXIMUM_TIME) batteryCheckTime.status = STOP;
 
@@ -281,9 +225,9 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
 }
 
 // Function to print voltage alert
-void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage) {
+void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus) {
   static bool lockFier[12]={false};
-  
+  bool ledBlinker1 = ledStatus;
  for (byte i = 0; i < 12; i++) {
   
     if(lockFier[i]==true){
@@ -358,19 +302,22 @@ void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage)
   sr.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
 }
 // Function to toggle the LED state
-void toggleLedState() {
+bool toggleLedState() {
   ledBlinkTime = currentTime;
-  ledBlinker1 = !ledBlinker1;
+ bool static ledBlinker1;
+ return  ledBlinker1 = !ledBlinker1;
 }
 // Function to update the mux position for analog readings
-void updateMuxPosition() {
-  if (muxPosition < 8) {
-    if (muxPosition == 7) {
-      muxPosition = 0;
-      readAnalogs = true;
-    } else {
+void updateMuxPosition(char &cardSituation) {
+  
+  if (muxPosition< 8) {
+
+      if (muxPosition == 7) {
+        muxPosition = 0;
+        readAnalogs = true;
+      } else {
       muxPosition++;
-    }
+      }
   }
 }
 // Function to check and enable the beeperEnabled
@@ -567,7 +514,7 @@ bool allZerosInRange(int start, int end) {
 }
 
 // Function to handle card present errors
-void handleCardPresentErrors() {
+void handleCardPresentErrors( char &cardSituation) {
   if (cardSituation == 1) {
     if (allZerosInRange(4, 7)) {
       CardPresentError = 1;
@@ -587,7 +534,7 @@ void handleCardPresentErrors() {
 }
 
 // Function to distribute values from multiple multiplexers to corresponding arrays
-void distributionMuxValues() {
+void distributionMuxValues(char cardSituation,Mux &mux) {
 
   // Switch based on the current card situation
   switch (cardSituation) {
@@ -595,75 +542,77 @@ void distributionMuxValues() {
     // Case 0:Maine Lines configuration
     case 0:
       // Assign values from mux1 to corresponding arrays
-      lineVoltage[3] = mux1Values[0];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[2] = mux1Values[2];
-      lineVoltage[2] = mux1Values[1];
-      lineCurrent[1] = mux1Values[4];
-      lineVoltage[1] = mux1Values[6];
-      lineVoltage[0] = mux1Values[5];
-      lineCurrent[0] = mux1Values[7];
+      lineVoltage[3] = mux.Values1[0];
+      lineCurrent[3] = mux.Values1[3];
+      lineCurrent[2] = mux.Values1[2];
+      lineVoltage[2] = mux.Values1[1];
+      lineCurrent[1] = mux.Values1[4];
+      lineVoltage[1] = mux.Values1[6];
+      lineVoltage[0] = mux.Values1[5];
+      lineCurrent[0] = mux.Values1[7];
       break;
 
     // Case 1: Main lines & Single card configuration
     case 1:
       // Assign values from mux1 to corresponding arrays
-      lineVoltage[3] = mux1Values[0];
-      lineVoltage[2] = mux1Values[1];
-      lineCurrent[2] = mux1Values[2];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[1] = mux1Values[4];
-      lineVoltage[1] = mux1Values[6];
-      lineVoltage[0] = mux1Values[5];
-      lineCurrent[0] = mux1Values[7];
+      lineVoltage[3] = mux.Values1[0];
+      lineVoltage[2] = mux.Values1[1];
+      lineCurrent[2] = mux.Values1[2];
+      lineCurrent[3] = mux.Values1[3];
+      lineCurrent[1] = mux.Values1[4];
+      lineVoltage[1] = mux.Values1[6];
+      lineVoltage[0] = mux.Values1[5];
+      lineCurrent[0] = mux.Values1[7];
 
       // Assign values from mux2 to corresponding arrays
-      lineVoltage[4] = mux2Values[0];
-      lineCurrent[4] = mux2Values[3];
-      lineCurrent[5] = mux2Values[1];
-      lineVoltage[5] = mux2Values[2];
-      lineCurrent[6] = mux2Values[6];
-      lineVoltage[6] = mux2Values[4];
-      lineVoltage[7] = mux2Values[5];
-      lineCurrent[7] = mux2Values[7];
+      lineVoltage[4] = mux.Values2[0];
+      lineCurrent[4] = mux.Values2[3];
+      lineCurrent[5] = mux.Values2[1];
+      lineVoltage[5] = mux.Values2[2];
+      lineCurrent[6] = mux.Values2[6];
+      lineVoltage[6] = mux.Values2[4];
+      lineVoltage[7] = mux.Values2[5];
+      lineCurrent[7] = mux.Values2[7];
       break;
 
     // Case 2: Two-card & main lines configuration
     case 2:
       // Assign values from mux1 to corresponding arrays
-      lineVoltage[3] = mux1Values[0];
-      lineCurrent[3] = mux1Values[3];
-      lineCurrent[2] = mux1Values[2];
-      lineVoltage[2] = mux1Values[1];
-      lineCurrent[1] = mux1Values[4];
-      lineVoltage[1] = mux1Values[6];
-      lineVoltage[0] = mux1Values[5];
-      lineCurrent[0] = mux1Values[7];
+      lineVoltage[3] = mux.Values1[0];
+      lineCurrent[3] = mux.Values1[3];
+      lineCurrent[2] = mux.Values1[2];
+      lineVoltage[2] = mux.Values1[1];
+      lineCurrent[1] = mux.Values1[4];
+      lineVoltage[1] = mux.Values1[6];
+      lineVoltage[0] = mux.Values1[5];
+      lineCurrent[0] = mux.Values1[7];
 
       // Assign values from mux2 to corresponding arrays
-      lineVoltage[4] = mux2Values[0];
-      lineCurrent[4] = mux2Values[3];
-      lineCurrent[5] = mux2Values[1];
-      lineVoltage[5] = mux2Values[2];
-      lineCurrent[6] = mux2Values[6];
-      lineVoltage[6] = mux2Values[4];
-      lineVoltage[7] = mux2Values[5];
-      lineCurrent[7] = mux2Values[7];
+      lineVoltage[4] = mux.Values2[0];
+      lineCurrent[4] = mux.Values2[3];
+      lineCurrent[5] = mux.Values2[1];
+      lineVoltage[5] = mux.Values2[2];
+      lineCurrent[6] = mux.Values2[6];
+      lineVoltage[6] = mux.Values2[4];
+      lineVoltage[7] = mux.Values2[5];
+      lineCurrent[7] = mux.Values2[7];
 
       // Assign values from mux3 to corresponding arrays
-      lineVoltage[8] = mux3Values[0];
-      lineCurrent[8] = mux3Values[3];
-      lineCurrent[9] = mux3Values[1];
-      lineVoltage[9] = mux3Values[2];
-      lineCurrent[10] = mux3Values[6];
-      lineVoltage[10] = mux3Values[4];
-      lineVoltage[11] = mux3Values[5];
-      lineCurrent[11] = mux3Values[7];
+      lineVoltage[8] = mux.Values3[0];
+      lineCurrent[8] = mux.Values3[3];
+      lineCurrent[9] = mux.Values3[1];
+      lineVoltage[9] = mux.Values3[2];
+      lineCurrent[10] = mux.Values3[6];
+      lineVoltage[10] = mux.Values3[4];
+      lineVoltage[11] = mux.Values3[5];
+      lineCurrent[11] = mux.Values3[7];
       break;
   }
 }
 // Function to read multiplexer from ADC's
-void readMux(byte add) {
+void readMux(byte address, Mux &mux) {
+
+
   // Define constants
   #define ADC_RESOLUTION 4096
   #define VREF 3.3
@@ -675,9 +624,9 @@ void readMux(byte add) {
   byte controlValues[3] = { LOW, LOW, LOW };
 
   // // Calculate control values based on the address (add)
-  if (add & 0b001) controlValues[0] = HIGH;
-  if (add & 0b010) controlValues[1] = HIGH;
-  if (add & 0b100) controlValues[2] = HIGH;
+  if (address & 0b001) controlValues[0] = HIGH;
+  if (address & 0b010) controlValues[1] = HIGH;
+  if (address & 0b100) controlValues[2] = HIGH;
 
   // Set the control values
   digitalWrite(Sela, controlValues[0]);
@@ -687,11 +636,12 @@ void readMux(byte add) {
     delay(5);
   // Read analog values and store them in the mux arrays
   // for (int i = 0; i < 4; i++) {
-    mux1Values[add] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
-    mux2Values[add] = ((((analogRead(Analog2)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
-    mux3Values[add] = ((((analogRead(Analog3)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
-    mux4Values[add] = ((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
-  // }
+    mux.Values1[address] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux.Values2[address] = ((((analogRead(Analog2)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux.Values3[address] = ((((analogRead(Analog3)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
+    mux.Values4[address] = ((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
+//  }
+
   // Delay as needed
   delay(5);
 
@@ -802,7 +752,7 @@ void checkButtons() {
     }
     delay(100);
     IWatchdog.reload();
-    readMux(muxPosition);
+    // Mux* returnedMux = readMux(muxPosition);
   }
   if (digitalRead(But2) == 0) {  // Alarm rely on
     if (currentTime - buttonPressTime > 13) {
@@ -1026,7 +976,16 @@ void configureTimers(void){
 
 }
 // Function to set cardSituation based on card presence
-void setCardSituation(void){
+char setCardSituation(void){
+ char cardSituation =0;
+  // Check if Card 1 is present
+    if (digitalRead(CS1) == 0)
+    card1Present = true;
+    // Check if Card 2 is present
+    if (digitalRead(CS2) == 0)
+    card2Present = true;
+
+
   if (card1Present & card2Present) {
     cardSituation = 2;
     digitalWrite(Line1, HIGH);
@@ -1060,7 +1019,7 @@ void setCardSituation(void){
     digitalWrite(Line3, HIGH);
     digitalWrite(Line4, HIGH);
   }
-
+  return cardSituation;
     // digitalWrite(Line1, HIGH);
     // digitalWrite(Line2, HIGH);
     // digitalWrite(Line3, HIGH);
@@ -1084,12 +1043,12 @@ void readInitialMuxValues(void){
   digitalWrite(Selb, LOW);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[0] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
+  mux.Values4[0] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
   delay(15);
   digitalWrite(Sela, HIGH);
   digitalWrite(Selb, HIGH);
   digitalWrite(Selc, LOW);
   delay(25);
-  mux4Values[3] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
+  mux.Values4[3] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
 
   }
