@@ -1,7 +1,118 @@
-# Router
-This device reads and manages smoke and gas sensors on the line . Device similar to FS 4000
-******
-******
+
+# Table of Contents
+
+1. [Voltage Reading Functions](#1-voltage-reading-functions)
+   - [readBatteryVoltage Function](#11-readbatteryvoltage-function)
+   - [readPowerSupply Function](#12-readpowersupply-function)
+   - [readMainVoltage Function](#13-readmainvoltage-function)
+
+2. [LED Control Functions](#2-led-control-functions)
+   - [toggleLedState Function](#21-toggleledstate-function)
+   - [Ledcontrol Function Documentation](#22-ledcontrol-function-documentation)
+     - [GPIOInit Function Documentation](#221-gpioinit-function-documentation)
+
+3. [Card Error Handling Functions](#3-card-error-handling-functions)
+   - [handleCardPresentErrors Function](#31-handlecardpresenterrors-function)
+   - [allZerosInRange Function](#32-allzerosinrange-function)
+
+4. [Timer and Interrupt Callback Functions](#4-timer-and-interrupt-callback-functions)
+   - [configureTimers Function](#41-configuretimers-function)
+   - [Update_IT_callback1 Function](#42-update_it_callback1-function)
+   - [Update_IT_callback2 Function](#43-update_it_callback2-function)
+
+5. [Timer Classes Documentation](#5-timer-classes-documentation)
+   - [timerMS Class Documentation](#51-timerms-class-documentation)
+   - [flowDelay Class Documentation](#52-flowdelay-class-documentation)
+
+6. [GPIO Initialization Function Documentation](#6-gpio-initialization-function-documentation)
+   - [GPIOInit Function Documentation](#61-gpioinit-function-documentation)
+
+7. [Main Header File Documentation](#7-main-header-file-documentation)
+   - [main.h Overview](#71-mainh-overview)
+   - [Pins Definitions](#72-pins-definitions)
+   - [Flags and Variables](#73-flags-and-variables)
+   - [Enumerations](#74-enumerations)
+   - [Data Arrays](#75-data-arrays)
+   - [Structures](#76-structures)
+   - [Timer Classes](#77-timer-classes)
+   - [External Libraries](#78-external-libraries)
+   - [Serial Communication](#79-serial-communication)
+   - [Global Instances and Objects](#710-global-instances-and-objects)
+   - [Macros](#711-macros)
+   - [Function-Like Macros](#712-function-like-macros)
+   - [Function Declarations](#713-function-declarations)
+   - [Conditional Compilation](#714-conditional-compilation)
+   - [Examples](#715-examples)
+
+8. [Additional Notes](#8-additional-notes)
+
+# Fire and Power Distribution Control System
+
+## Overview:
+
+The provided code is designed to control and monitor a system related to fire alarm and power distribution. It utilizes various sensors, algorithms, and peripherals to detect and manage potential fire hazards and power-related issues.
+
+## Functions:
+
+### 1. Reading and Monitoring Sensors:
+
+- **`readMux`**: Reads analog values from sensors connected to a multiplexer.
+- **`checkPower`**: Checks the status of the battery and power supply.
+
+### 2. Button Inputs:
+
+- **`checkButtons`**: Checks the status of buttons for user input.
+
+### 3. Line Status Evaluation:
+
+- **`evaluateLineStatus`**: Evaluates the status of power distribution lines based on sensor readings.
+
+### 4. LED Control:
+
+- **`timeForLedBlink`**: Determines if it's time to toggle LED states.
+- **`Ledcontrol`**: Controls the status of LEDs based on system conditions.
+
+### 5. Relay Control:
+
+- **`Relaycont`**: Controls the status of relays.
+
+### 6. Lights and Buzzer Management:
+
+- **`Update_IT_callback1`**: Manages lights and the buzzer based on specific conditions.
+- **`checkAndEnableBeeper`**: Checks and enables the buzzer as needed.
+
+### 7. Watchdog Timer:
+
+- Utilizes a watchdog timer to ensure proper program execution and prevent long-lasting connections.
+
+### 8. Timer Configuration:
+
+- **`configureTimers`**: Configures and starts hardware timers for periodic tasks.
+
+### 9. Main Loop:
+
+The main loop continuously performs the following tasks:
+
+- Reads values from analog multiplexers.
+- Checks power status.
+- Checks button inputs.
+- Distributes sensor values to corresponding lines.
+- Evaluates line statuses.
+- Handles LED states.
+- Controls relays.
+- Manages the watchdog timer.
+- Updates the multiplexer position.
+- Checks and enables the buzzer.
+
+## Usage:
+
+The code is intended for a fire alarm and power distribution control system. It employs various sensors and algorithms to ensure the safety and proper functioning of the system.
+
+
+
+
+
+# Review the detailed documentation of functions and classes: #
 
 # Power State Check Documentation
 
@@ -255,7 +366,7 @@ If the line current indicates a possible fire, the state is set to CHECK.
 
 
 
-#Read Multiplexer (Mux) Function Documentation
+# Read Multiplexer (Mux) Function Documentation
 ## Function
 ```cpp
 void readMux(byte address, Mux &mux)
@@ -318,6 +429,19 @@ float valueOnChannel4 = myMux.Values4[exampleAddress];
 
 ## Returns:
 - The function does not return a value directly. The read values are stored in the provided `Mux` structure via reference.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -542,7 +666,7 @@ bool canReadAnalogs = readAnalogs;
 
 ````
 ## Parameters:
-- `cardSituation`: A reference to a character variable indicating the current card configuration (0, 1, 2).
+- `cardSituation`: A reference to a character variable indicating the current card configuration (0 (`main`), 1, 2).
 
 
 
@@ -748,7 +872,8 @@ The `configureTimers` function is responsible for configuring timers for periodi
 - No parameters.
 ## Examples:
 ```cpp
-void configureTimers(void)
+//initialize Timer
+ configureTimers();
 ``````
 
 ## Parameters and Configurations:
@@ -1150,58 +1275,87 @@ Analog Pins
 
 
 
+# main.h
 
-# 
-## Function
-## General Overview:
-## Parameters:
+This C++ header file is part of an Arduino project. It defines various constants, pins, flags, and data structures used in the program.
+
+## Pins Definitions:
+
+- Defines pins for relays, LEDs, buttons, analog channels, battery charges, error indicators, and more.
+
+## Flags and Variables:
+
+- Several boolean flags indicating the status of different components and conditions in the system.
+
+## Enumerations:
+
+- `status`: Represents the status of a power line, such as open circuit, normal, fire, etc.
+- `powerState`: Represents the overall power state of the system.
+
+## Data Arrays:
+
+- `lineCurrent` and `lineVoltage`: Arrays storing current and voltage values for different power lines.
+- `lockFier`: Array of boolean values indicating the lock status of the fire alarm for each line.
+
+## Structures:
+
+- `Mux`: Structure to store analog values read from multiple multiplexers.
+
+## Timer Classes:
+
+- `timerMS` and `flowDelay`: Classes for handling timer-related functionalities.
+
+## External Libraries:
+
+- Includes various Arduino libraries such as `IWatchdog`, `ShiftRegister74HC595`, and `SoftwareSerial`.
+
+## Serial Communication:
+
+- Defines a `SoftwareSerial` instance (`mySerial`) for communication.
+
+## Global Instances and Objects:
+
+- Global instances of timers (`batteryCheckTime`, `fierTimer`, `shortCircuitFlow`, `fierFlow`).
+- Global variables for managing time, counters, and card-related information.
+
+## Macros:
+
+- Debug macros for conditional compilation based on defined debug flags.
+- In normal mode, all debug macros are in comment mode. If you need to debug the code, just remove the debug part from the comment and monitor the serial output of the code behavior.
 ## Examples:
-## Parameters and Configurations:
-## Variables:
-##  Control Flow:
-## Additional Notes:
-## Returns:
+```cpp
+//The power debug line has been removed from the comment, you can see the power status and specifications on your serial port.
+ #define POWER_CHECK_DEBUG 
+// #define LINE_STATUS_DEBUG 
+// #define LINE_STATE_DEBUG 
+// #define LINE_FIER_DEBUG
+// #define LINE_SC_DEBUG
+``````
 
 
+## Function-Like Macros:
 
+- Macros for turning on/off power relays and changing supply voltage.
 
+## Function Declarations:
 
-# 
-## Function
-## General Overview:
-## Parameters:
-## Examples:
-## Parameters and Configurations:
-## Variables:
-##  Control Flow:
-## Additional Notes:
-## Returns:
+- Declarations for functions that might be defined elsewhere.
 
+## Conditional Compilation:
 
+- Various `#ifdef` and `#define` statements for conditional compilation based on debug flags.
 
-
-
-# 
-## Function
-## General Overview:
-## Parameters:
-## Examples:
-## Parameters and Configurations:
-## Variables:
-##  Control Flow:
-## Additional Notes:
-## Returns:
-
-
-
-
-# 
-## Function
-## General Overview:
-## Parameters:
-## Examples:
-## Parameters and Configurations:
-## Variables:
-##  Control Flow:
-## Additional Notes:
-## Returns:
+1. [readBattery Function](#1-readbattery-function)
+2. [readPowerSupply Function](#2-readpowersupply-function)
+3. [readMainVoltage Function](#3-readmainvoltage-function)
+4. [toggleLedState Function](#4-toggleledstate-function)
+5. [handleCardPresentErrors Function](#5-handlecardpresenterrors-function)
+6. [allZerosInRange Function](#6-allzerosinrange-function)
+7. [configureTimers Function](#7-configuretimers-function)
+8. [Update_IT_callback1 Function](#8-update_it_callback1-function)
+9. [Update_IT_callback2 Function](#9-update_it_callback2-function)
+10. [timerMS Class Documentation](#10-timerms-class-documentation)
+11. [flowDelay Class Documentation](#11-flowdelay-class-documentation)
+12. [Ledcontrol Function Documentation](#12-ledcontrol-function-documentation)
+13. [GPIOInit Function Documentation](#13-gpioinit-function-documentation)
+14. [main.h Documentation](#14-mainh-documentation)
