@@ -1,50 +1,65 @@
 
 # Table of Contents
 
-1. [Voltage Reading Functions](#1-voltage-reading-functions)
-   - [readBatteryVoltage Function](#11-readbatteryvoltage-function)
-   - [readPowerSupply Function](#12-readpowersupply-function)
-   - [readMainVoltage Function](#13-readmainvoltage-function)
+# Power State Check Documentation
+# Power State Check Documentation
+## `checkPower` Function Documentation
 
-2. [LED Control Functions](#2-led-control-functions)
-   - [toggleLedState Function](#21-toggleledstate-function)
-   - [Ledcontrol Function Documentation](#22-ledcontrol-function-documentation)
-     - [GPIOInit Function Documentation](#221-gpioinit-function-documentation)
+## Line Status Evaluation Documentation
+### `evaluateLineStatus` Function Documentation  
+### `handleLineStatusByResistance` Function Documentation  
+### `handleLineStatusByCurrent` Function Documentation  
 
-3. [Card Error Handling Functions](#3-card-error-handling-functions)
-   - [handleCardPresentErrors Function](#31-handlecardpresenterrors-function)
-   - [allZerosInRange Function](#32-allzerosinrange-function)
+## Read Multiplexer (Mux) Function Documentation
+### `readMux` Function Documentation  
+### `Distribute Mux Values` Function Documentation
+### "Update Mux Position" Function Documentation
 
-4. [Timer and Interrupt Callback Functions](#4-timer-and-interrupt-callback-functions)
-   - [configureTimers Function](#41-configuretimers-function)
-   - [Update_IT_callback1 Function](#42-update_it_callback1-function)
-   - [Update_IT_callback2 Function](#43-update_it_callback2-function)
+## Card Error Handling Functions
+## `Set Card Situation` Function Documentation
+### `allZerosInRange` Function Documentation  
+### `handleCardPresentErrors` Function Documentation  
 
-5. [Timer Classes Documentation](#5-timer-classes-documentation)
-   - [timerMS Class Documentation](#51-timerms-class-documentation)
-   - [flowDelay Class Documentation](#52-flowdelay-class-documentation)
+## Timer and Interrupt Callback Functions and classes
+### `configureTimers` Function Documentation  
+### `Update_IT_callback1` Function Documentation  
+### `Update_IT_callback2` Function Documentation  
+### `timerMS` Class Documentation
+### flowDelay Class Documentation
 
-6. [GPIO Initialization Function Documentation](#6-gpio-initialization-function-documentation)
-   - [GPIOInit Function Documentation](#61-gpioinit-function-documentation)
+## Voltage Reading Functions
+### `readBatteryVoltage` Function Documentation  
+### `readPowerSupply` Function Documentation  
+### `readMainVoltage` Function Documentation  
 
-7. [Main Header File Documentation](#7-main-header-file-documentation)
-   - [main.h Overview](#71-mainh-overview)
-   - [Pins Definitions](#72-pins-definitions)
-   - [Flags and Variables](#73-flags-and-variables)
-   - [Enumerations](#74-enumerations)
-   - [Data Arrays](#75-data-arrays)
-   - [Structures](#76-structures)
-   - [Timer Classes](#77-timer-classes)
-   - [External Libraries](#78-external-libraries)
-   - [Serial Communication](#79-serial-communication)
-   - [Global Instances and Objects](#710-global-instances-and-objects)
-   - [Macros](#711-macros)
-   - [Function-Like Macros](#712-function-like-macros)
-   - [Function Declarations](#713-function-declarations)
-   - [Conditional Compilation](#714-conditional-compilation)
-   - [Examples](#715-examples)
+## LED Control Functions
+### `toggleLedState` Function Documentation  
+### `Ledcontrol` Function Documentation  
 
-8. [Additional Notes](#8-additional-notes)
+## LED Control Functions
+### `toggleLedState` Function Documentation  
+### `Ledcontrol` Function Documentation  
+
+## GPIO Initialization Function Documentation
+### `GPIOInit` Function Documentation  
+
+
+## Main Header File Documentation
+### `main.h` Overview  
+### Pins Definitions  
+### Flags and Variables  
+### Enumerations  
+### Data Arrays  
+### Structures  
+### Timer Classes  
+### External Libraries  
+### Serial Communication  
+### Global Instances and Objects  
+### Macros  
+### Function-Like Macros  
+### Functi
+
+
 
 # Fire and Power Distribution Control System
 
@@ -425,8 +440,6 @@ float valueOnChannel4 = myMux.Values4[exampleAddress];
 - It is important to consider the accuracy of the ADC and the impact of delays on the overall performance.
 - Ensure that the provided `Mux` structure has sufficient storage capacity for the read values.
 
-.
-
 ## Returns:
 - The function does not return a value directly. The read values are stored in the provided `Mux` structure via reference.
 
@@ -505,138 +518,6 @@ float currentOnLine3 = lineCurrent[3];
 ## Returns:
 - The function does not explicitly return a value. The distributed values are stored in the provided `lineVoltage` and `lineCurrent` arrays via reference.
 
- 
- 
-
-
-
-
-
-# Distribute Mux Values Function Documentation
-## Function
-```cpp
-void distributionMuxValues(char cardSituation, Mux &mux)
-```
-
-
-## General Overview:
-The `distributionMuxValues` function is designed to distribute values obtained from multiple multiplexers (Mux) to their corresponding arrays based on the current card situation. It uses a switch statement to handle different configurations and assigns the values from the Mux arrays to specific arrays representing line voltages and currents
-
-
-
-
-## Examples:
-```cpp
-// Example Usage:
-Mux myMux; // Assuming Mux structure is defined
-char exampleCardSituation = 1; // Example card situation
-distributionMuxValues(exampleCardSituation, myMux);
-
-// Accessing distributed values:
-float voltageOnLine2 = lineVoltage[2];
-float currentOnLine3 = lineCurrent[3];
-// Continue for other lines as needed...
-
-
-````
-## Parameters:
-- `cardSituation`: Character representing the current card configuration (e.g., 0, 1).
-- `mux`: Reference to a `Mux` structure containing the read values from multiple multiplexers.
-
-### Arrays:
-- `lineVoltage`: An array to store line voltage values for different lines and configurations.
-- `lineCurrent`: An array to store line current values for different lines and configurations.
-
-## Parameters and Configurations:
-### Cases :
-- Case 0 (Main Lines Configuration):
-  - Assign values from Mux1 to corresponding arrays for the main lines.
-
-- Case 1 (Main Lines & Single Card Configuration):
-  - Assign values from Mux1 to corresponding arrays for the main lines.
-  - Assign values from Mux2 to corresponding arrays for the single card.
-
-- Case 2 (Two-Card & Main Lines Configuration):
-  - Assign values from Mux1 to corresponding arrays for the main lines.
-  - Assign values from Mux2 to corresponding arrays for the first card.
-  - Assign values from Mux3 to corresponding arrays for the second card.
-
-
-
-
-## Additional Notes:
-- Ensure that the `Mux` structure has sufficient storage capacity for the read values.
-- The function assumes the existence of arrays (`lineVoltage` and `lineCurrent`) for storing distributed values.
-
-## Returns:
-- The function does not explicitly return a value. The distributed values are stored in the provided `lineVoltage` and `lineCurrent` arrays via reference.
-
-
-
-
-
-
-# Set Card Situation Function Documentation
-
-## Function
-```cpp
-char setCardSituation(void)
-``````
-## General Overview:
-
-The `distributionMuxValues` function is designed to distribute values obtained from multiple multiplexers (Mux) to their corresponding arrays based on the current card situation. It uses a switch statement to handle different configurations and assigns the values from the Mux arrays to specific arrays representing line voltages and currents
-
-
-
-
-## Examples:
-```cpp
-// Example Usage:
-char detectedCardSituation = setCardSituation();
-
-// Accessing the detected card situation:
-if (detectedCardSituation == '0') {
-  // Main Lines Configuration
-} else if (detectedCardSituation == '1') {
-  // Main Lines & Single Card Configuration
-} else if (detectedCardSituation == '2') {
-  // Two-Card & Main Lines Configuration
-}
-
-````
-## Parameters:
-- No parameters are required for this function.
-
-
-### Arrays:
-- `lineVoltage`: An array to store line voltage values for different lines and configurations.
-- `lineCurrent`: An array to store line current values for different lines and configurations.
-
-## Parameters and Configurations:
-
-- `CS1` and `CS2`: Pins for detecting the presence of Card 1 and Card 2.
-- `Line1` to `Line12`: Pins representing individual lines.
-
-## Variables:
-- `cardSituation`: A character variable indicating the current card configuration (0, 1, 2).
-- `card1Present` and `card2Present`: Boolean Variables: indicating the presence of Card 1 and Card 2.
-
-## Additional Notes:
-- The function assumes the existence of specific pins (`CS1`, `CS2`, `Line1` to `Line12`) for detecting card presence and activating lines.
-- Boolean Variables: (`card1Present` and `card2Present`) are used to track the presence of Card 1 and Card 2.
-- The function activates specific lines based on the detected card configuration using digitalWrite.
-- Ensure that the pin configurations are compatible with the hardware setup.
-- It is recommended to call this function periodically to update the card situation based on real-time changes in card presence.
-- The `setCardSituation` function does not explicitly handle error cases if both cards are absent simultaneously.
-
-## Returns:
-- The function returns the determined `cardSituation` character.
-
-
-
-
-
-
 
 
 
@@ -702,6 +583,72 @@ bool canReadAnalogs = readAnalogs;
 - The `updateMuxPosition` function does not explicitly return a value.
 - It updates the `muxPosition` variable and sets the `readAnalogs` flag as needed.
 - The updated values can be accessed directly from the relevant Variables: (`muxPosition` and `readAnalogs`) after calling the function.
+
+
+
+
+
+
+
+# Set Card Situation Function Documentation
+
+## Function
+```cpp
+char setCardSituation(void)
+``````
+## General Overview:
+
+The `distributionMuxValues` function is designed to distribute values obtained from multiple multiplexers (Mux) to their corresponding arrays based on the current card situation. It uses a switch statement to handle different configurations and assigns the values from the Mux arrays to specific arrays representing line voltages and currents
+
+
+
+
+## Examples:
+```cpp
+// Example Usage:
+char detectedCardSituation = setCardSituation();
+
+// Accessing the detected card situation:
+if (detectedCardSituation == '0') {
+  // Main Lines Configuration
+} else if (detectedCardSituation == '1') {
+  // Main Lines & Single Card Configuration
+} else if (detectedCardSituation == '2') {
+  // Two-Card & Main Lines Configuration
+}
+
+````
+## Parameters:
+- No parameters are required for this function.
+
+
+### Arrays:
+- `lineVoltage`: An array to store line voltage values for different lines and configurations.
+- `lineCurrent`: An array to store line current values for different lines and configurations.
+
+## Parameters and Configurations:
+
+- `CS1` and `CS2`: Pins for detecting the presence of Card 1 and Card 2.
+- `Line1` to `Line12`: Pins representing individual lines.
+
+## Variables:
+- `cardSituation`: A character variable indicating the current card configuration (0, 1, 2).
+- `card1Present` and `card2Present`: Boolean Variables: indicating the presence of Card 1 and Card 2.
+
+## Additional Notes:
+- The function assumes the existence of specific pins (`CS1`, `CS2`, `Line1` to `Line12`) for detecting card presence and activating lines.
+- Boolean Variables: (`card1Present` and `card2Present`) are used to track the presence of Card 1 and Card 2.
+- The function activates specific lines based on the detected card configuration using digitalWrite.
+- Ensure that the pin configurations are compatible with the hardware setup.
+- It is recommended to call this function periodically to update the card situation based on real-time changes in card presence.
+- The `setCardSituation` function does not explicitly handle error cases if both cards are absent simultaneously.
+
+## Returns:
+- The function returns the determined `cardSituation` character.
+
+
+
+
 
 
 
@@ -896,7 +843,7 @@ The `configureTimers` function is responsible for configuring timers for periodi
 - Modify the overflow periods and callback functions based on the specific timing requirements of your application.
 - Ensure that the interrupt callback functions (`Update_IT_callback1` and `Update_IT_callback2`) are defined elsewhere in your code.
 
-## Returns:
+
 
 
 
@@ -1345,17 +1292,3 @@ This C++ header file is part of an Arduino project. It defines various constants
 
 - Various `#ifdef` and `#define` statements for conditional compilation based on debug flags.
 
-1. [readBattery Function](#1-readbattery-function)
-2. [readPowerSupply Function](#2-readpowersupply-function)
-3. [readMainVoltage Function](#3-readmainvoltage-function)
-4. [toggleLedState Function](#4-toggleledstate-function)
-5. [handleCardPresentErrors Function](#5-handlecardpresenterrors-function)
-6. [allZerosInRange Function](#6-allzerosinrange-function)
-7. [configureTimers Function](#7-configuretimers-function)
-8. [Update_IT_callback1 Function](#8-update_it_callback1-function)
-9. [Update_IT_callback2 Function](#9-update_it_callback2-function)
-10. [timerMS Class Documentation](#10-timerms-class-documentation)
-11. [flowDelay Class Documentation](#11-flowdelay-class-documentation)
-12. [Ledcontrol Function Documentation](#12-ledcontrol-function-documentation)
-13. [GPIOInit Function Documentation](#13-gpioinit-function-documentation)
-14. [main.h Documentation](#14-mainh-documentation)
