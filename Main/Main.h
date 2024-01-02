@@ -11,8 +11,8 @@
 #define DEBUG_OFF 
 
  #define POWER_CHECK_DEBUG 
-#define LINE_STATUS_DEBUG 
-#define LINE_STATE_DEBUG 
+// #define LINE_STATUS_DEBUG 
+// #define LINE_STATE_DEBUG 
 // #define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
 
@@ -171,6 +171,8 @@ bool fierCheckLock =false;
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+bool lockFier[12]={false};
+bool resetFier =false;
   // Define the structure for Mux
 struct Mux {
     float Values1[8]={0};

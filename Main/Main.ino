@@ -32,7 +32,7 @@
   }
 
   void loop() {
-   
+  
     // Read values from analog mux
    readMux(muxPosition,mux);
 
@@ -40,7 +40,7 @@
     powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
 
     // Check button inputs
-    checkButtons();
+    checkButtons(resetFier);
 
     // Distribute mux values to corresponding lines based on cardSituation
     distributionMuxValues(cardSituation,mux);
@@ -65,8 +65,8 @@
 
     // Toggle LED state based on time
     if (timeForLedBlink()) {
-      
-      Ledcontrol(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState());
+       ledBlinkTime = currentTime;
+      Ledcontrol(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier);
     }
 
     // Control relay
@@ -215,7 +215,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
     break;
 
 
-  } ;
+  };
 
   // Stop battery check after a certain time
   if( batteryCheckTime.value > MAXIMUM_TIME) batteryCheckTime.status = STOP;
@@ -225,12 +225,12 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
 }
 
 // Function to print voltage alert
-void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus) {
+void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier) {
   static bool lockFier[12]={false};
   bool ledBlinker1 = ledStatus;
  for (byte i = 0; i < 12; i++) {
   
-    if(lockFier[i]==true){
+    if((lockFier[i]==true)&&(!resetFier)){
     sr.set(ledFirePins[i], ledBlinker1);
     digitalWrite(MCUbuzz, HIGH);
     }
@@ -301,11 +301,11 @@ void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage,
   }
   sr.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
 }
+
 // Function to toggle the LED state
 bool toggleLedState() {
-  ledBlinkTime = currentTime;
- bool static ledBlinker1;
- return  ledBlinker1 = !ledBlinker1;
+  bool static ledBlinker1;
+  return  ledBlinker1 = !ledBlinker1;
 }
 // Function to update the mux position for analog readings
 void updateMuxPosition(char &cardSituation) {
@@ -635,20 +635,20 @@ void readMux(byte address, Mux &mux) {
   // Delay as needed
     delay(5);
   // Read analog values and store them in the mux arrays
-  // for (int i = 0; i < 4; i++) {
+   for (int i = 0; i < 4; i++) {
     mux.Values1[address] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
     mux.Values2[address] = ((((analogRead(Analog2)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
     mux.Values3[address] = ((((analogRead(Analog3)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
     mux.Values4[address] = ((analogRead(Analog4)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX;
-//  }
+  }
 
   // Delay as needed
   delay(5);
 
 }
 
-void checkButtons() {
-
+void checkButtons(bool &resetFier) {
+  resetFier=false;
   if (digitalRead(But5) == 0) {  // Buzzer off
     if (currentTime - buttonPressTime > 10) {
       buttonPressTime = currentTime;
@@ -680,7 +680,7 @@ void checkButtons() {
 
    /////////// fierLouckBit=0;
 
-
+     resetFier =true;
     for (byte i = 0; i < 12; i++) {
       lineCurrent[i] = 0;
       lineVoltage[i] = 0;
@@ -785,7 +785,6 @@ void checkButtons() {
 
 void GPIOInit(void) 
 {
-
   pinMode(rel1, OUTPUT);
   pinMode(rel2, OUTPUT);
   pinMode(relo1, OUTPUT);
@@ -1020,18 +1019,6 @@ char setCardSituation(void){
     digitalWrite(Line4, HIGH);
   }
   return cardSituation;
-    // digitalWrite(Line1, HIGH);
-    // digitalWrite(Line2, HIGH);
-    // digitalWrite(Line3, HIGH);
-    // digitalWrite(Line4, HIGH);
-    // digitalWrite(Line5, HIGH);
-    // digitalWrite(Line6, HIGH);
-    // digitalWrite(Line7, HIGH);
-    // digitalWrite(Line8, HIGH);
-    // digitalWrite(Line9, HIGH);
-    // digitalWrite(Line10, HIGH);
-    // digitalWrite(Line11, HIGH);
-    // digitalWrite(Line12, HIGH);
 
 
 }
