@@ -1,65 +1,59 @@
 
 # Table of Contents
 
-# Power State Check Documentation
-# Power State Check Documentation
-## `checkPower` Function Documentation
-
-## Line Status Evaluation Documentation
-### `evaluateLineStatus` Function Documentation  
-### `handleLineStatusByResistance` Function Documentation  
-### `handleLineStatusByCurrent` Function Documentation  
-
-## Read Multiplexer (Mux) Function Documentation
-### `readMux` Function Documentation  
-### `Distribute Mux Values` Function Documentation
-### "Update Mux Position" Function Documentation
-
-## Card Error Handling Functions
-## `Set Card Situation` Function Documentation
-### `allZerosInRange` Function Documentation  
-### `handleCardPresentErrors` Function Documentation  
-
-## Timer and Interrupt Callback Functions and classes
-### `configureTimers` Function Documentation  
-### `Update_IT_callback1` Function Documentation  
-### `Update_IT_callback2` Function Documentation  
-### `timerMS` Class Documentation
-### flowDelay Class Documentation
-
-## Voltage Reading Functions
-### `readBatteryVoltage` Function Documentation  
-### `readPowerSupply` Function Documentation  
-### `readMainVoltage` Function Documentation  
-
-## LED Control Functions
-### `toggleLedState` Function Documentation  
-### `Ledcontrol` Function Documentation  
-
-## LED Control Functions
-### `toggleLedState` Function Documentation  
-### `Ledcontrol` Function Documentation  
-
-## GPIO Initialization Function Documentation
-### `GPIOInit` Function Documentation  
+- [ Fire and Power Distribution Control System](#fire-and-power-distribution-control-system)
+  - [Overview](#overview)
+  - [Functions](#functions)
+  - [ Main Loop ](#9-main-loop)
+  - [Usage](#usage)
 
 
-## Main Header File Documentation
-### `main.h` Overview  
-### Pins Definitions  
-### Flags and Variables  
-### Enumerations  
-### Data Arrays  
-### Structures  
-### Timer Classes  
-### External Libraries  
-### Serial Communication  
-### Global Instances and Objects  
-### Macros  
-### Function-Like Macros  
-### Functi
+- [Power State Check Documentation](#power-state-check-documentation)
+  - [`checkPower` Function Documentation]( #power-state-check-documentation)
+- [Line Status Evaluation Documentation](#line-status-evaluation-documentation)
+  - [`evaluateLineStatus` Function Documentation](#line-status-evaluation-documentation)
+  - [`handleLineStatusByResistance` Function Documentation](#handle-line-status-by-resistance-documentation)
+  - [`handleLineStatusByCurrent` Function Documentation](#handle-line-status-by-current-documentation)
+- [Read Multiplexer (Mux) Function Documentation](#read-multiplexer-mux-function-documentation)
+  - [`readMux` Function Documentation](#read-multiplexer-mux-function-documentation)
+  - [`Distribute Mux Values` Function Documentation](#distribute-mux-values-function-documentation)
+  - [`Update Mux Position` Function Documentation](#update-mux-position-function-documentation)
+- [Card  Handling Functions](#set-card-situation-function-documentation)
+  - [`Set Card Situation` Function Documentation](#set-card-situation-function-documentation)
+  - [`allZerosInRange` Function Documentation](#all-zeros-in-range-check-function-documentation)
+  - [`handleCardPresentErrors` Function Documentation](#handle-card-present-errors-function-documentation)
+- [Timer and Interrupt Callback Functions and classes](#configure-timers-function-documentation)
+  - [`configureTimers` Function Documentation](#configure-timers-function-documentation)
+  - [`Update_IT_callback1` Function Documentation](#update_it_callback1-function-documentation)
+  - [`Update_IT_callback2` Function Documentation](#update_it_callback2-function-documentation)
+  - [`timerMS` Class Documentation](#timerms-class-documentation)
+  - [`flowDelay` Class Documentation](#flowdelay-class-documentation)
+- [Voltage Reading Functions](#read-battery-voltage-function-detection)
+  - [`readBatteryVoltage` Function Documentation](#read-battery-voltage-function-detection)
+  - [`readPowerSupply` Function Documentation](#readpowersupply-function-documentation)
+  - [`readMainVoltage` Function Documentation](#readmainvoltage-function-documentation)
+- [LED Control Functions](#toggleledstate-function-documentation)
+  - [`Ledcontrol` Function Documentation](#ledcontrol-function-documentation)
+  - [`toggleLedState` Function Documentation](#toggleledstate-function-documentation)
 
 
+- [GPIO Initialization Function Documentation](#gpioinit-function-documentation)
+  - [`GPIOInit` Function Documentation](#gpioinit-function-documentation)
+- [checkButtons Functions](#checkbuttons-function-documentation) 
+- [Main Header File Documentation](#main-header-file-documentation)
+  - [`main.h` Overview](#mainh)
+  - [Pins Definitions](#pins-definitions)
+  - [Flags and Variables](#flags-and-variables)
+  - [Enumerations](#enumerations)
+  - [Data Arrays](#data-arrays)
+  - [Structures](#structures)
+  - [Timer Classes](#timer-classes)
+  - [External Libraries](#external-libraries)
+  - [Serial Communication](#serial-communication)
+  - [Global Instances and Objects](#global-instances-and-objects)
+  - [Macros](#macros)
+  - [Function-Like Macros](#function-like-macros)
+  - [Functi](#functi)
 
 # Fire and Power Distribution Control System
 
@@ -104,7 +98,7 @@ The provided code is designed to control and monitor a system related to fire al
 
 - **`configureTimers`**: Configures and starts hardware timers for periodic tasks.
 
-### 9. Main Loop:
+### 9. Main Loop :
 
 The main loop continuously performs the following tasks:
 
@@ -137,7 +131,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply)
 ```
 
 ## General Overview:
-The `powerState checkPower(float VoltageBattery, float VoltagePowerSupply)` function is designed to monitor power supply and battery conditions, determining the system's power state based on predefined voltage thresholds. It covers various states, including normal power, battery, low battery, power supply, battery broken, and power off. The function utilizes static Variables: to maintain state between calls.
+The powerState `checkPower`(float VoltageBattery, float VoltagePowerSupply) function is designed to monitor power supply and battery conditions, determining the system's power state based on predefined voltage thresholds. It covers various states, including normal power, battery, low battery, power supply, battery broken, and power off. The function utilizes static Variables: to maintain state between calls.
 
 Installation and Setup:
 No specific installation or setup is required for this code.
@@ -241,7 +235,7 @@ status lineStatus = evaluateLineStatus(current, voltage, supplyVoltage, numberLi
 ## Function
 ```cpp
 status handleLineStatusByResistance(double lineResistor, double voltage, bool shortCircuit)
-```
+```````
 
 
 ## General Overview:
@@ -749,13 +743,6 @@ int errorType = CardPresentError;
 - The updated value can be accessed directly from the `CardPresentError` variable after calling the function.
 
 
-
-
-
-
-
-
-
 # All Zeros in Range Check Function Documentation
 ## General Overview:
 The allZerosInRange function checks whether all values in a specified range (inclusive) of the lineCurrent array are zero. It iterates through the specified range and returns true if all values are zero; otherwise, it returns false.
@@ -1134,6 +1121,49 @@ double mainVoltage = readMainVoltage(analogVoltage);
 Returns the calculated main voltage.
 
 
+ ## Function
+# ledcontrol Function Documentation
+```cpp
+void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus) 
+`````````
+
+## General Overview:
+The Ledcontrol function is responsible for managing the status of LEDs based on various system conditions. It considers the status of power lines, the overall power state, main voltage, the current LED status, and a reset signal for fire conditions. The function adjusts the LED status accordingly.
+
+## Parameters:
+- `lineStatus[12]`: An array representing the status of each power line.
+- `powerStatus`: The overall power state of the system.
+- `mainVoltage`: The calculated main voltage.
+- `ledStatus`: The current status of the LED.
+- `resetFier`: A boolean indicating whether a reset for fire conditions is triggered.
+
+## Examples:
+```cpp
+// Example: Using Ledcontrol
+status lineStatus[12]; // Assuming an array of status for each line
+powerState currentPowerState = // Obtain current power state;
+double mainVoltage = // Obtain main voltage;
+bool currentLedStatus = // Obtain current LED status;
+bool resetFier = // Obtain reset signal for fire conditions;
+Ledcontrol(lineStatus, currentPowerState, mainVoltage, currentLedStatus, resetFier);
+```````
+## Variables:
+`static bool lockFier[12]`: An array of static boolean variables used to lock the fire status for each line.
+
+`bool ledBlinker1`: A boolean variable representing the LED status.
+
+##  Control Flow:
+- The function iterates through each power line and adjusts the LED status based on the line status.
+- In case of an open circuit or short circuit, it sets the error LED.
+- In case of a fire condition, it sets the fire LED and activates the buzzer.
+- If there is a fault condition without a fire trace, it sets the error LED.
+- It manages the general fault, fire trace, and buzzer based on specific conditions.
+- It sets LEDs for power supply, low battery, battery, earth, fire mode, and general fault.
+## Additional Notes:
+- This function is integral to the visual indication of the system's status.
+- Ensure that the LED control aligns with the system's safety and monitoring requirements.
+## Returns:
+- None
 # toggleLedState Function Documentation
 ## Function
 ```cpp
@@ -1150,10 +1180,8 @@ This function serves as a simple utility to toggle the LED state in applications
 ## Returns
 - `true`: The LED state is toggled.
 
- 
 
 
-void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus) {
 
 # GPIOInit Function Documentation
 
@@ -1206,45 +1234,81 @@ Analog Pins
 - None
 
 
-
-
-# 
+# checkButtons Function Documentation
 ## Function
+```cpp
+void checkButtons(bool &resetFier) 
+``````
 ## General Overview:
+The `checkButtons` function monitors the status of various buttons and responds to specific button presses. It controls functionalities such as toggling the general fault, checking LEDs, resetting all lines, enabling/disabling the alarm relay, and turning off the buzzer.
 ## Parameters:
+- `resetFier`: A boolean reference indicating whether a reset for fire conditions is triggered
+
 ## Examples:
-## Parameters and Configurations:
+```cpp
+// Example: Using checkButtons
+bool resetFier = false; // Assuming resetFier is initialized
+checkButtons(resetFier);
+`````````
+
 ## Variables:
+Several static and global variables, such as buttonPressTime, generalFault, ledBlinker1, and others, are used to control the behavior of the function.
+
 ##  Control Flow:
+
+#### 1. Buzzer Off Button (But5):
+
+- If the button is pressed, toggle the generalFault status after a debounce period.
+ ####  2. LED Check Button (But4):
+
+- Turn off all LEDs, check for card present errors, and blink the LEDerror. Restore the LED state after the check.
+ #### 3. All Line Reset Button (But3 and JUMPER):
+
+- If both buttons are pressed, reset various system variables, line parameters, and flags. Set resetFier to true.
+ ####  4. Alarm Relay On Button (But2):
+
+- If the button is pressed, turn on the alarm relay (relayControl), set the ledesounder, and update related flags.
+####  5. Alarm Relay Off Button (But1):
+
+- If the button is pressed, turn off the alarm relay (relayControl) and update related flags.
+
 ## Additional Notes:
+
+- Ensure proper debouncing for button presses.
+- The function plays a crucial role in user interaction and system control.
+
 ## Returns:
+- None
 
 
 
+***********
+***********
+# `Main Header File Documentation`
 
 # main.h
 
 This C++ header file is part of an Arduino project. It defines various constants, pins, flags, and data structures used in the program.
 
-## Pins Definitions:
+## `Pins Definitions`:
 
 - Defines pins for relays, LEDs, buttons, analog channels, battery charges, error indicators, and more.
 
-## Flags and Variables:
+## `Flags and Variables`:
 
 - Several boolean flags indicating the status of different components and conditions in the system.
 
-## Enumerations:
+## `Enumerations`:
 
 - `status`: Represents the status of a power line, such as open circuit, normal, fire, etc.
 - `powerState`: Represents the overall power state of the system.
 
-## Data Arrays:
+## `Data Arrays`:
 
 - `lineCurrent` and `lineVoltage`: Arrays storing current and voltage values for different power lines.
 - `lockFier`: Array of boolean values indicating the lock status of the fire alarm for each line.
 
-## Structures:
+## `Structures`:
 
 - `Mux`: Structure to store analog values read from multiple multiplexers.
 
@@ -1252,20 +1316,20 @@ This C++ header file is part of an Arduino project. It defines various constants
 
 - `timerMS` and `flowDelay`: Classes for handling timer-related functionalities.
 
-## External Libraries:
+## `External Libraries`:
 
 - Includes various Arduino libraries such as `IWatchdog`, `ShiftRegister74HC595`, and `SoftwareSerial`.
 
-## Serial Communication:
+## `Serial Communication`:
 
 - Defines a `SoftwareSerial` instance (`mySerial`) for communication.
 
-## Global Instances and Objects:
+## `Global Instances and Objects`:
 
 - Global instances of timers (`batteryCheckTime`, `fierTimer`, `shortCircuitFlow`, `fierFlow`).
 - Global variables for managing time, counters, and card-related information.
 
-## Macros:
+## `Macros`:
 
 - Debug macros for conditional compilation based on defined debug flags.
 - In normal mode, all debug macros are in comment mode. If you need to debug the code, just remove the debug part from the comment and monitor the serial output of the code behavior.
@@ -1280,15 +1344,15 @@ This C++ header file is part of an Arduino project. It defines various constants
 ``````
 
 
-## Function-Like Macros:
+## `Function-Like Macros`:
 
 - Macros for turning on/off power relays and changing supply voltage.
 
-## Function Declarations:
+## `Function Declarations`:
 
 - Declarations for functions that might be defined elsewhere.
 
-## Conditional Compilation:
+## `Conditional Compilation`:
 
 - Various `#ifdef` and `#define` statements for conditional compilation based on debug flags.
 
