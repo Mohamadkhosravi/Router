@@ -10,10 +10,10 @@
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
- #define POWER_CHECK_DEBUG 
+ //#define POWER_CHECK_DEBUG 
 // #define LINE_STATUS_DEBUG 
 // #define LINE_STATE_DEBUG 
-// #define LINE_FIER_DEBUG
+//  #define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
@@ -162,7 +162,7 @@ bool ledBlinker1 = true;
 bool ledBlinker2 = true;
 bool buzzerControl = false;
 bool sounderLedStatus = false;
-int fierLouckBit = 0;
+int fierLouckBit[12] ={0};
 bool fierCheckLock =false;
 //bool  stateUpdateMUX =false;
 
@@ -215,10 +215,9 @@ powerState powerStatus;
 
 #define POWER_RELAY_ON   digitalWrite(Batcharges,HIGH);
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
-
-
-
-
+bool buzzerActive =true;
+#define BUZZER_ON digitalWrite(MCUbuzz, HIGH);
+#define BUZZER_OFF digitalWrite(MCUbuzz, LOW);
 
 typedef enum {
   STOP,
@@ -274,7 +273,7 @@ timerMS batteryCheckTime;
 timerMS fierTimer;
 flowDelay shortCircuitFlow[12];
 flowDelay fierFlow;
-  
+
 int firstRepeat=0;
 
 
@@ -287,7 +286,7 @@ unsigned long buzzerReadyTime = 0;
 unsigned long batteryScanTime = 0;
 
 unsigned long fultSencetimer = 0;
-unsigned long fultCounter = 10;
+
 
 unsigned long learningProcessCounter = 10;
 
@@ -296,7 +295,7 @@ int i = 0;
 
 
 char CardPresentError = 0;
-char limitTimeSC = 3;
+
 char muxPosition = 0;
 char cardSituation = 0;
 

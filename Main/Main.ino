@@ -30,9 +30,9 @@
     // Read initial values from analog mux
     readInitialMuxValues();
   }
-
+void(* resetFunc) (void) = 0;//declare reset function at address 0
   void loop() {
-  
+
     // Read values from analog mux
    readMux(muxPosition,mux);
 
@@ -40,14 +40,14 @@
     powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
 
     // Check button inputs
-    checkButtons(resetFier);
+    checkButtons(resetFier,buzzerActive);
 
     // Distribute mux values to corresponding lines based on cardSituation
     distributionMuxValues(cardSituation,mux);
 
     // Print debug information
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-
+   
     // Perform line status evaluation after The first time the board is turned on
     if (firstRepeat>12){
 
@@ -66,7 +66,7 @@
     // Toggle LED state based on time
     if (timeForLedBlink()) {
        ledBlinkTime = currentTime;
-      Ledcontrol(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier);
+      LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
     }
 
     // Control relay
@@ -80,7 +80,7 @@
 
     // Check and enable beeper 
     checkAndEnableBeeper();
-    
+ 
   }
 
 
@@ -223,43 +223,47 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   // Return the current power state
   return state;
 }
+bool buzzer(bool &buzzerActive,bool buzzerState)
+{
+  if((buzzerActive)&&(buzzerActive)){
+    BUZZER_ON
+    return true;
+  }
+  else{
+    BUZZER_OFF
+    return false;
+  }
 
+// ((buzzerActive) && (buzzerState))?(BUZZER_ON):(BUZZER_OFF); 
+}
+void singelBuzzer() 
+{
+  BUZZER_ON 
+  delay(60);
+  BUZZER_OFF
+}
 // Function to print voltage alert
-void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier) {
+void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier,bool &buzzerActive) {
   static bool lockFier[12]={false};
   bool ledBlinker1 = ledStatus;
  for (byte i = 0; i < 12; i++) {
   
     if((lockFier[i]==true)&&(!resetFier)){
     sr.set(ledFirePins[i], ledBlinker1);
-    digitalWrite(MCUbuzz, HIGH);
+    buzzer(buzzerActive,HIGH);
     }
     if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1);
-      // if (buzzerControl && !generalFault && !fireTrace)
-      //   digitalWrite(MCUbuzz, ledBlinker1);
-      // else
-      //   digitalWrite(MCUbuzz, LOW);
 
     } else if (lineStatus[i] == FIER) {  // Fire mode
        fireTrace=true;
        lockFier[i]=true;
-      // sr.set(ledFirePins[i], ledBlinker1);
-      // sr.set(ledefiremode, LOW);
-      // if (fireTrace)
-      //   digitalWrite(MCUbuzz, HIGH);
-      // else
-      //   digitalWrite(MCUbuzz, LOW);
     } else {
       sr.set(ledErrorsPins[i], HIGH);
        sr.set(ledFirePins[i], HIGH);
-      // if ((batteryFail || powerFail || supplyFault) && !generalFault)
-      //   digitalWrite(MCUbuzz, ledBlinker1);
-      // else
-      //   digitalWrite(MCUbuzz, LOW);
+     
     }
-    // if (fireTrace && !generalFault)
-    //   digitalWrite(MCUbuzz, HIGH);
+
   }
   if ((generalFault && fireTrace) || (batteryFail || powerFail || supplyFault) && generalFault)
     sr.set(ledebuz, LOW);
@@ -327,11 +331,12 @@ void checkAndEnableBeeper() {
     beeperEnabled = true;
   }
 }
+
 // Function to evaluate the status of a line
 status evaluateLineStatus(float current , float voltage,double supplyVoltage,int numberLine){
 
   static status state;
-  static unsigned long repeatFireDetection=0;
+  static unsigned long repeatFireDetection[12]={0};
   static unsigned long repeat= 0;
   static bool shortCircuitLock[12]={false};
   static bool  fierDetectLock[12]={false};
@@ -394,7 +399,6 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
     //Handle Fier state
     case FIER:
       LINE_STATE_DEBUG(" FIER ");
-      fireTrace=true;
       //turn the line ON
       lineON(numberLine);
       return FIER;
@@ -416,21 +420,21 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
       return DAMAGED; 
     break;
 
-    //Handle Check Fier state:Turn the line ON, increment the repeatFireDetection counter, and manage FIER detection
+    //Handle Check Fier state:Turn the line ON, increment the repeatFireDetection[numberLine] counter, and manage FIER detection
     case CHECK:
       LINE_STATE_DEBUG(" CHECK ");
       lineON(numberLine);
-      repeatFireDetection++;
+      repeatFireDetection[numberLine]++;
       // Check the number of repeats and set the state accordingly
-      if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit )
+      if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit[numberLine] )
       {
-        if ((repeatFireDetection < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && fierLouckBit == false)state = NORMAL; 
+        if ((repeatFireDetection[numberLine] < ACCEPTABLE_NUMBER_OF_REPEAT_FIER) && fierLouckBit[numberLine] == false)state = NORMAL; 
         else state =FIER;
-        fierLouckBit = true;
-        repeatFireDetection = 0;
+        fierLouckBit[numberLine] = true;
+        repeatFireDetection[numberLine] = 0;
       }
-      LINE_FIER_DEBUG(" repeatFireDetection=");
-      LINE_FIER_DEBUG(repeatFireDetection);
+      LINE_FIER_DEBUG(" repeatFireDetection[numberLine]=");
+      LINE_FIER_DEBUG(repeatFireDetection[numberLine]);
       LINE_FIER_DEBUG(" fierTimer.value="); 
       LINE_FIER_DEBUG(fierFlow.value);
 
@@ -612,7 +616,6 @@ void distributionMuxValues(char cardSituation,Mux &mux) {
 // Function to read multiplexer from ADC's
 void readMux(byte address, Mux &mux) {
 
-
   // Define constants
   #define ADC_RESOLUTION 4096
   #define VREF 3.3
@@ -647,15 +650,30 @@ void readMux(byte address, Mux &mux) {
 
 }
 
-void checkButtons(bool &resetFier) {
-  resetFier=false;
-  if (digitalRead(But5) == 0) {  // Buzzer off
-    if (currentTime - buttonPressTime > 10) {
-      buttonPressTime = currentTime;
-      generalFault = !generalFault;
-    }
+void checkButtons(bool &resetFier,bool &buzzerActive) {
+static bool buzzerButtonFlag=false;
+static bool resetButtonFlag=false;
+static bool relayONButtonFlag=false;
+static bool relayOFFButtonFlag=false;
+
+#define PRESS_BUZZER_BUTTON   digitalRead(But5) == 0
+#define PRESS_LED_CHECK_BUTTON    digitalRead(But4) == 0
+#define PRESS_RESET_BUTTON    digitalRead(But3) == 0
+#define CONNECTED_JUMPER    digitalRead(JUMPER) == 0
+#define PRESS_RELEY_ON_BUTTON   digitalRead(But2) == 0
+#define PRESS_RELEY_OFF_BUTTON    digitalRead(But1) == 0
+
+  if (PRESS_BUZZER_BUTTON) {  // Buzzer off
+    buzzerButtonFlag =true;
   }
-  if (digitalRead(But4) == 0) {  // LED check
+  if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
+      singelBuzzer() ;
+      buzzerButtonFlag =false; 
+      buzzerActive = !buzzerActive;
+    }
+
+  if (PRESS_LED_CHECK_BUTTON) {  // LED check
+    singelBuzzer() ;
     sr.setAllLow();
     delay(550);
     byte initi = 0;
@@ -666,9 +684,9 @@ void checkButtons(bool &resetFier) {
       IWatchdog.reload();
       delay(50);
       x++;
-      if (x > 21)
-        digitalWrite(LEDerror, LOW);
-    } while (digitalRead(But4) == 0);
+    if (x > 21)
+      digitalWrite(LEDerror, LOW);
+    } while (PRESS_LED_CHECK_BUTTON);
     IWatchdog.reload();
     delay(550);
     IWatchdog.reload();
@@ -676,110 +694,50 @@ void checkButtons(bool &resetFier) {
     CardPresentError = initi;
   }
   
- if((digitalRead(But3) == 0)&&(digitalRead(JUMPER) == 0)){  // All Line Reset
-
-   /////////// fierLouckBit=0;
-
-     resetFier =true;
-    for (byte i = 0; i < 12; i++) {
-      lineCurrent[i] = 0;
-      lineVoltage[i] = 0;
-      //lineSituations[i] = 0;      // 1=open line error, 2=normal line, 3=fire line, 4=short circut line
-      
-      firstSence[i] = 0;
-      shortCircuitDetected[i] = 0;
+  if( PRESS_RESET_BUTTON ){  // All Line Reset
+   resetButtonFlag = true; 
+  }
+  if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
+  {
+    resetButtonFlag = false;
+     singelBuzzer() ;
+    if(CONNECTED_JUMPER)
+    {
+     resetFunc(); //call reset
     }
+  }
 
-    limitTimeSC = 3;
-    muxPosition = 0;
-    // cardSituation  = 0;
-    currentTime = 0;
-    ledBlinkTime = 0;
-    buttonPressTime = 0;
+  if (PRESS_RELEY_ON_BUTTON) {  // Alarm rely on
+    relayONButtonFlag=true; 
+  }
+  if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
+      relayONButtonFlag=false;
+    singelBuzzer() ;
  
-    buzzerReadyTime = 0;
-    fultSencetimer = 0;
-    ledBlinker1 = true;
-    ledBlinker2 = true;
-    buzzerControl = false;
-    sounderLedStatus = false;
-    supplyFault = false;
-    batteryFail = false;
-    powerFail = false;
-    earthFail = false;
-    generalFault = false;
-    fireTrace = false;
+    relayControl = true;
+    sr.set(ledesounder, HIGH);
+    if (sounderLedStatus) {
+      sounderLedStatus = !sounderLedStatus;
+      relayCustomOn = false;
+    }
+  }
+
+  if (PRESS_RELEY_OFF_BUTTON) {  // Alarm rely off
+    relayOFFButtonFlag=true;
+  }
+  if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
+  {
+     relayOFFButtonFlag=false;
+    singelBuzzer() ;
+    
     relayControl = false;
-    readAnalogs = false;
-    buzzerEnabled = false;
-    beeperEnabled = false;
-    relayOn = false;
-    fireFlag = false;
-    faultFlag = false;
-    fultCounter = 0;
-
-    digitalWrite(MCUbuzz, LOW);
-    IWatchdog.reload();
-    delay(900);
-    IWatchdog.reload();
-    if (cardSituation == 2) {
-      digitalWrite(Line1, HIGH);
-      digitalWrite(Line2, HIGH);
-      digitalWrite(Line3, HIGH);
-      digitalWrite(Line4, HIGH);
-      digitalWrite(Line5, HIGH);
-      digitalWrite(Line6, HIGH);
-      digitalWrite(Line7, HIGH);
-      digitalWrite(Line8, HIGH);
-      digitalWrite(Line9, HIGH);
-      digitalWrite(Line10, HIGH);
-      digitalWrite(Line11, HIGH);
-      digitalWrite(Line12, HIGH);
-    } else if (cardSituation == 1) {
-      digitalWrite(Line1, HIGH);
-      digitalWrite(Line2, HIGH);
-      digitalWrite(Line3, HIGH);
-      digitalWrite(Line4, HIGH);
-      digitalWrite(Line5, HIGH);
-      digitalWrite(Line6, HIGH);
-      digitalWrite(Line7, HIGH);
-      digitalWrite(Line8, HIGH);
-    } else {
-      digitalWrite(Line1, HIGH);
-      digitalWrite(Line2, HIGH);
-      digitalWrite(Line3, HIGH);
-      digitalWrite(Line4, HIGH);
+    if (fireFlag) {
+      fireFlag = false;
+      sr.set(ledesounder, LOW);
     }
-    delay(100);
-    IWatchdog.reload();
-    // Mux* returnedMux = readMux(muxPosition);
-  }
-  if (digitalRead(But2) == 0) {  // Alarm rely on
-    if (currentTime - buttonPressTime > 13) {
-      buttonPressTime = currentTime;
-      relayControl = true;
-      sr.set(ledesounder, HIGH);
-      //  mySerial.println("alarm on");
-      if (sounderLedStatus) {
-        sounderLedStatus = !sounderLedStatus;
-        relayCustomOn = false;
-      }
-    }
-  }
-  if (digitalRead(But1) == 0) {  // Alarm rely off
-
-    if (currentTime - buttonPressTime > 13) {
-      buttonPressTime = currentTime;
-      relayControl = false;
-      // mySerial.println("alarm off");
-      if (fireFlag) {
-        fireFlag = false;
-        sr.set(ledesounder, LOW);
-      }
-      if (!sounderLedStatus)
-        sounderLedStatus = !sounderLedStatus;
-      relayCustomOn = true;
-    }
+    if (!sounderLedStatus)
+      sounderLedStatus = !sounderLedStatus;
+    relayCustomOn = true;
   }
 }
 
@@ -853,8 +811,8 @@ void GPIOInit(void)
 
 void Update_IT_callback1(void) {  // 10hz
   currentTime++;
-  fultSencetimer++;
-
+  
+ 
   batteryCheckTime.update();
 
    
@@ -881,18 +839,14 @@ void Update_IT_callback1(void) {  // 10hz
     sr.set(ledErrorsPins[11], ledBlinker2);
   }
   }
-  if (fultCounter > 0) {
-  fultCounter = fultCounter - 1;
-  faultFlag = true;
-  } else
-  faultFlag = false;
+
 }
 
 void Update_IT_callback2(void) { 
   fierFlow.update();
   for(int i=0;i<=12;i++) {
     shortCircuitFlow[i].update();}
-
+  
 }
 
 void Relaycont(){
