@@ -1,6 +1,7 @@
 
 #include <Main.h>
 // Hardware Settings
+ int myRep=0;
   void setup() {
 
     // Initialize GPIO pins
@@ -32,7 +33,10 @@
   }
   void(* resetFunc) (void) = 0;//declare reset function at address 0
   void loop() {
-
+  
+   mySerial.printf("\n Reped== %d",myRep);
+   buzzer.Begin(buzzerActive,myRep);
+ 
     // Read values from analog mux
    readMux(muxPosition,mux);
 
@@ -63,7 +67,7 @@
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     //test buzzer
-    buzzer.Repead(buzzerActive, 3,880, 1100);
+    //buzzer.Repead(buzzerActive, 3,10000, 10000);
     // Toggle LED state based on time
     if (timeForLedBlink()) {
        ledBlinkTime = currentTime;
@@ -81,7 +85,13 @@
 
     // Check and enable beeper 
     checkAndEnableBeeper();
- 
+      // if(buzzerActive)
+      // {
+      //  buzzer.Singel(100,1000);
+      // }
+    // buzzer.Repead(buzzerActive,3, 100, 1000);
+
+   buzzer.Singel(buzzerActive,5,50,3000);
   }
 
 
@@ -668,13 +678,13 @@ static bool relayOFFButtonFlag=false;
     buzzerButtonFlag =true;
   }
   if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
-    buzzer.Singel(BUZZER_ON_TIME);
+    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
       buzzerButtonFlag =false; 
       buzzerActive = !buzzerActive;
     }
 
   if (PRESS_LED_CHECK_BUTTON) {  // LED check
-   buzzer.Singel(BUZZER_ON_TIME);
+   buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     sr.setAllLow();
     delay(550);
     byte initi = 0;
@@ -701,7 +711,7 @@ static bool relayOFFButtonFlag=false;
   if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
   {
     resetButtonFlag = false;
-   buzzer.Singel(BUZZER_ON_TIME);
+   buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     if(CONNECTED_JUMPER)
     {
      resetFunc(); //call reset
@@ -713,7 +723,7 @@ static bool relayOFFButtonFlag=false;
   }
   if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
     relayONButtonFlag=false;
-    buzzer.Singel(BUZZER_ON_TIME);
+    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     relayControl = true;
     sr.set(ledesounder, HIGH);
     if (sounderLedStatus) {
@@ -728,7 +738,7 @@ static bool relayOFFButtonFlag=false;
   if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
   {
     relayOFFButtonFlag=false;
-    buzzer.Singel(BUZZER_ON_TIME);
+    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     relayControl = false;
     if (fireFlag) {
       fireFlag = false;
@@ -842,11 +852,12 @@ void Update_IT_callback1(void) {  // 10hz
 }
 
 void Update_IT_callback2(void) { 
-  buzzer.buzzerFlow.update();
+ 
   for(int i=0;i<=12;i++) {
     shortCircuitFlow[i].update();}
-    
-  
+    buzzer.flowDelayUpdate(); 
+   buzzer.buzzerFlow.update();
+    buzzer.buzzerRepeadFlow.update();
 }
 
 void Relaycont(){
