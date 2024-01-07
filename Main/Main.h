@@ -264,6 +264,71 @@ class flowDelay: public timerMS {
   }
 
 };
+class Buzzer{
+ public:
+//  struct ActivityState
+//  {
+//    Enable;
+//    Disable;
+//  }
+  
+flowDelay buzzerFlow;
+  bool Active(bool ActivityState , bool State);
+  void Singel(unsigned int timeON);
+  bool Repead(bool ActivityState,unsigned int numberRepead,unsigned int timeRepead,unsigned int timeON);
+
+
+};
+bool Buzzer::Active(bool ActivityState, bool State){
+  if((ActivityState)&&(State))
+  {
+    BUZZER_ON
+    return true;
+  }
+  else{
+    BUZZER_OFF
+    return false;
+  }
+}
+void Buzzer::Singel(unsigned int timeON){
+  BUZZER_ON 
+  delay(timeON);
+  BUZZER_OFF
+}
+bool Buzzer::Repead(bool ActivityState,unsigned int numberRepead,unsigned int timeRepead,unsigned int timeON)
+{
+  
+  if(ActivityState){
+    if(numberRepead > 0){
+      if(buzzerFlow.Delay(timeRepead))
+      Singel(timeON);
+      numberRepead--;
+      return true;
+    }
+    else{
+      
+      buzzerFlow.status=STOP;
+      return false;
+    }
+ }
+  else
+  {
+  buzzerFlow.status= STOP;
+  numberRepead=0;
+  return false;
+  }
+
+}
+
+
+// bool y::(bool Activity, bool State){};
+//  void timerMS::update() 
+
+
+
+
+
+
 // Define SoftwareSerial for communication
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
@@ -273,6 +338,7 @@ timerMS batteryCheckTime;
 timerMS fierTimer;
 flowDelay shortCircuitFlow[12];
 flowDelay fierFlow;
+Buzzer buzzer;
 
 int firstRepeat=0;
 

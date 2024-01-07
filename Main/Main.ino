@@ -30,7 +30,7 @@
     // Read initial values from analog mux
     readInitialMuxValues();
   }
-void(* resetFunc) (void) = 0;//declare reset function at address 0
+  void(* resetFunc) (void) = 0;//declare reset function at address 0
   void loop() {
 
     // Read values from analog mux
@@ -62,7 +62,8 @@ void(* resetFunc) (void) = 0;//declare reset function at address 0
 
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
-
+    //test buzzer
+    buzzer.Repead(buzzerActive, 3,880, 1100);
     // Toggle LED state based on time
     if (timeForLedBlink()) {
        ledBlinkTime = currentTime;
@@ -223,25 +224,25 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   // Return the current power state
   return state;
 }
-bool buzzer(bool &buzzerActive,bool buzzerState)
-{
-  if((buzzerActive)&&(buzzerActive)){
-    BUZZER_ON
-    return true;
-  }
-  else{
-    BUZZER_OFF
-    return false;
-  }
 
-// ((buzzerActive) && (buzzerState))?(BUZZER_ON):(BUZZER_OFF); 
-}
-void singelBuzzer() 
-{
-  BUZZER_ON 
-  delay(60);
-  BUZZER_OFF
-}
+// {
+//   if((buzzerActive)&&(buzzerActive)){
+//     BUZZER_ON
+//     return true;
+//   }
+//   else{
+//     BUZZER_OFF
+//     return false;
+//   }
+
+// // ((buzzerActive) && (buzzerState))?(BUZZER_ON):(BUZZER_OFF); 
+// }
+// // void singelBuzzer() 
+// {
+//   BUZZER_ON 
+//   delay(60);
+//   BUZZER_OFF
+// }
 // Function to print voltage alert
 void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier,bool &buzzerActive) {
   static bool lockFier[12]={false};
@@ -250,7 +251,7 @@ void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage,
   
     if((lockFier[i]==true)&&(!resetFier)){
     sr.set(ledFirePins[i], ledBlinker1);
-    buzzer(buzzerActive,HIGH);
+    buzzer.Active(buzzerActive,HIGH);
     }
     if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1);
@@ -662,18 +663,18 @@ static bool relayOFFButtonFlag=false;
 #define CONNECTED_JUMPER    digitalRead(JUMPER) == 0
 #define PRESS_RELEY_ON_BUTTON   digitalRead(But2) == 0
 #define PRESS_RELEY_OFF_BUTTON    digitalRead(But1) == 0
-
+#define BUZZER_ON_TIME 60
   if (PRESS_BUZZER_BUTTON) {  // Buzzer off
     buzzerButtonFlag =true;
   }
   if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
-      singelBuzzer() ;
+    buzzer.Singel(BUZZER_ON_TIME);
       buzzerButtonFlag =false; 
       buzzerActive = !buzzerActive;
     }
 
   if (PRESS_LED_CHECK_BUTTON) {  // LED check
-    singelBuzzer() ;
+   buzzer.Singel(BUZZER_ON_TIME);
     sr.setAllLow();
     delay(550);
     byte initi = 0;
@@ -700,7 +701,7 @@ static bool relayOFFButtonFlag=false;
   if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
   {
     resetButtonFlag = false;
-     singelBuzzer() ;
+   buzzer.Singel(BUZZER_ON_TIME);
     if(CONNECTED_JUMPER)
     {
      resetFunc(); //call reset
@@ -711,9 +712,8 @@ static bool relayOFFButtonFlag=false;
     relayONButtonFlag=true; 
   }
   if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
-      relayONButtonFlag=false;
-    singelBuzzer() ;
- 
+    relayONButtonFlag=false;
+    buzzer.Singel(BUZZER_ON_TIME);
     relayControl = true;
     sr.set(ledesounder, HIGH);
     if (sounderLedStatus) {
@@ -727,9 +727,8 @@ static bool relayOFFButtonFlag=false;
   }
   if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
   {
-     relayOFFButtonFlag=false;
-    singelBuzzer() ;
-    
+    relayOFFButtonFlag=false;
+    buzzer.Singel(BUZZER_ON_TIME);
     relayControl = false;
     if (fireFlag) {
       fireFlag = false;
@@ -737,7 +736,7 @@ static bool relayOFFButtonFlag=false;
     }
     if (!sounderLedStatus)
       sounderLedStatus = !sounderLedStatus;
-    relayCustomOn = true;
+      relayCustomOn = true;
   }
 }
 
@@ -843,9 +842,10 @@ void Update_IT_callback1(void) {  // 10hz
 }
 
 void Update_IT_callback2(void) { 
-  fierFlow.update();
+  buzzer.buzzerFlow.update();
   for(int i=0;i<=12;i++) {
     shortCircuitFlow[i].update();}
+    
   
 }
 
