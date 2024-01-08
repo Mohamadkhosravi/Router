@@ -10,8 +10,8 @@
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
- //#define POWER_CHECK_DEBUG 
- //#define LINE_STATUS_DEBUG 
+//  #define POWER_CHECK_DEBUG 
+//  #define LINE_STATUS_DEBUG 
 // #define LINE_STATE_DEBUG 
 //  #define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
@@ -206,7 +206,7 @@ typedef enum
 
 } powerState;
 
-
+bool fault =false;
 status lineStatus[12] = { NON_STATUS };
 powerState powerStatus;
 
@@ -265,146 +265,97 @@ class flowDelay: public timerMS {
 
 };
 class Buzzer{
+
+  
  public:
     flowDelay buzzerFlow;
     flowDelay buzzerRepeadFlow;
-    
-  // SoftwareSerial BZSerial(S1rx, S1tx);  // RX, TX
-
-  unsigned int buzzerTimeON=0;
+    unsigned int buzzerTimeON=0;
   unsigned int buzzerTimeOFF=0;
   unsigned int buzzerRepedTimeOFF=0;
   unsigned int buzzerRepedTimeON=0;
-   int ORepead;
- unsigned long Begin (bool ActivityState,int &reped)
- {
-  
-    int rep=ORepead;
-    int state =0;
-    static bool flag=0;
-    // if(ActivityState)
-    // {
-    if((reped>0)&&(flag==0))flag=1; 
-      if((reped>0)&&(flag==1)||(flag==0))
-      {
-         if( (buzzerFlow.value>1)&&(buzzerFlow.value< buzzerTimeON))
-        {
-          BUZZER_ON
-        }
-        else if ((buzzerFlow.value>= buzzerTimeON)&&(buzzerFlow.value<= buzzerTimeOFF)) {
-          BUZZER_OFF
-
-        
-        }
-        else{
-        BUZZER_OFF
-        buzzerFlow.status=STOP;
-        if(reped>0) reped--;
-         
-        }
-         
-     }
-    
-      return state;
-     // }
-
-    // else
-    // {
-    //   BUZZER_OFF
-    //   buzzerFlow.status=STOP;
-    // }
- }
- int begin2(void){
-  // int state;
-  //     if( (buzzerRepeadFlow.value>1)&&(buzzerRepeadFlow.value< buzzerRepedTimeON))
-  //     {
-  //        BUZZER_ON
-  //        state=1;
-  //     }
-  //     else if ((buzzerRepeadFlow.value>= buzzerRepedTimeON)&&(buzzerRepeadFlow.value<= buzzerRepedTimeON)) {
-  //       BUZZER_OFF
-  //       state=2;
-  //     }
-  //     else{
-  //     state=3;
-  //     BUZZER_OFF
-  //     buzzerRepeadFlow.status=STOP;
-  //     }
-  //     return state;
- }
+   int *numberRepead;
+   bool AlarmActive =false;
 
 
+  // SoftwareSerial BZSerial(S1rx, S1tx);  // RX, TX
 
-  bool Active(bool ActivityState , bool State);
-  void Singel(bool ActivityState,unsigned int numberRepead,unsigned int timeON,unsigned int timeOFF);
-  bool Repead(bool ActivityState,unsigned int numberRepead,unsigned int timeRepead,unsigned int timeON);
-  void flowDelayUpdate(void){
-   
-  }
-  
+
+//,int &reped
+  void Begin (bool ActivityState);
+  void TurnOn(bool ActivityState);
+  void TurnOff(void);
+  void SingelOn(unsigned int timeON,unsigned int timeOFF);
+  void Repead(int *NumberRepead,unsigned int timeON,unsigned int timeOFF);
 
 };
-bool Buzzer::Active(bool ActivityState, bool State){
-  if((ActivityState)&&(State))
+
+void Buzzer::Repead(int *NumberRepead,unsigned int timeON,unsigned int timeOFF)
+  {
+   
+    buzzerRepedTimeON =timeON;
+    buzzerRepedTimeOFF=timeOFF+timeON;
+    buzzerRepeadFlow.Delay(timeON+timeOFF);
+    numberRepead=NumberRepead;
+
+  }
+  
+
+
+void Buzzer::TurnOn(bool ActivityState){
+  if((ActivityState))
   {
     BUZZER_ON
-    return true;
+    AlarmActive=true;
   }
-  else{
-    BUZZER_OFF
-    return false;
-  }
+  else AlarmActive=false;
+  
+}
+void Buzzer::TurnOff(void){
+  BUZZER_OFF
 }
 
-
-void Buzzer::Singel(bool ActivityState,unsigned int numberRepead,unsigned int timeON,unsigned int timeOFF){
-//   ORepead=numberRepead;
- if(ActivityState){
-
+void Buzzer::SingelOn(unsigned int timeON,unsigned int timeOFF){
      buzzerTimeON =timeON;
       buzzerTimeOFF=timeOFF+timeON;
       buzzerFlow.Delay(timeON+timeOFF);
-     
-  }
-  else{
-    buzzerFlow.status=STOP;
-  }
-
 }
-bool Buzzer::Repead(bool ActivityState,unsigned int numberRepead,unsigned int timeON,unsigned int timeOFF)
-{
-  Buzzer RepeadBuzzer;
 
-  if(ActivityState){
+void Buzzer::Begin (bool ActivityState)
+ {
+    static bool flag=0;
+    #define CONDITION_SINGLE_ON (buzzerFlow.value>1)&&(buzzerFlow.value< buzzerTimeON) 
+    #define CONDITION_SINGLE_OFF (buzzerFlow.value>= buzzerTimeON)&&(buzzerFlow.value<= buzzerTimeOFF) 
+    #define CONDITION_REPEAD_ON  (buzzerRepeadFlow.value>1) && (buzzerRepeadFlow.value<buzzerRepedTimeON) && (*numberRepead>0 )
+    #define CONDITION_REPEAD_OFF (buzzerRepeadFlow.value>= buzzerRepedTimeON) && (buzzerRepeadFlow.value<= buzzerRepedTimeOFF)    
+      if(ActivityState)
+      {   
+          if(CONDITION_SINGLE_ON)BUZZER_ON
+          else if((CONDITION_SINGLE_OFF)&&(AlarmActive == false))
+          {
+            BUZZER_OFF 
+          }
+          else if(AlarmActive==false){
+            BUZZER_OFF 
+            buzzerRepeadFlow.status=STOP;
+          }
+          if(AlarmActive==true)BUZZER_ON 
 
-    if(numberRepead > 0)
-    {
-      buzzerRepedTimeON =timeON;
-      buzzerRepedTimeOFF=timeOFF+timeON;
-      buzzerRepeadFlow.Delay(timeON+timeOFF);
-      numberRepead--;
-    
-    }
-    else{
+
+
+          
+          
+      }
+      else{
+         BUZZER_OFF 
+            buzzerRepeadFlow.status=STOP;
       
-      buzzerRepeadFlow.status=STOP;
-      ActivityState=false;
-      return false;
-    }
+
+      }
+
+    
+      
  }
-  else
-  {
-  buzzerRepeadFlow.status= STOP;
-  numberRepead=0;
-  return false;
-  }
-
-}
-
-
-// bool y::(bool Activity, bool State){};
-//  void timerMS::update() 
-
 
 
 
@@ -422,6 +373,7 @@ flowDelay fierFlow;
 Buzzer buzzer;
 Buzzer buzzer2;
 int firstRepeat=0;
+  
 
 
 //timer.status = START;

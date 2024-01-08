@@ -1,9 +1,9 @@
 
 #include <Main.h>
 // Hardware Settings
- int myRep=0;
+ int myRep=10;
   void setup() {
-
+   myRep=5;
     // Initialize GPIO pins
     GPIOInit();
 
@@ -31,12 +31,15 @@
     // Read initial values from analog mux
     readInitialMuxValues();
   }
-  void(* resetFunc) (void) = 0;//declare reset function at address 0
+void(* resetFunc) (void) = 0;//declare reset function at address 0
   void loop() {
-  
-   mySerial.printf("\n Reped== %d",myRep);
-   buzzer.Begin(buzzerActive,myRep);
- 
+     
+   //mySerial.printf("\n repead=%d",myRep);
+     buzzer2.Begin(true);
+     buzzer.Begin(buzzerActive);
+   
+     //buzzer.Repead( &myRep, 100, 100);
+
     // Read values from analog mux
    readMux(muxPosition,mux);
 
@@ -67,13 +70,16 @@
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     //test buzzer
+   
     //buzzer.Repead(buzzerActive, 3,10000, 10000);
     // Toggle LED state based on time
     if (timeForLedBlink()) {
        ledBlinkTime = currentTime;
-      LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
+       fault =LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
+       
     }
-
+    buzzer.SingelOn(100,3000);
+    if(fault)buzzer.SingelOn(200,1000);
     // Control relay
     Relaycont();
 
@@ -87,11 +93,11 @@
     checkAndEnableBeeper();
       // if(buzzerActive)
       // {
-      //  buzzer.Singel(100,1000);
+      //  buzzer.SingelOn(100,1000);
       // }
     // buzzer.Repead(buzzerActive,3, 100, 1000);
-
-   buzzer.Singel(buzzerActive,5,50,3000);
+ 
+   //buzzer.SingelOn(buzzerActive,5,50,3000);
   }
 
 
@@ -247,21 +253,23 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
 // // ((buzzerActive) && (buzzerState))?(BUZZER_ON):(BUZZER_OFF); 
 // }
-// // void singelBuzzer() 
+// // void SingelOnBuzzer() 
 // {
 //   BUZZER_ON 
 //   delay(60);
 //   BUZZER_OFF
 // }
 // Function to print voltage alert
-void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier,bool &buzzerActive) {
+bool LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier,bool &buzzerActive) {
   static bool lockFier[12]={false};
   bool ledBlinker1 = ledStatus;
+  bool fault=false;
  for (byte i = 0; i < 12; i++) {
   
     if((lockFier[i]==true)&&(!resetFier)){
     sr.set(ledFirePins[i], ledBlinker1);
-    buzzer.Active(buzzerActive,HIGH);
+    buzzer.TurnOn(buzzerActive);
+    // buzzer.Single(10000,2);
     }
     if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) {  // Fault mode
       sr.set(ledErrorsPins[i], ledBlinker1);
@@ -277,7 +285,8 @@ void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage,
 
   }
   if ((generalFault && fireTrace) || (batteryFail || powerFail || supplyFault) && generalFault)
-    sr.set(ledebuz, LOW);
+   {fault=true;
+    sr.set(ledebuz, LOW);}
   else
     sr.set(ledebuz, HIGH);
   if (supplyFault && !powerFail)
@@ -315,7 +324,9 @@ void LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage,
     //   digitalWrite(MCUbuzz, relayOn);
   }
   sr.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
+  return(fault);
 }
+
 
 // Function to toggle the LED state
 bool toggleLedState() {
@@ -666,7 +677,7 @@ static bool buzzerButtonFlag=false;
 static bool resetButtonFlag=false;
 static bool relayONButtonFlag=false;
 static bool relayOFFButtonFlag=false;
-
+static bool checkLEDsFlag=false;
 #define PRESS_BUZZER_BUTTON   digitalRead(But5) == 0
 #define PRESS_LED_CHECK_BUTTON    digitalRead(But4) == 0
 #define PRESS_RESET_BUTTON    digitalRead(But3) == 0
@@ -678,13 +689,24 @@ static bool relayOFFButtonFlag=false;
     buzzerButtonFlag =true;
   }
   if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
-    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
+     BUZZER_ON
+      delay(50);
+     BUZZER_OFF
       buzzerButtonFlag =false; 
       buzzerActive = !buzzerActive;
     }
 
   if (PRESS_LED_CHECK_BUTTON) {  // LED check
-   buzzer.Singel(1,1,BUZZER_ON_TIME,0);
+   checkLEDsFlag=true;
+  
+
+  }
+
+  if ((!PRESS_LED_CHECK_BUTTON)&&(checkLEDsFlag==true)) {  // LED check
+      BUZZER_ON
+      delay(50);
+     BUZZER_OFF
+    checkLEDsFlag=false;
     sr.setAllLow();
     delay(550);
     byte initi = 0;
@@ -704,14 +726,16 @@ static bool relayOFFButtonFlag=false;
     sr.setAllHigh();
     CardPresentError = initi;
   }
-  
+
   if( PRESS_RESET_BUTTON ){  // All Line Reset
    resetButtonFlag = true; 
   }
   if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
   {
+       BUZZER_ON
+      delay(50);
+     BUZZER_OFF
     resetButtonFlag = false;
-   buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     if(CONNECTED_JUMPER)
     {
      resetFunc(); //call reset
@@ -719,11 +743,14 @@ static bool relayOFFButtonFlag=false;
   }
 
   if (PRESS_RELEY_ON_BUTTON) {  // Alarm rely on
+
     relayONButtonFlag=true; 
   }
   if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
+       BUZZER_ON
+      delay(50);
+     BUZZER_OFF
     relayONButtonFlag=false;
-    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
     relayControl = true;
     sr.set(ledesounder, HIGH);
     if (sounderLedStatus) {
@@ -738,7 +765,9 @@ static bool relayOFFButtonFlag=false;
   if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
   {
     relayOFFButtonFlag=false;
-    buzzer.Singel(1,1,BUZZER_ON_TIME,0);
+  BUZZER_ON
+      delay(50);
+     BUZZER_OFF
     relayControl = false;
     if (fireFlag) {
       fireFlag = false;
@@ -855,9 +884,11 @@ void Update_IT_callback2(void) {
  
   for(int i=0;i<=12;i++) {
     shortCircuitFlow[i].update();}
-    buzzer.flowDelayUpdate(); 
-   buzzer.buzzerFlow.update();
+  fierFlow.update();
+    buzzer.buzzerFlow.update();
     buzzer.buzzerRepeadFlow.update();
+    
+    
 }
 
 void Relaycont(){
