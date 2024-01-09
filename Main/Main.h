@@ -320,7 +320,6 @@ void Buzzer::SingelOn(unsigned int timeON,unsigned int timeOFF){
       buzzerTimeOFF=timeOFF+timeON;
       buzzerFlow.Delay(timeON+timeOFF);
 }
-
 void Buzzer::Begin (bool ActivityState)
  {
     static bool flag=0;
@@ -356,6 +355,12 @@ void Buzzer::Begin (bool ActivityState)
     
       
  }
+
+
+
+
+
+
 
 
 
