@@ -14,7 +14,7 @@
     mySerial.begin(9600);
 
     // Initialize ShiftRegister and set all outputs to HIGH
-    sr.setAllHigh();
+    shiftRegister.setAllHigh();
 
     // Configure and start hardware timers for periodic tasks
     configureTimers();
@@ -32,9 +32,15 @@
     readInitialMuxValues();
   }
 void(* resetFunc) (void) = 0;//declare reset function at address 0
+bool isOn= true;
   void loop() {
-     
-   //mySerial.printf("\n repead=%d",myRep);
+
+     LED led;
+    LED ledFier;
+  
+       led.blinkArry(ledErrorsPins,12,25);
+       ledFier.blinkArry(ledFirePins, 12,500);
+
      buzzer2.Begin(true);
      buzzer.Begin(buzzerActive);
    
@@ -59,6 +65,7 @@ void(* resetFunc) (void) = 0;//declare reset function at address 0
     if (firstRepeat>12){
 
       for (i = 0; i < ((cardSituation + 1) * 4); i++){ 
+      
 
         lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux.Values4[2]) , i );
       }
@@ -75,7 +82,7 @@ void(* resetFunc) (void) = 0;//declare reset function at address 0
     // Toggle LED state based on time
     if (timeForLedBlink()) {
        ledBlinkTime = currentTime;
-       fault =LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
+      // fault =LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
        
     }
     buzzer.SingelOn(100,3000);
@@ -267,63 +274,63 @@ bool LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage,
  for (byte i = 0; i < 12; i++) {
   
     if((lockFier[i]==true)&&(!resetFier)){
-    sr.set(ledFirePins[i], ledBlinker1);
+    shiftRegister.set(ledFirePins[i], ledBlinker1);
     buzzer.TurnOn(buzzerActive);
     // buzzer.Single(10000,2);
     }
     if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) {  // Fault mode
-      sr.set(ledErrorsPins[i], ledBlinker1);
+      shiftRegister.set(ledErrorsPins[i], ledBlinker1);
 
     } else if (lineStatus[i] == FIER) {  // Fire mode
        fireTrace=true;
        lockFier[i]=true;
     } else {
-      sr.set(ledErrorsPins[i], HIGH);
-       sr.set(ledFirePins[i], HIGH);
+      shiftRegister.set(ledErrorsPins[i], HIGH);
+       shiftRegister.set(ledFirePins[i], HIGH);
      
     }
 
   }
   if ((generalFault && fireTrace) || (batteryFail || powerFail || supplyFault) && generalFault)
    {fault=true;
-    sr.set(ledebuz, LOW);}
+    shiftRegister.set(ledebuz, LOW);}
   else
-    sr.set(ledebuz, HIGH);
+    shiftRegister.set(ledebuz, HIGH);
   if (supplyFault && !powerFail)
-    sr.set(ledepower, LOW);
+    shiftRegister.set(ledepower, LOW);
   else
-    sr.set(ledepower, HIGH);
+    shiftRegister.set(ledepower, HIGH);
 
   if (powerStatus==POWER_SUPPLY)//powersup
-    sr.set(ledebat, LOW);
+    shiftRegister.set(ledebat, LOW);
   else
-    sr.set(ledebat, HIGH);
+    shiftRegister.set(ledebat, HIGH);
 
   if (powerStatus==LOW_BATTERY) {//low power
-    sr.set(ledebat, ledBlinker1);
-    sr.set(ledemainpower, ledBlinker1);
+    shiftRegister.set(ledebat, ledBlinker1);
+    shiftRegister.set(ledemainpower, ledBlinker1);
    if(fireTrace==false) digitalWrite(MCUbuzz, ledBlinker1);
   }
 
   if (powerStatus==BATTERY)//battery
-    sr.set(ledemainpower, LOW);
+    shiftRegister.set(ledemainpower, LOW);
   else
-    sr.set(ledemainpower, HIGH);
+    shiftRegister.set(ledemainpower, HIGH);
   if (relayOn)
-    sr.set(ledeearth, LOW);
+    shiftRegister.set(ledeearth, LOW);
   else
-    sr.set(ledeearth, HIGH);
+    shiftRegister.set(ledeearth, HIGH);
   if (fireTrace)
-    sr.set(ledefiremode, LOW);
+    shiftRegister.set(ledefiremode, LOW);
   else
-    sr.set(ledefiremode, HIGH);
-  sr.set(panelon, LOW);
+    shiftRegister.set(ledefiremode, HIGH);
+  shiftRegister.set(panelon, LOW);
   if (relayOn) {
     // mySerial.println("relayOn ok");
     // if (!generalFault)
     //   digitalWrite(MCUbuzz, relayOn);
   }
-  sr.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
+  shiftRegister.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
   return(fault);
 }
 
@@ -707,7 +714,7 @@ static bool checkLEDsFlag=false;
       delay(50);
      BUZZER_OFF
     checkLEDsFlag=false;
-    sr.setAllLow();
+    shiftRegister.setAllLow();
     delay(550);
     byte initi = 0;
     initi = CardPresentError;
@@ -723,7 +730,7 @@ static bool checkLEDsFlag=false;
     IWatchdog.reload();
     delay(550);
     IWatchdog.reload();
-    sr.setAllHigh();
+    shiftRegister.setAllHigh();
     CardPresentError = initi;
   }
 
@@ -752,7 +759,7 @@ static bool checkLEDsFlag=false;
      BUZZER_OFF
     relayONButtonFlag=false;
     relayControl = true;
-    sr.set(ledesounder, HIGH);
+    shiftRegister.set(ledesounder, HIGH);
     if (sounderLedStatus) {
       sounderLedStatus = !sounderLedStatus;
       relayCustomOn = false;
@@ -765,13 +772,13 @@ static bool checkLEDsFlag=false;
   if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
   {
     relayOFFButtonFlag=false;
-  BUZZER_ON
-      delay(50);
-     BUZZER_OFF
+    BUZZER_ON
+    delay(50);
+    BUZZER_OFF
     relayControl = false;
     if (fireFlag) {
       fireFlag = false;
-      sr.set(ledesounder, LOW);
+      shiftRegister.set(ledesounder, LOW);
     }
     if (!sounderLedStatus)
       sounderLedStatus = !sounderLedStatus;
@@ -857,26 +864,27 @@ void Update_IT_callback1(void) {  // 10hz
   ledBlinker2 = !ledBlinker2;
   if (CardPresentError > 0) {
   if (CardPresentError == 1) {
-    sr.set(ledErrorsPins[4], ledBlinker2);
-    sr.set(ledErrorsPins[5], ledBlinker2);
-    sr.set(ledErrorsPins[6], ledBlinker2);
-    sr.set(ledErrorsPins[7], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[4], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[5], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[6], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[7], ledBlinker2);
   } else if (CardPresentError == 2) {
-    sr.set(ledErrorsPins[8], ledBlinker2);
-    sr.set(ledErrorsPins[9], ledBlinker2);
-    sr.set(ledErrorsPins[10], ledBlinker2);
-    sr.set(ledErrorsPins[11], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[8], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[9], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[10], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[11], ledBlinker2);
   } else if (CardPresentError == 3) {
-    sr.set(ledErrorsPins[4], ledBlinker2);
-    sr.set(ledErrorsPins[5], ledBlinker2);
-    sr.set(ledErrorsPins[6], ledBlinker2);
-    sr.set(ledErrorsPins[7], ledBlinker2);
-    sr.set(ledErrorsPins[8], ledBlinker2);
-    sr.set(ledErrorsPins[9], ledBlinker2);
-    sr.set(ledErrorsPins[10], ledBlinker2);
-    sr.set(ledErrorsPins[11], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[4], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[5], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[6], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[7], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[8], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[9], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[10], ledBlinker2);
+    shiftRegister.set(ledErrorsPins[11], ledBlinker2);
   }
   }
+
 
 }
 
@@ -887,6 +895,7 @@ void Update_IT_callback2(void) {
   fierFlow.update();
     buzzer.buzzerFlow.update();
     buzzer.buzzerRepeadFlow.update();
+  timer.update();
     
     
 }

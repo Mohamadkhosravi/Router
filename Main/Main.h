@@ -6,8 +6,9 @@
 #include <IWatchdog.h>
 #include <ShiftRegister74HC595.h>
 #include <SoftwareSerial.h>
-
-#define DEBUG_ON  mySerial.print
+#include <thread>
+#include <chrono>
+#define DEBUG_ON  
 #define DEBUG_OFF 
 
 //  #define POWER_CHECK_DEBUG 
@@ -314,52 +315,183 @@ void Buzzer::TurnOn(bool ActivityState){
 void Buzzer::TurnOff(void){
   BUZZER_OFF
 }
-
 void Buzzer::SingelOn(unsigned int timeON,unsigned int timeOFF){
      buzzerTimeON =timeON;
       buzzerTimeOFF=timeOFF+timeON;
       buzzerFlow.Delay(timeON+timeOFF);
 }
 void Buzzer::Begin (bool ActivityState)
- {
-    static bool flag=0;
-    #define CONDITION_SINGLE_ON (buzzerFlow.value>1)&&(buzzerFlow.value< buzzerTimeON) 
-    #define CONDITION_SINGLE_OFF (buzzerFlow.value>= buzzerTimeON)&&(buzzerFlow.value<= buzzerTimeOFF) 
-    #define CONDITION_REPEAD_ON  (buzzerRepeadFlow.value>1) && (buzzerRepeadFlow.value<buzzerRepedTimeON) && (*numberRepead>0 )
-    #define CONDITION_REPEAD_OFF (buzzerRepeadFlow.value>= buzzerRepedTimeON) && (buzzerRepeadFlow.value<= buzzerRepedTimeOFF)    
-      if(ActivityState)
-      {   
-          if(CONDITION_SINGLE_ON)BUZZER_ON
-          else if((CONDITION_SINGLE_OFF)&&(AlarmActive == false))
-          {
-            BUZZER_OFF 
-          }
-          else if(AlarmActive==false){
-            BUZZER_OFF 
-            buzzerRepeadFlow.status=STOP;
-          }
-          if(AlarmActive==true)BUZZER_ON 
+{
+  static bool flag=0;
+  #define CONDITION_SINGLE_ON (buzzerFlow.value>1)&&(buzzerFlow.value< buzzerTimeON) 
+  #define CONDITION_SINGLE_OFF (buzzerFlow.value>= buzzerTimeON)&&(buzzerFlow.value<= buzzerTimeOFF) 
+  #define CONDITION_REPEAD_ON  (buzzerRepeadFlow.value>1) && (buzzerRepeadFlow.value<buzzerRepedTimeON) && (*numberRepead>0 )
+  #define CONDITION_REPEAD_OFF (buzzerRepeadFlow.value>= buzzerRepedTimeON) && (buzzerRepeadFlow.value<= buzzerRepedTimeOFF)    
+    if(ActivityState)
+    {   
+        if(CONDITION_SINGLE_ON)BUZZER_ON
+        else if((CONDITION_SINGLE_OFF)&&(AlarmActive == false))
+        {
+          BUZZER_OFF 
+        }
+        else if(AlarmActive==false){
+          BUZZER_OFF 
+          buzzerRepeadFlow.status=STOP;
+        }
+        if(AlarmActive==true)BUZZER_ON    
+    }
+    else{
+        BUZZER_OFF 
+        buzzerRepeadFlow.status=STOP;
+  
+    }  
+}
 
 
+ShiftRegister74HC595<5> shiftRegister(PC6, PC7, PC13);
+#define LED_ON(numerPin)shiftRegister.set(numerPin,LOW);
+#define LED_OFF(numerPin)shiftRegister.set(numerPin,HIGH);
+flowDelay timer;
+class LED{
 
-          
-          
-      }
-      else{
-         BUZZER_OFF 
-            buzzerRepeadFlow.status=STOP;
+
+ public:
+
+ bool ActivityState;
+  enum class Behavior {
+        Constant,
+        Blinking,
+        CustomBlinking,
+        Custom
+    };
+
+
+    void turnOn(char numerPin) {
+      LED_ON(numerPin);
+        
+    }
+    void turnOff(char numerPin) {
       
+       LED_OFF(numerPin);
+    }
 
-      }
+    void blink(char numerPin,unsigned int timeBlinking) { 
+      int LEDBlinkOnTime=timeBlinking;
+      int LEDBlinkOFFTime=timeBlinking*2;
+      timer.Delay(LEDBlinkOFFTime);
+      if(timer.value<=timeBlinking) LED_ON(numerPin);
+      if((timer.value>timeBlinking)&&(timer.value<LEDBlinkOFFTime)) LED_OFF(numerPin);
+    }
+    void blinkCustum(char numerPin,unsigned int timeOn,unsigned int timeOff) { 
+      timer.Delay(timeOn+timeOff);
+      if(timer.value<=timeOn) LED_ON(numerPin);
+      if((timer.value>timeOn)&&(timer.value<timeOn+timeOff)) LED_OFF(numerPin);
+    }
+    void turnOnArry(char *arry, unsigned int length) {
+        for (unsigned int i = 0; i < length; ++i) {
+            LED_ON(arry[i]);
+        }
+    }
 
-    
-      
- }
+    void turnOffArry(char *arry, unsigned int length) {
+      for (unsigned int i = 0; i < length; ++i) {
+            LED_OFF(arry[i]);
+        }
+        
+    }
+
+   void blinkCustumArry(char *arry, unsigned int length, unsigned int timeOn, unsigned int timeOff) {
+        for (unsigned int i = 0; i < length; ++i) {
+            timer.Delay(timeOn + timeOff);
+            if (timer.value <= timeOn)
+                LED_ON(arry[i]);
+            if ((timer.value > timeOn) && (timer.value < timeOn + timeOff))
+                LED_OFF(arry[i]);
+        }
+    }
+
+    void blinkArry(char *arry, unsigned int length, unsigned int timeBlinking) {
+        for (unsigned int i = 0; i < length; ++i) {
+            int LEDBlinkOnTime = timeBlinking;
+            int LEDBlinkOFFTime = timeBlinking * 2;
+            timer.Delay(LEDBlinkOFFTime);
+            if (timer.value <= timeBlinking)
+                LED_ON(arry[i]);
+            if ((timer.value > timeBlinking) && (timer.value < LEDBlinkOFFTime))
+                LED_OFF(arry[i]);
+        }
+    }
 
 
+  
+
+   private:
+    int id;
+   
 
 
+    void rotateArrayLeft(char *arry, unsigned int length) {
+        char temp = arry[0];
+        for (unsigned int i = 0; i < length - 1; ++i) {
+            arry[i] = arry[i + 1];
+        }
+        arry[length - 1] = temp;
+    }
 
+    void rotateArrayRight(char *arry, unsigned int length) {
+        char temp = arry[length - 1];
+        for (int i = length - 1; i > 0; --i) {
+            arry[i] = arry[i - 1];
+        }
+        arry[0] = temp;
+    }
+
+
+};
+class LEDManager {
+public:
+    std::vector<LED> leds; // آرایه دینامیک از شی‌ها
+   void addLED() {
+        // اضافه کردن یک شیء جدید
+        LED newLED;
+        leds.push_back(newLED);
+    }
+     void updateLEDs() {
+        // اجرای تابع update برای هر LED با توجه به تایمر متناظر
+        for (size_t i = 0; i < leds.size(); ++i) {
+            // leds[i].timer.update();
+          
+    }
+
+    // void updateLED(int index) {
+    //     // اجرای تابع update برای یک LED خاص با توجه به تایمر متناظر
+    //     if (index >= 0 && index < leds.size()) {
+    //         leds[index].timer.update();
+         
+    //     }
+    }
+   
+
+};
+
+// class LEDManager {
+// public:
+//     std::vector<LED> leds; // آرایه دینامیک از شی‌ها
+
+//     void addLED() {
+//         // اضافه کردن یک شیء جدید
+//         LED newLED;
+//         leds.push_back(newLED);
+//     }
+
+//     void updateLEDs() {
+//         // اجرای تابع update برای هر LED با توجه به تایمر متناظر
+//         for (size_t i = 0; i < leds.size(); ++i) {
+//             leds[i].timer.update();
+//             leds[i].blinkCustom('A', 500, 500); // مثالی از استفاده از تابع blinkCustom
+//         }
+//     }
+// };
 
 
 
@@ -369,12 +501,13 @@ void Buzzer::Begin (bool ActivityState)
 // Define SoftwareSerial for communication
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
-ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
+// ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
 // Define timers for various tasks
 timerMS batteryCheckTime;
 timerMS fierTimer;
 flowDelay shortCircuitFlow[12];
 flowDelay fierFlow;
+
 Buzzer buzzer;
 Buzzer buzzer2;
 int firstRepeat=0;
@@ -403,8 +536,8 @@ char CardPresentError = 0;
 char muxPosition = 0;
 char cardSituation = 0;
 
-const char ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
-const char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
+ char ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
+ char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
 
 char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
