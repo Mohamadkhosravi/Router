@@ -249,7 +249,9 @@ class timerMS {
 
 class flowDelay: public timerMS {
   public:
+flowDelay(){
 
+}
   bool Delay(long unsigned time_ms ){
     
     status= START;
@@ -352,19 +354,29 @@ ShiftRegister74HC595<5> shiftRegister(PC6, PC7, PC13);
 #define LED_ON(numerPin)shiftRegister.set(numerPin,LOW);
 #define LED_OFF(numerPin)shiftRegister.set(numerPin,HIGH);
 flowDelay timer;
+flowDelay ledBlinkerFlow[12];
 class LED{
 
 
  public:
 
+ LED( unsigned char ID){
+  id=ID;
+ }
+ unsigned char id=0;
  bool ActivityState;
+
+
+
   enum class Behavior {
         Constant,
         Blinking,
         CustomBlinking,
         Custom
     };
-
+      // void createObjects(int value) {
+      //         arrayOfClassA[index++] = new flowDelay();
+      //     }
 
     void turnOn(char numerPin) {
       LED_ON(numerPin);
@@ -378,14 +390,18 @@ class LED{
     void blink(char numerPin,unsigned int timeBlinking) { 
       int LEDBlinkOnTime=timeBlinking;
       int LEDBlinkOFFTime=timeBlinking*2;
-      timer.Delay(LEDBlinkOFFTime);
-      if(timer.value<=timeBlinking) LED_ON(numerPin);
-      if((timer.value>timeBlinking)&&(timer.value<LEDBlinkOFFTime)) LED_OFF(numerPin);
+      ledBlinkerFlow[id].Delay(LEDBlinkOFFTime);
+      if(ledBlinkerFlow[id].value<=timeBlinking) LED_ON(numerPin);
+      if((ledBlinkerFlow[id].value>timeBlinking)&&(ledBlinkerFlow[id].value<LEDBlinkOFFTime)) LED_OFF(numerPin);
     }
     void blinkCustum(char numerPin,unsigned int timeOn,unsigned int timeOff) { 
-      timer.Delay(timeOn+timeOff);
-      if(timer.value<=timeOn) LED_ON(numerPin);
-      if((timer.value>timeOn)&&(timer.value<timeOn+timeOff)) LED_OFF(numerPin);
+        static unsigned int turnOnTime[12]={0};
+        static unsigned int turnOffTime[12]={0};
+        turnOnTime[id]=timeOn;
+        turnOffTime[id]=timeOff;
+        ledBlinkerFlow[id].Delay(timeOn+timeOff);
+      if(ledBlinkerFlow[id].value<=timeOn) LED_ON(numerPin);
+      if((ledBlinkerFlow[id].value>timeOn)&&(ledBlinkerFlow[id].value<timeOn+timeOff)) LED_OFF(numerPin);
     }
     void turnOnArry(char *arry, unsigned int length) {
         for (unsigned int i = 0; i < length; ++i) {
@@ -401,23 +417,31 @@ class LED{
     }
 
    void blinkCustumArry(char *arry, unsigned int length, unsigned int timeOn, unsigned int timeOff) {
+        static unsigned int turnOnTime[12]={0};
+        static unsigned int turnOffTime[12]={0};
+        turnOnTime[id]=timeOn;
+        turnOffTime[id]=timeOff;
         for (unsigned int i = 0; i < length; ++i) {
-            timer.Delay(timeOn + timeOff);
-            if (timer.value <= timeOn)
+            ledBlinkerFlow[id].Delay( turnOnTime[id] + turnOffTime[id]);
+            if (ledBlinkerFlow[id].value<= turnOnTime[id])
                 LED_ON(arry[i]);
-            if ((timer.value > timeOn) && (timer.value < timeOn + timeOff))
+            if ((ledBlinkerFlow[id].value>turnOnTime[id]) && (ledBlinkerFlow[id].value< turnOnTime[id] + turnOffTime[id]))
                 LED_OFF(arry[i]);
         }
     }
 
     void blinkArry(char *arry, unsigned int length, unsigned int timeBlinking) {
+
+        static unsigned int turnOnTime[12]={0};
+        turnOnTime[id]=timeBlinking;
+
+
+
         for (unsigned int i = 0; i < length; ++i) {
-            int LEDBlinkOnTime = timeBlinking;
-            int LEDBlinkOFFTime = timeBlinking * 2;
-            timer.Delay(LEDBlinkOFFTime);
-            if (timer.value <= timeBlinking)
+            ledBlinkerFlow[id].Delay(turnOnTime[id]*2);
+            if (ledBlinkerFlow[id].value <= turnOnTime[id])
                 LED_ON(arry[i]);
-            if ((timer.value > timeBlinking) && (timer.value < LEDBlinkOFFTime))
+            if ((ledBlinkerFlow[id].value > turnOnTime[id]) && (ledBlinkerFlow[id].value <( turnOnTime[id]*2 )) )
                 LED_OFF(arry[i]);
         }
     }
@@ -426,9 +450,9 @@ class LED{
   
 
    private:
-    int id;
-   
 
+    // flowDelay* arrayOfflowDelay[10]; 
+    // int index = 0; 
 
     void rotateArrayLeft(char *arry, unsigned int length) {
         char temp = arry[0];
@@ -446,31 +470,6 @@ class LED{
         arry[0] = temp;
     }
 
-
-};
-class LEDManager {
-public:
-    std::vector<LED> leds; // آرایه دینامیک از شی‌ها
-   void addLED() {
-        // اضافه کردن یک شیء جدید
-        LED newLED;
-        leds.push_back(newLED);
-    }
-     void updateLEDs() {
-        // اجرای تابع update برای هر LED با توجه به تایمر متناظر
-        for (size_t i = 0; i < leds.size(); ++i) {
-            // leds[i].timer.update();
-          
-    }
-
-    // void updateLED(int index) {
-    //     // اجرای تابع update برای یک LED خاص با توجه به تایمر متناظر
-    //     if (index >= 0 && index < leds.size()) {
-    //         leds[index].timer.update();
-         
-    //     }
-    }
-   
 
 };
 

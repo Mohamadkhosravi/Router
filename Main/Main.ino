@@ -33,16 +33,20 @@
   }
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 bool isOn= true;
+ 
+ LED led(0);
+ LED ledFier(1);
+ LED ledPower(2);
   void loop() {
 
-     LED led;
-    LED ledFier;
-  
-       led.blinkArry(ledErrorsPins,12,25);
-       ledFier.blinkArry(ledFirePins, 12,500);
+   ledPower.blink(ledepower, 350);
+   led.blink(ledesounder, 100);
+   ledPower.blink(ledeearth, 250);
+     led.blinkCustumArry(ledErrorsPins,12,100,100);
+      ledFier.blinkCustumArry(ledFirePins, 12,500,500);
 
-     buzzer2.Begin(true);
-     buzzer.Begin(buzzerActive);
+    //  buzzer2.Begin(true);
+    //  buzzer.Begin(buzzerActive);
    
      //buzzer.Repead( &myRep, 100, 100);
 
@@ -891,12 +895,13 @@ void Update_IT_callback1(void) {  // 10hz
 void Update_IT_callback2(void) { 
  
   for(int i=0;i<=12;i++) {
-    shortCircuitFlow[i].update();}
-  fierFlow.update();
+    shortCircuitFlow[i].update();
+    ledBlinkerFlow[i].update();
+    }
+    fierFlow.update();
     buzzer.buzzerFlow.update();
     buzzer.buzzerRepeadFlow.update();
-  timer.update();
-    
+
     
 }
 
