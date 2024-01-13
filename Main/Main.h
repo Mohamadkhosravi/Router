@@ -137,43 +137,44 @@
 #define ledefiremode 38
 #define panelon 39
 
+
+int firstRepeat=0;
+  
+
+
+unsigned long learningProcessCounter = 10;
+
+int i = 0;
+
+
+char CardPresentError = 0;
+char muxPosition = 0;
+char cardSituation = 0;
+
+ char ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
+ char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
+
+char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+ 
+
+
+
+
 // Flags
-bool batteryChecking = false;
+
 bool card1Present = false;
 bool card2Present = false;
-bool relayControl = false;
+//?
 bool faultFlag = false;
-bool fireFlag = false;
-bool batteryLowVoltage = false;
-bool supplyFault = false;
-bool batteryFail = false;
-bool powerFail = false;
-bool earthFail = false;
-bool generalFault = false;
+
 bool fireTrace = false;
-bool readAnalogs = false;
-bool buzzerEnabled = false;
-bool beeperEnabled = false;
-bool relayOn = false;
-bool relayCustomOn = false;
-bool relayStatus = false;
-bool relayCharging = false;
-bool batteryChargesFlag = false;
-bool ledBlinker1 = true;
-bool ledBlinker2 = true;
-bool buzzerControl = false;
-bool sounderLedStatus = false;
-int fierLouckBit[12] ={0};
-bool fierCheckLock =false;
-//bool  stateUpdateMUX =false;
 
 // Data arrays
 
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-bool lockFier[12]={false};
-bool resetFier =false;
   // Define the structure for Mux
 struct Mux {
     float Values1[8]={0};
@@ -207,7 +208,18 @@ typedef enum
 
 } powerState;
 
-bool fault =false;
+typedef struct
+{
+  bool BUZZER= false;
+  bool LED_CHECK=false;
+  bool RESET=false;
+  bool ALARM_RELAY=false;
+ 
+} ButtonState;
+
+ButtonState buttonStatus;
+
+
 status lineStatus[12] = { NON_STATUS };
 powerState powerStatus;
 
@@ -216,7 +228,8 @@ powerState powerStatus;
 
 #define POWER_RELAY_ON   digitalWrite(Batcharges,HIGH);
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
-bool buzzerActive =true;
+
+
 #define BUZZER_ON digitalWrite(MCUbuzz, HIGH);
 #define BUZZER_OFF digitalWrite(MCUbuzz, LOW);
 
@@ -267,24 +280,24 @@ flowDelay(){
   }
 
 };
+
+
 class Buzzer{
 
   
- public:
+    public:
     flowDelay buzzerFlow;
     flowDelay buzzerRepeadFlow;
     unsigned int buzzerTimeON=0;
-  unsigned int buzzerTimeOFF=0;
-  unsigned int buzzerRepedTimeOFF=0;
-  unsigned int buzzerRepedTimeON=0;
-   int *numberRepead;
-   bool AlarmActive =false;
+    unsigned int buzzerTimeOFF=0;
+    unsigned int buzzerRepedTimeOFF=0;
+    unsigned int buzzerRepedTimeON=0;
+    int *numberRepead;
+    bool AlarmActive =false;
 
 
-  // SoftwareSerial BZSerial(S1rx, S1tx);  // RX, TX
 
 
-//,int &reped
   void Begin (bool ActivityState);
   void TurnOn(bool ActivityState);
   void TurnOff(void);
@@ -388,11 +401,11 @@ class LED{
     }
 
     void blink(char numerPin,unsigned int timeBlinking) { 
-      int LEDBlinkOnTime=timeBlinking;
-      int LEDBlinkOFFTime=timeBlinking*2;
-      ledBlinkerFlow[id].Delay(LEDBlinkOFFTime);
-      if(ledBlinkerFlow[id].value<=timeBlinking) LED_ON(numerPin);
-      if((ledBlinkerFlow[id].value>timeBlinking)&&(ledBlinkerFlow[id].value<LEDBlinkOFFTime)) LED_OFF(numerPin);
+     static unsigned int turnOnTime[12]={0};
+      turnOnTime[id]=timeBlinking;
+      ledBlinkerFlow[id].Delay(turnOnTime[id]*2);
+      if(ledBlinkerFlow[id].value<=turnOnTime[id]) LED_ON(numerPin);
+      if((ledBlinkerFlow[id].value>turnOnTime[id])&&(ledBlinkerFlow[id].value<(turnOnTime[id]*2))) LED_OFF(numerPin);
     }
     void blinkCustum(char numerPin,unsigned int timeOn,unsigned int timeOff) { 
         static unsigned int turnOnTime[12]={0};
@@ -446,9 +459,6 @@ class LED{
         }
     }
 
-
-  
-
    private:
 
     // flowDelay* arrayOfflowDelay[10]; 
@@ -475,19 +485,19 @@ class LED{
 
 // class LEDManager {
 // public:
-//     std::vector<LED> leds; // آرایه دینامیک از شی‌ها
+//     std::vector<LED> leds;
 
 //     void addLED() {
-//         // اضافه کردن یک شیء جدید
+
 //         LED newLED;
 //         leds.push_back(newLED);
 //     }
 
 //     void updateLEDs() {
-//         // اجرای تابع update برای هر LED با توجه به تایمر متناظر
+//         /
 //         for (size_t i = 0; i < leds.size(); ++i) {
 //             leds[i].timer.update();
-//             leds[i].blinkCustom('A', 500, 500); // مثالی از استفاده از تابع blinkCustom
+//             leds[i].blinkCustom('A', 500, 500); 
 //         }
 //     }
 // };
@@ -501,46 +511,16 @@ class LED{
 SoftwareSerial mySerial(S1rx, S1tx);  // RX, TX
 // Shiftregister setting
 // ShiftRegister74HC595<5> sr(PC6, PC7, PC13);
-// Define timers for various tasks
+
 timerMS batteryCheckTime;
-timerMS fierTimer;
 flowDelay shortCircuitFlow[12];
 flowDelay fierFlow;
-
+flowDelay buttonFlow;
 Buzzer buzzer;
-Buzzer buzzer2;
-int firstRepeat=0;
-  
+ LED LEDWarning(0);
+ LED LEDFier(1);
+ LED LEDPower(2);
 
-
-//timer.status = START;
-unsigned long currentTime = 0;
-unsigned long ledBlinkTime = 0;
-unsigned long buttonPressTime = 0;
-
-unsigned long buzzerReadyTime = 0;
-unsigned long batteryScanTime = 0;
-
-unsigned long fultSencetimer = 0;
-
-
-unsigned long learningProcessCounter = 10;
-
-int j = 0;
-int i = 0;
-
-
-char CardPresentError = 0;
-
-char muxPosition = 0;
-char cardSituation = 0;
-
- char ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
- char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
-
-char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
- 
 
 
 

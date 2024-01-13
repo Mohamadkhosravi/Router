@@ -26,7 +26,7 @@
     cardSituation= setCardSituation();
 
     // Initialize watchdog timer
-    IWatchdog.begin(7000000);
+    IWatchdog.begin(5000000);
 
     // Read initial values from analog mux
     readInitialMuxValues();
@@ -34,22 +34,11 @@
 void(* resetFunc) (void) = 0;//declare reset function at address 0
 bool isOn= true;
  
- LED led(0);
- LED ledFier(1);
- LED ledPower(2);
-  void loop() {
 
-   ledPower.blink(ledepower, 350);
-   led.blink(ledesounder, 100);
-   ledPower.blink(ledeearth, 250);
-     led.blinkCustumArry(ledErrorsPins,12,100,100);
-      ledFier.blinkCustumArry(ledFirePins, 12,500,500);
 
-    //  buzzer2.Begin(true);
-    //  buzzer.Begin(buzzerActive);
-   
-     //buzzer.Repead( &myRep, 100, 100);
+  void loop() { 
 
+   IWatchdog.reload();
     // Read values from analog mux
    readMux(muxPosition,mux);
 
@@ -57,11 +46,11 @@ bool isOn= true;
     powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
 
     // Check button inputs
-    checkButtons(resetFier,buzzerActive);
+    buttonStatus=checkButtons();
 
     // Distribute mux values to corresponding lines based on cardSituation
-    distributionMuxValues(cardSituation,mux);
-
+     distributionMuxValues(cardSituation,mux);
+    
     // Print debug information
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
    
@@ -69,53 +58,28 @@ bool isOn= true;
     if (firstRepeat>12){
 
       for (i = 0; i < ((cardSituation + 1) * 4); i++){ 
-      
-
         lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux.Values4[2]) , i );
+        if (lineStatus[i] == FIER)  fireTrace=true;
       }
    }
     else{
       firstRepeat++;
     }
-
+     LEDManager(lineStatus,powerStatus,buttonStatus,readMainVoltage(mux.Values4[2]));
+     BuzzerManager(fireTrace,powerStatus,buttonStatus);
+     RelayManager(fireTrace,buttonStatus);
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
-    //test buzzer
-   
-    //buzzer.Repead(buzzerActive, 3,10000, 10000);
-    // Toggle LED state based on time
-    if (timeForLedBlink()) {
-       ledBlinkTime = currentTime;
-      // fault =LEDControl(lineStatus,powerStatus,readMainVoltage(mux.Values4[2]), toggleLedState(),resetFier,buzzerActive);
-       
-    }
-    buzzer.SingelOn(100,3000);
-    if(fault)buzzer.SingelOn(200,1000);
-    // Control relay
-    Relaycont();
-
     // Reload watchdog timer
     IWatchdog.reload();
 
     // Update mux position
     updateMuxPosition(cardSituation);
 
-    // Check and enable beeper 
-    checkAndEnableBeeper();
-      // if(buzzerActive)
-      // {
-      //  buzzer.SingelOn(100,1000);
-      // }
-    // buzzer.Repead(buzzerActive,3, 100, 1000);
- 
-   //buzzer.SingelOn(buzzerActive,5,50,3000);
   }
 
 
-// Function to check if it's time to toggle the LED
-bool timeForLedBlink() {
-  return (currentTime - ledBlinkTime) > 6;
-}
+
 // Function to check power state based on battery and power supply voltages
 powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
@@ -200,7 +164,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
       // If battery check timer exceeds another threshold, stop battery check
       if( batteryCheckTime.value > CLEAR_TIME) 
       {
-        fierCheckLock=false;
+       
         batteryCheckTime.status = STOP;
       }
     break;
@@ -252,98 +216,114 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   return state;
 }
 
-// {
-//   if((buzzerActive)&&(buzzerActive)){
-//     BUZZER_ON
-//     return true;
-//   }
-//   else{
-//     BUZZER_OFF
-//     return false;
-//   }
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage){
+  #define BLINK_LEDS_ON_TIME 300
+  #define BLINK_LEDS_OFF_TIME 300
+  #define FAST_BLINK_LEDS_ON_TIME 100
+  #define FAST_BLINK_LEDS_OFF_TIME 100
+  static bool fireTrace[12]={false};
 
-// // ((buzzerActive) && (buzzerState))?(BUZZER_ON):(BUZZER_OFF); 
-// }
-// // void SingelOnBuzzer() 
-// {
-//   BUZZER_ON 
-//   delay(60);
-//   BUZZER_OFF
-// }
-// Function to print voltage alert
-bool LEDControl(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus,bool &resetFier,bool &buzzerActive) {
-  static bool lockFier[12]={false};
-  bool ledBlinker1 = ledStatus;
-  bool fault=false;
- for (byte i = 0; i < 12; i++) {
-  
-    if((lockFier[i]==true)&&(!resetFier)){
-    shiftRegister.set(ledFirePins[i], ledBlinker1);
-    buzzer.TurnOn(buzzerActive);
-    // buzzer.Single(10000,2);
-    }
-    if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) {  // Fault mode
-      shiftRegister.set(ledErrorsPins[i], ledBlinker1);
+ 
+    LEDWarning.turnOn(panelon);
+    for (byte i = 0;i < 12; i++) {
+      if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
+        LEDWarning.blinkCustum(ledErrorsPins[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
 
-    } else if (lineStatus[i] == FIER) {  // Fire mode
-       fireTrace=true;
-       lockFier[i]=true;
-    } else {
-      shiftRegister.set(ledErrorsPins[i], HIGH);
-       shiftRegister.set(ledFirePins[i], HIGH);
-     
-    }
-
-  }
-  if ((generalFault && fireTrace) || (batteryFail || powerFail || supplyFault) && generalFault)
-   {fault=true;
-    shiftRegister.set(ledebuz, LOW);}
-  else
-    shiftRegister.set(ledebuz, HIGH);
-  if (supplyFault && !powerFail)
-    shiftRegister.set(ledepower, LOW);
-  else
-    shiftRegister.set(ledepower, HIGH);
-
-  if (powerStatus==POWER_SUPPLY)//powersup
-    shiftRegister.set(ledebat, LOW);
-  else
-    shiftRegister.set(ledebat, HIGH);
-
-  if (powerStatus==LOW_BATTERY) {//low power
-    shiftRegister.set(ledebat, ledBlinker1);
-    shiftRegister.set(ledemainpower, ledBlinker1);
-   if(fireTrace==false) digitalWrite(MCUbuzz, ledBlinker1);
+      else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(ledFirePins[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
+      else if (lineStatus[i] == FIER)  fireTrace[i]=true;
+      else
+      {
+      LEDWarning.turnOff(ledErrorsPins[i]);
+      LEDFier.turnOff(ledFirePins[i]);
+      }
+      if(fireTrace[i]==true){
+        LEDFier.turnOn(ledFirePins[i]);
+        LEDFier.turnOn(ledefiremode);
+        }
+    
+        if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)){
+        LEDWarning.blinkCustum(generalfault,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+        LEDWarning.turnOn(ledebuz);
+      
+     }
+     else{
+       LEDWarning.turnOn(ledebuz);
+     } 
+       
   }
 
-  if (powerStatus==BATTERY)//battery
-    shiftRegister.set(ledemainpower, LOW);
-  else
-    shiftRegister.set(ledemainpower, HIGH);
-  if (relayOn)
-    shiftRegister.set(ledeearth, LOW);
-  else
-    shiftRegister.set(ledeearth, HIGH);
-  if (fireTrace)
-    shiftRegister.set(ledefiremode, LOW);
-  else
-    shiftRegister.set(ledefiremode, HIGH);
-  shiftRegister.set(panelon, LOW);
-  if (relayOn) {
-    // mySerial.println("relayOn ok");
-    // if (!generalFault)
-    //   digitalWrite(MCUbuzz, relayOn);
+  if(powerStatus==POWER_SUPPLY) LEDPower.turnOn(ledebat);
+  else if(powerStatus==LOW_BATTERY) LEDWarning.blinkCustum(ledebat,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+  else LEDPower.turnOff(ledebat);
+
+  (powerStatus==BATTERY)? 
+  LEDPower.turnOn(ledepower): 
+  LEDPower.turnOff(ledepower);
+
+  (mainVoltage<16)? 
+  LEDPower.turnOn(ledemainpower): 
+  LEDPower.turnOff(ledemainpower);
+
+  (buttonStatus.ALARM_RELAY)?
+   LEDWarning.turnOn(ledesounder): 
+   LEDWarning.turnOff(ledesounder);
+
+  (!buttonStatus.BUZZER)?
+  LEDWarning.turnOn(ledebuz): 
+  LEDWarning.turnOff(ledebuz);
+
+  if(buttonStatus.LED_CHECK){
+        while(1){
+        LEDWarning.turnOnArry(ledErrorsPins, 12);
+        LEDFier.turnOnArry(ledFirePins,12);
+        LEDPower.turnOn(ledepower);
+        LEDPower.turnOn(ledemainpower);
+        LEDPower.turnOn(ledebat);
+        LEDWarning.turnOn(ledebuz);
+        LEDWarning.turnOn(panelon);
+        LEDFier.turnOn(ledefiremode);
+        LEDWarning.turnOn(ledesounder);
+        LEDWarning.turnOn(generalfault);
+        LEDWarning.turnOn(ledeearth);
+        digitalWrite(LEDerror, LOW);
+      }
   }
-  shiftRegister.set(generalfault, !(supplyFault || batteryFail || powerFail || relayOn));
-  return(fault);
+
 }
 
-
-// Function to toggle the LED state
-bool toggleLedState() {
-  bool static ledBlinker1;
-  return  ledBlinker1 = !ledBlinker1;
+void RelayManager(bool fierTrack,ButtonState buttonStatus){
+  digitalWrite(rel2, faultFlag);
+  // mySerial.println(faultFlag);y
+  if ((fierTrack) &&(!buttonStatus.ALARM_RELAY)) {
+    digitalWrite(rel1, HIGH);
+    digitalWrite(relo1, HIGH);
+    digitalWrite(relo2, HIGH);
+  } else 
+    {
+      if (buttonStatus.ALARM_RELAY) {
+        digitalWrite(rel1, HIGH);
+        digitalWrite(relo1, HIGH);
+        digitalWrite(relo2, HIGH);
+        // mySerial.println("rely void");
+      } else {
+        digitalWrite(rel1, LOW);
+        digitalWrite(relo1, LOW);
+        digitalWrite(relo2, LOW);
+      }
+  }
 }
+
+void BuzzerManager(bool fierTrack,powerState powerStatus,ButtonState buttonStatus){
+   #define  BLINK_BUZZER_ON_TIME 200
+   #define  BLINK_BUZZER_OFF_TIME 1000
+  buzzer.Begin(buttonStatus.BUZZER);
+  if(fireTrace ==true) buzzer.TurnOn(buttonStatus.BUZZER);
+  if(powerStatus!=NORMAL_POWER)buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);
+
+}
+ 
+
+
 // Function to update the mux position for analog readings
 void updateMuxPosition(char &cardSituation) {
   
@@ -351,17 +331,10 @@ void updateMuxPosition(char &cardSituation) {
 
       if (muxPosition == 7) {
         muxPosition = 0;
-        readAnalogs = true;
+
       } else {
       muxPosition++;
       }
-  }
-}
-// Function to check and enable the beeperEnabled
-void checkAndEnableBeeper() {
-  if ( (buzzerControl && generalFault && !fireTrace && (currentTime - buzzerReadyTime > 300))) {
-    buzzerReadyTime = currentTime;
-    beeperEnabled = true;
   }
 }
 
@@ -373,6 +346,7 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
   static unsigned long repeat= 0;
   static bool shortCircuitLock[12]={false};
   static bool  fierDetectLock[12]={false};
+  int fierLouckBit[12] ={0};
   // Calculate Line Resistance
   float lineResistor= (supplyVoltage/current)*1000 ;
 
@@ -683,72 +657,62 @@ void readMux(byte address, Mux &mux) {
 
 }
 
-void checkButtons(bool &resetFier,bool &buzzerActive) {
-static bool buzzerButtonFlag=false;
-static bool resetButtonFlag=false;
-static bool relayONButtonFlag=false;
-static bool relayOFFButtonFlag=false;
-static bool checkLEDsFlag=false;
-#define PRESS_BUZZER_BUTTON   digitalRead(But5) == 0
-#define PRESS_LED_CHECK_BUTTON    digitalRead(But4) == 0
-#define PRESS_RESET_BUTTON    digitalRead(But3) == 0
-#define CONNECTED_JUMPER    digitalRead(JUMPER) == 0
-#define PRESS_RELEY_ON_BUTTON   digitalRead(But2) == 0
-#define PRESS_RELEY_OFF_BUTTON    digitalRead(But1) == 0
-#define BUZZER_ON_TIME 60
+ButtonState checkButtons() {
+ static ButtonState   buttonState ;
+  static bool buzzerButtonFlag=false;
+  static bool resetButtonFlag=false;
+  static bool relayONButtonFlag=false;
+  static bool relayOFFButtonFlag=false;
+  static bool checkLEDsFlag=false;
+  #define PRESS_BUZZER_BUTTON   digitalRead(But5) == 0
+  #define PRESS_LED_CHECK_BUTTON    digitalRead(But4) == 0
+  #define PRESS_RESET_BUTTON    digitalRead(But3) == 0
+  #define CONNECTED_JUMPER    digitalRead(JUMPER) == 0
+  #define PRESS_RELEY_ON_BUTTON   digitalRead(But2) == 0
+  #define PRESS_RELEY_OFF_BUTTON    digitalRead(But1) == 0
+  #define BUZZER_ON_TIME 60
+
+
   if (PRESS_BUZZER_BUTTON) {  // Buzzer off
     buzzerButtonFlag =true;
   }
   if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
-     BUZZER_ON
+      BUZZER_ON
       delay(50);
-     BUZZER_OFF
+      BUZZER_OFF
       buzzerButtonFlag =false; 
-      buzzerActive = !buzzerActive;
+     
+     
     }
-
+  
   if (PRESS_LED_CHECK_BUTTON) {  // LED check
    checkLEDsFlag=true;
-  
-
   }
-
   if ((!PRESS_LED_CHECK_BUTTON)&&(checkLEDsFlag==true)) {  // LED check
       BUZZER_ON
       delay(50);
-     BUZZER_OFF
-    checkLEDsFlag=false;
-    shiftRegister.setAllLow();
-    delay(550);
-    byte initi = 0;
-    initi = CardPresentError;
-    CardPresentError = 0;
-    int x = 0;
-    do {
-      IWatchdog.reload();
-      delay(50);
-      x++;
-    if (x > 21)
-      digitalWrite(LEDerror, LOW);
-    } while (PRESS_LED_CHECK_BUTTON);
-    IWatchdog.reload();
-    delay(550);
-    IWatchdog.reload();
-    shiftRegister.setAllHigh();
-    CardPresentError = initi;
+      BUZZER_OFF
+      buttonState.LED_CHECK=true; 
+      
+
+   
   }
+  // if((buttonState.LED_CHECK==true)&&(! buttonFlow.Delay(800))){buttonState.LED_CHECK=false;}
+
+
 
   if( PRESS_RESET_BUTTON ){  // All Line Reset
    resetButtonFlag = true; 
   }
   if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
   {
-       BUZZER_ON
-      delay(50);
-     BUZZER_OFF
+    BUZZER_ON
+    delay(50);
+    BUZZER_OFF
     resetButtonFlag = false;
     if(CONNECTED_JUMPER)
     {
+     buttonState.RESET=true;
      resetFunc(); //call reset
     }
   }
@@ -760,14 +724,12 @@ static bool checkLEDsFlag=false;
   if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
        BUZZER_ON
       delay(50);
-     BUZZER_OFF
-    relayONButtonFlag=false;
-    relayControl = true;
-    shiftRegister.set(ledesounder, HIGH);
-    if (sounderLedStatus) {
-      sounderLedStatus = !sounderLedStatus;
-      relayCustomOn = false;
-    }
+      BUZZER_OFF
+      buttonState.ALARM_RELAY=true;
+      relayONButtonFlag=false;
+
+
+
   }
 
   if (PRESS_RELEY_OFF_BUTTON) {  // Alarm rely off
@@ -775,119 +737,114 @@ static bool checkLEDsFlag=false;
   }
   if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
   {
-    relayOFFButtonFlag=false;
+    
     BUZZER_ON
     delay(50);
     BUZZER_OFF
-    relayControl = false;
-    if (fireFlag) {
-      fireFlag = false;
-      shiftRegister.set(ledesounder, LOW);
-    }
-    if (!sounderLedStatus)
-      sounderLedStatus = !sounderLedStatus;
-      relayCustomOn = true;
+    buttonState.ALARM_RELAY=false;
+    relayOFFButtonFlag=false;
+  
   }
+  return buttonState;
 }
 
-void GPIOInit(void) 
-{
-  pinMode(rel1, OUTPUT);
-  pinMode(rel2, OUTPUT);
-  pinMode(relo1, OUTPUT);
-  pinMode(relo2, OUTPUT);
-  digitalWrite(rel1, LOW);
-  digitalWrite(rel2, LOW);
-  digitalWrite(relo1, LOW);
-  digitalWrite(relo2, LOW);
-  // Line Settings
-  pinMode(Line1, OUTPUT);
-  pinMode(Line2, OUTPUT);
-  pinMode(Line3, OUTPUT);
-  pinMode(Line4, OUTPUT);
-  pinMode(Line5, OUTPUT);
-  pinMode(Line6, OUTPUT);
-  pinMode(Line7, OUTPUT);
-  pinMode(Line8, OUTPUT);
-  pinMode(Line9, OUTPUT);
-  pinMode(Line10, OUTPUT);
-  pinMode(Line11, OUTPUT);
-  pinMode(Line12, OUTPUT);
-  digitalWrite(Line1, LOW);
-  digitalWrite(Line2, LOW);
-  digitalWrite(Line3, LOW);
-  digitalWrite(Line4, LOW);
-  digitalWrite(Line5, LOW);
-  digitalWrite(Line6, LOW);
-  digitalWrite(Line7, LOW);
-  digitalWrite(Line8, LOW);
-  digitalWrite(Line9, LOW);
-  digitalWrite(Line10, LOW);
-  digitalWrite(Line11, LOW);
-  digitalWrite(Line12, LOW);
-  // Button Settings
-  pinMode(CS1, INPUT);
-  pinMode(CS2, INPUT);
-  pinMode(JUMPER, INPUT);
-  pinMode(But1, INPUT);
-  pinMode(But2, INPUT);
-  pinMode(But3, INPUT);
-  pinMode(But4, INPUT);
-  pinMode(But5, INPUT);
-  // Battery Charges Settings
-  pinMode(Batcharges, OUTPUT);
-  pinMode(ChangeVolt, OUTPUT);
- //digitalWrite(Batcharges, HIGH);
-// digitalWrite(ChangeVolt, LOW);
-  // Errors Settings
-  pinMode(LEDerror, OUTPUT);
-  pinMode(MCUbuzz, OUTPUT);
-  digitalWrite(LEDerror, LOW);
-  digitalWrite(MCUbuzz, LOW);
-  // Analog settings
-  pinMode(Sela, OUTPUT);
-  pinMode(Selb, OUTPUT);
-  pinMode(Selc, OUTPUT);
-  digitalWrite(Sela, LOW);
-  digitalWrite(Selb, LOW);
-  digitalWrite(Selc, LOW);
-  pinMode(Analog1, INPUT_ANALOG);
-  pinMode(Analog2, INPUT_ANALOG);
-  pinMode(Analog3, INPUT_ANALOG);
-  pinMode(Analog4, INPUT_ANALOG);
-  pinMode(LEDerror, OUTPUT);
+void GPIOInit(void) {
+    pinMode(rel1, OUTPUT);
+    pinMode(rel2, OUTPUT);
+    pinMode(relo1, OUTPUT);
+    pinMode(relo2, OUTPUT);
+    digitalWrite(rel1, LOW);
+    digitalWrite(rel2, LOW);
+    digitalWrite(relo1, LOW);
+    digitalWrite(relo2, LOW);
+    // Line Settings
+    pinMode(Line1, OUTPUT);
+    pinMode(Line2, OUTPUT);
+    pinMode(Line3, OUTPUT);
+    pinMode(Line4, OUTPUT);
+    pinMode(Line5, OUTPUT);
+    pinMode(Line6, OUTPUT);
+    pinMode(Line7, OUTPUT);
+    pinMode(Line8, OUTPUT);
+    pinMode(Line9, OUTPUT);
+    pinMode(Line10, OUTPUT);
+    pinMode(Line11, OUTPUT);
+    pinMode(Line12, OUTPUT);
+    digitalWrite(Line1, LOW);
+    digitalWrite(Line2, LOW);
+    digitalWrite(Line3, LOW);
+    digitalWrite(Line4, LOW);
+    digitalWrite(Line5, LOW);
+    digitalWrite(Line6, LOW);
+    digitalWrite(Line7, LOW);
+    digitalWrite(Line8, LOW);
+    digitalWrite(Line9, LOW);
+    digitalWrite(Line10, LOW);
+    digitalWrite(Line11, LOW);
+    digitalWrite(Line12, LOW);
+    // Button Settings
+    pinMode(CS1, INPUT);
+    pinMode(CS2, INPUT);
+    pinMode(JUMPER, INPUT);
+    pinMode(But1, INPUT);
+    pinMode(But2, INPUT);
+    pinMode(But3, INPUT);
+    pinMode(But4, INPUT);
+    pinMode(But5, INPUT);
+    // Battery Charges Settings
+    pinMode(Batcharges, OUTPUT);
+    pinMode(ChangeVolt, OUTPUT);
+  //digitalWrite(Batcharges, HIGH);
+  // digitalWrite(ChangeVolt, LOW);
+    // Errors Settings
+    pinMode(LEDerror, OUTPUT);
+    pinMode(MCUbuzz, OUTPUT);
+    digitalWrite(LEDerror, LOW);
+    digitalWrite(MCUbuzz, LOW);
+    // Analog settings
+    pinMode(Sela, OUTPUT);
+    pinMode(Selb, OUTPUT);
+    pinMode(Selc, OUTPUT);
+    digitalWrite(Sela, LOW);
+    digitalWrite(Selb, LOW);
+    digitalWrite(Selc, LOW);
+    pinMode(Analog1, INPUT_ANALOG);
+    pinMode(Analog2, INPUT_ANALOG);
+    pinMode(Analog3, INPUT_ANALOG);
+    pinMode(Analog4, INPUT_ANALOG);
+    pinMode(LEDerror, OUTPUT);
 }
 
 void Update_IT_callback1(void) {  // 10hz
-  currentTime++;
+
   
- 
+  buttonFlow.update();
   batteryCheckTime.update();
 
    
-  ledBlinker2 = !ledBlinker2;
-  if (CardPresentError > 0) {
-  if (CardPresentError == 1) {
-    shiftRegister.set(ledErrorsPins[4], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[5], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[6], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[7], ledBlinker2);
-  } else if (CardPresentError == 2) {
-    shiftRegister.set(ledErrorsPins[8], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[9], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[10], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[11], ledBlinker2);
-  } else if (CardPresentError == 3) {
-    shiftRegister.set(ledErrorsPins[4], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[5], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[6], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[7], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[8], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[9], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[10], ledBlinker2);
-    shiftRegister.set(ledErrorsPins[11], ledBlinker2);
-  }
-  }
+ 
+  // if (CardPresentError > 0) {
+  // if (CardPresentError == 1) {
+  //   shiftRegister.set(ledErrorsPins[4], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[5], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[6], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[7], ledBlinker2);
+  // } else if (CardPresentError == 2) {
+  //   shiftRegister.set(ledErrorsPins[8], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[9], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[10], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[11], ledBlinker2);
+  // } else if (CardPresentError == 3) {
+  //   shiftRegister.set(ledErrorsPins[4], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[5], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[6], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[7], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[8], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[9], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[10], ledBlinker2);
+  //   shiftRegister.set(ledErrorsPins[11], ledBlinker2);
+  // }
+  // }
 
 
 }
@@ -905,26 +862,6 @@ void Update_IT_callback2(void) {
     
 }
 
-void Relaycont(){
-  digitalWrite(rel2, faultFlag);
-  // mySerial.println(faultFlag);y
-  if (fireFlag && !relayCustomOn) {
-    digitalWrite(rel1, HIGH);
-    digitalWrite(relo1, HIGH);
-    digitalWrite(relo2, HIGH);
-  } else {
-    if (relayControl) {
-      digitalWrite(rel1, HIGH);
-      digitalWrite(relo1, HIGH);
-      digitalWrite(relo2, HIGH);
-      // mySerial.println("rely void");
-    } else {
-      digitalWrite(rel1, LOW);
-      digitalWrite(relo1, LOW);
-      digitalWrite(relo2, LOW);
-    }
-  }
-}
 
 float readBattery(float VADC){
   float batteryVoltage;
