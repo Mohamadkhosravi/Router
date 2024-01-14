@@ -8,7 +8,7 @@
 #include <SoftwareSerial.h>
 #include <thread>
 #include <chrono>
-#define DEBUG_ON  
+#define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
 
 //  #define POWER_CHECK_DEBUG 
@@ -127,6 +127,7 @@
 #define lede11 29
 #define ledf12 31
 #define lede12 30
+
 #define generalfault 0
 #define ledeearth 1
 #define ledebuz 2
@@ -505,6 +506,7 @@ class LED{
 
 
 
+void(* resetFunc) (void) = 0;//declare reset function at address 0
 
 
 // Define SoftwareSerial for communication

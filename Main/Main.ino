@@ -1,9 +1,8 @@
 
 #include <Main.h>
 // Hardware Settings
- int myRep=10;
   void setup() {
-   myRep=5;
+
     // Initialize GPIO pins
     GPIOInit();
 
@@ -31,20 +30,17 @@
     // Read initial values from analog mux
     readInitialMuxValues();
   }
-void(* resetFunc) (void) = 0;//declare reset function at address 0
-bool isOn= true;
- 
-
 
   void loop() { 
+  // buzzer.Begin(true);
+    IWatchdog.reload();
 
-   IWatchdog.reload();
     // Read values from analog mux
-   readMux(muxPosition,mux);
-
+    readMux(muxPosition,mux);
+  
     // Check power status
     powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
-
+    
     // Check button inputs
     buttonStatus=checkButtons();
 
@@ -62,22 +58,31 @@ bool isOn= true;
         if (lineStatus[i] == FIER)  fireTrace=true;
       }
    }
-    else{
-      firstRepeat++;
-    }
-     LEDManager(lineStatus,powerStatus,buttonStatus,readMainVoltage(mux.Values4[2]));
-     BuzzerManager(fireTrace,powerStatus,buttonStatus);
-     RelayManager(fireTrace,buttonStatus);
+
+  else{
+    firstRepeat++;
+  }
+
+    LEDManager(lineStatus,powerStatus,buttonStatus,readMainVoltage(mux.Values4[2]),1);
+
+    BuzzerManager(fireTrace,powerStatus,buttonStatus);
+
+    RelayManager(fireTrace,buttonStatus);
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     // Reload watchdog timer
     IWatchdog.reload();
-
     // Update mux position
     updateMuxPosition(cardSituation);
+ 
 
   }
+// void readOutputsAlart(float ADCOutput1,float ADCOutput)
+// {
 
+
+
+// }
 
 
 // Function to check power state based on battery and power supply voltages
@@ -216,7 +221,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   return state;
 }
 
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage){
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage,bool outputAlart){
   #define BLINK_LEDS_ON_TIME 300
   #define BLINK_LEDS_OFF_TIME 300
   #define FAST_BLINK_LEDS_ON_TIME 100
@@ -224,10 +229,12 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
   static bool fireTrace[12]={false};
 
  
-    LEDWarning.turnOn(panelon);
+    LEDWarning.turnOn(panelon);//The fire control panel is power supplied
+    digitalWrite(LEDerror, HIGH);//System fault 
+
     for (byte i = 0;i < 12; i++) {
       if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
-        LEDWarning.blinkCustum(ledErrorsPins[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+       LEDWarning.blinkCustum(ledErrorsPins[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
 
       else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(ledFirePins[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
       else if (lineStatus[i] == FIER)  fireTrace[i]=true;
@@ -240,15 +247,14 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
         LEDFier.turnOn(ledFirePins[i]);
         LEDFier.turnOn(ledefiremode);
         }
-    
-        if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)){
-        LEDWarning.blinkCustum(generalfault,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
-        LEDWarning.turnOn(ledebuz);
-      
-     }
-     else{
-       LEDWarning.turnOn(ledebuz);
-     } 
+       //all types of faults
+        if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||mainVoltage<16){
+     
+         LEDWarning.turnOn(generalfault);
+        }
+        else{
+        LEDWarning.turnOff(generalfault);
+         } 
        
   }
 
@@ -268,7 +274,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
    LEDWarning.turnOn(ledesounder): 
    LEDWarning.turnOff(ledesounder);
 
-  (!buttonStatus.BUZZER)?
+  (buttonStatus.BUZZER)?
   LEDWarning.turnOn(ledebuz): 
   LEDWarning.turnOff(ledebuz);
 
@@ -285,7 +291,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
         LEDWarning.turnOn(ledesounder);
         LEDWarning.turnOn(generalfault);
         LEDWarning.turnOn(ledeearth);
-        digitalWrite(LEDerror, LOW);
+         digitalWrite(LEDerror, LOW);
       }
   }
 
@@ -316,8 +322,8 @@ void RelayManager(bool fierTrack,ButtonState buttonStatus){
 void BuzzerManager(bool fierTrack,powerState powerStatus,ButtonState buttonStatus){
    #define  BLINK_BUZZER_ON_TIME 200
    #define  BLINK_BUZZER_OFF_TIME 1000
-  buzzer.Begin(buttonStatus.BUZZER);
-  if(fireTrace ==true) buzzer.TurnOn(buttonStatus.BUZZER);
+   buzzer.Begin(!buttonStatus.BUZZER);
+  if(fireTrace ==true) buzzer.TurnOn(!buttonStatus.BUZZER);
   if(powerStatus!=NORMAL_POWER)buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);
 
 }
@@ -681,7 +687,7 @@ ButtonState checkButtons() {
       delay(50);
       BUZZER_OFF
       buzzerButtonFlag =false; 
-     
+      buttonState.BUZZER= (!buttonState.BUZZER );
      
     }
   
@@ -969,6 +975,12 @@ char setCardSituation(void){
 
 
 }
+// void readOutputsAlart(float ADCOutput1,float ADCOutput)
+// {
+
+
+
+// }
 
 void readInitialMuxValues(void){
 
