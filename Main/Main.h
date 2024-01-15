@@ -8,7 +8,7 @@
 #include <SoftwareSerial.h>
 #include <thread>
 #include <chrono>
-#define DEBUG_ON  mySerial.print
+#define DEBUG_ON  
 #define DEBUG_OFF 
 
 //  #define POWER_CHECK_DEBUG 
@@ -53,7 +53,6 @@
 #define lineON(numberLine)  digitalWrite(lineControlPins[numberLine], HIGH);
 
 
-
 // Defines Relys
 #define rel1 PD1
 #define rel2 PD2
@@ -61,7 +60,7 @@
 #define relo1 PB15
 // Define Errors pin
 #define LEDerror PB12
-#define MCUbuzz PB14
+#define BUZZER_PIN PB14
 // Mode and Uart
 #define Modes1 PA7
 #define Modes2 PA8
@@ -102,77 +101,48 @@
 // Card Selector
 #define CS1 PA7
 #define CS2 PA8
-// Led pin number
-#define ledf1 8
-#define lede1 9
-#define ledf2 10
-#define lede2 11
-#define ledf3 12
-#define lede3 13
-#define ledf4 15
-#define lede4 14
-#define ledf5 16
-#define lede5 17
-#define ledf6 18
-#define lede6 19
-#define ledf7 20
-#define lede7 21
-#define ledf8 23
-#define lede8 22
-#define ledf9 24
-#define lede9 25
-#define ledf10 26
-#define lede10 27
-#define ledf11 28
-#define lede11 29
-#define ledf12 31
-#define lede12 30
 
-#define generalfault 0
-#define ledeearth 1
-#define ledebuz 2
-#define ledesounder 3
-#define ledepower 35
-#define ledebat 36
-#define ledemainpower 37
-#define ledefiremode 38
-#define panelon 39
+
+
+struct LEDs
+  {
+   const char GENERAL=0;
+   const char MANITOR_ALARM=1;
+   const char BUZZER=2;
+   const char ALARM=3;
+   const char MAIN_VOLTAGE=35;
+   const char BATTERY=36;
+   const char POWER=37;
+   const char FIER_OUTBREAK=38;
+   const char ALL_CONDITION=39;
+   const char SYSTEM=28;//This pin number is GPIO PIN ==> PB12
+    char WARNING[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
+    char FIER[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
+    char SINGEL_LEDS[9]={0,1,2,3,35,36,37,38,39};
+ };
+
+#define MUX_POWER_SUPPLY_VOLTAGE mux.Values4[0]
+#define MUX_MAIN_VOLTAGE mux.Values4[2]
+#define MUX_BATTERY_VOLTAGE mux.Values4[3]
+#define MUX_VOLTAGE_ALART_1 mux.Values4[4]
+#define MUX_VOLTAGE_ALART_2 mux.Values4[5]
+#define MUX_EARTH mux.Values4[7]
 
 
 int firstRepeat=0;
-  
-
-
 unsigned long learningProcessCounter = 10;
-
-int i = 0;
-
-
+int lineNumber=0;
 char CardPresentError = 0;
 char muxPosition = 0;
 char cardSituation = 0;
-
- char ledErrorsPins[12] = { 9, 11, 13, 14, 17, 19, 21, 22, 25, 27, 29, 30 };
- char ledFirePins[12] = { 8, 10, 12, 15, 16, 18, 20, 23, 24, 26, 28, 31 };
-
-char firstSence[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-char shortCircuitDetected[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
- 
-
-
-
-
 // Flags
-
 bool card1Present = false;
 bool card2Present = false;
 //?
 bool faultFlag = false;
-
 bool fireTrace = false;
 
 // Data arrays
-
 float lineCurrent[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 float lineVoltage[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -185,7 +155,6 @@ struct Mux {
 };
 Mux mux;
 const char lineControlPins[12] = {Line1, Line2, Line3, Line4, Line5, Line6, Line7, Line8, Line9, Line10, Line11, Line12 };
-
 
 typedef enum {
   NON_STATUS,
@@ -231,8 +200,8 @@ powerState powerStatus;
 #define POWER_RELAY_OFF  digitalWrite(Batcharges,LOW);
 
 
-#define BUZZER_ON digitalWrite(MCUbuzz, HIGH);
-#define BUZZER_OFF digitalWrite(MCUbuzz, LOW);
+#define BUZZER_ON digitalWrite(BUZZER_PIN, HIGH);
+#define BUZZER_OFF digitalWrite(BUZZER_PIN, LOW);
 
 typedef enum {
   STOP,
@@ -302,6 +271,7 @@ class Buzzer{
   void Begin (bool ActivityState);
   void TurnOn(bool ActivityState);
   void TurnOff(void);
+  void localBib(void);
   void SingelOn(unsigned int timeON,unsigned int timeOFF);
   void Repead(int *NumberRepead,unsigned int timeON,unsigned int timeOFF);
 
@@ -317,7 +287,12 @@ void Buzzer::Repead(int *NumberRepead,unsigned int timeON,unsigned int timeOFF)
 
   }
   
-
+void localBIB(void)
+{
+   BUZZER_ON
+  delay(50);
+  BUZZER_OFF
+}
 
 void Buzzer::TurnOn(bool ActivityState){
   if((ActivityState))
@@ -381,7 +356,6 @@ class LED{
  bool ActivityState;
 
 
-
   enum class Behavior {
         Constant,
         Blinking,
@@ -417,12 +391,13 @@ class LED{
       if(ledBlinkerFlow[id].value<=timeOn) LED_ON(numerPin);
       if((ledBlinkerFlow[id].value>timeOn)&&(ledBlinkerFlow[id].value<timeOn+timeOff)) LED_OFF(numerPin);
     }
-    void turnOnArry(char *arry, unsigned int length) {
+  
+
+  void turnOnArry(char *arry, unsigned int length) {
         for (unsigned int i = 0; i < length; ++i) {
             LED_ON(arry[i]);
         }
     }
-
     void turnOffArry(char *arry, unsigned int length) {
       for (unsigned int i = 0; i < length; ++i) {
             LED_OFF(arry[i]);

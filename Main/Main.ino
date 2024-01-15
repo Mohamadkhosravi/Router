@@ -39,7 +39,10 @@
     readMux(muxPosition,mux);
   
     // Check power status
-    powerStatus =checkPower( readBattery(mux.Values4[3]) , readPowerSupply(mux.Values4[0]) );
+    powerStatus =checkPower(
+       readBattery(MUX_BATTERY_VOLTAGE) ,
+       readPowerSupply(MUX_POWER_SUPPLY_VOLTAGE) 
+       );
     
     // Check button inputs
     buttonStatus=checkButtons();
@@ -49,13 +52,21 @@
     
     // Print debug information
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-   
     // Perform line status evaluation after The first time the board is turned on
     if (firstRepeat>12){
 
-      for (i = 0; i < ((cardSituation + 1) * 4); i++){ 
-        lineStatus[i] = evaluateLineStatus( lineCurrent[i] , lineVoltage[i] , readMainVoltage(mux.Values4[2]) , i );
-        if (lineStatus[i] == FIER)  fireTrace=true;
+      for (lineNumber = 0; lineNumber < ((cardSituation + 1) * 4); lineNumber++){ 
+
+         //Check and determine the condition of the lines
+          lineStatus[lineNumber] = evaluateLineStatus( 
+          lineCurrent[lineNumber] ,// line current value
+          lineVoltage[lineNumber] ,// line voltage value 
+          readMainVoltage(MUX_MAIN_VOLTAGE),//Supply voltage on the board
+          lineNumber //The number of the line being checked
+
+        );
+    
+        if (lineStatus[lineNumber] == FIER) fireTrace=true;
       }
    }
 
@@ -63,9 +74,21 @@
     firstRepeat++;
   }
 
-    LEDManager(lineStatus,powerStatus,buttonStatus,readMainVoltage(mux.Values4[2]),1);
+  
+    LEDManager(
+      lineStatus,
+      powerStatus,
+      buttonStatus,
+      readMainVoltage(MUX_MAIN_VOLTAGE),
+      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),
+      readEarth(MUX_EARTH)
+      );
 
-    BuzzerManager(fireTrace,powerStatus,buttonStatus);
+     BuzzerManager(
+      fireTrace,
+      powerStatus,
+      buttonStatus
+      );
 
     RelayManager(fireTrace,buttonStatus);
     // Handle card present errors
@@ -77,12 +100,7 @@
  
 
   }
-// void readOutputsAlart(float ADCOutput1,float ADCOutput)
-// {
 
-
-
-// }
 
 
 // Function to check power state based on battery and power supply voltages
@@ -221,77 +239,75 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   return state;
 }
 
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage,bool outputAlart){
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
   #define BLINK_LEDS_ON_TIME 300
   #define BLINK_LEDS_OFF_TIME 300
   #define FAST_BLINK_LEDS_ON_TIME 100
   #define FAST_BLINK_LEDS_OFF_TIME 100
+  LEDs LED;
   static bool fireTrace[12]={false};
 
  
-    LEDWarning.turnOn(panelon);//The fire control panel is power supplied
-    digitalWrite(LEDerror, HIGH);//System fault 
+    LEDWarning.turnOn(LED.ALL_CONDITION);//The fire control panel is power supplied
+    digitalWrite(LED.SYSTEM, HIGH);//System fault 
 
-    for (byte i = 0;i < 12; i++) {
+    for (char i = 0;i < 12; i++) {
       if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
-       LEDWarning.blinkCustum(ledErrorsPins[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+       LEDWarning.blinkCustum(LED.WARNING[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
 
-      else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(ledFirePins[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
+      else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
       else if (lineStatus[i] == FIER)  fireTrace[i]=true;
       else
       {
-      LEDWarning.turnOff(ledErrorsPins[i]);
-      LEDFier.turnOff(ledFirePins[i]);
+      LEDWarning.turnOff(LED.WARNING[i]);
+      LEDFier.turnOff(LED.FIER[i]);
       }
       if(fireTrace[i]==true){
-        LEDFier.turnOn(ledFirePins[i]);
-        LEDFier.turnOn(ledefiremode);
+        LEDFier.turnOn(LED.FIER[i]);
+        LEDFier.turnOn(LED.FIER_OUTBREAK);
         }
        //all types of faults
         if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||mainVoltage<16){
-     
-         LEDWarning.turnOn(generalfault);
+         LEDWarning.turnOn(LED.GENERAL);
         }
         else{
-        LEDWarning.turnOff(generalfault);
+          LEDWarning.turnOff(LED.GENERAL);
          } 
        
   }
 
-  if(powerStatus==POWER_SUPPLY) LEDPower.turnOn(ledebat);
-  else if(powerStatus==LOW_BATTERY) LEDWarning.blinkCustum(ledebat,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
-  else LEDPower.turnOff(ledebat);
+  if(powerStatus==POWER_SUPPLY) LEDPower.turnOn(LED.BATTERY);
+  else if(powerStatus==LOW_BATTERY) LEDWarning.blinkCustum(LED.BATTERY,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+  else LEDPower.turnOff(LED.BATTERY);
 
-  (powerStatus==BATTERY)? 
-  LEDPower.turnOn(ledepower): 
-  LEDPower.turnOff(ledepower);
 
-  (mainVoltage<16)? 
-  LEDPower.turnOn(ledemainpower): 
-  LEDPower.turnOff(ledemainpower);
+
+  ((powerStatus==BATTERY)||(powerStatus==LOW_BATTERY))? 
+  LEDPower.turnOn(LED.POWER): 
+  LEDPower.turnOff(LED.POWER);
+
+  (mainVoltage>16)? 
+  LEDPower.turnOff(LED.MAIN_VOLTAGE): 
+  LEDPower.turnOn(LED.MAIN_VOLTAGE);
+
+  (outputAlart)? 
+   LEDWarning.turnOff(LED.MANITOR_ALARM):
+   LEDWarning.blinkCustum(LED.MANITOR_ALARM,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
 
   (buttonStatus.ALARM_RELAY)?
-   LEDWarning.turnOn(ledesounder): 
-   LEDWarning.turnOff(ledesounder);
+   LEDWarning.turnOn(LED.ALARM): 
+   LEDWarning.turnOff(LED.ALARM);
 
   (buttonStatus.BUZZER)?
-  LEDWarning.turnOn(ledebuz): 
-  LEDWarning.turnOff(ledebuz);
+  LEDWarning.turnOn(LED.BUZZER): 
+  LEDWarning.turnOff(LED.BUZZER);
 
   if(buttonStatus.LED_CHECK){
         while(1){
-        LEDWarning.turnOnArry(ledErrorsPins, 12);
-        LEDFier.turnOnArry(ledFirePins,12);
-        LEDPower.turnOn(ledepower);
-        LEDPower.turnOn(ledemainpower);
-        LEDPower.turnOn(ledebat);
-        LEDWarning.turnOn(ledebuz);
-        LEDWarning.turnOn(panelon);
-        LEDFier.turnOn(ledefiremode);
-        LEDWarning.turnOn(ledesounder);
-        LEDWarning.turnOn(generalfault);
-        LEDWarning.turnOn(ledeearth);
-         digitalWrite(LEDerror, LOW);
+         digitalWrite(LED.SYSTEM, HIGH);
+         LEDFier.turnOnArry(LED.WARNING,12);
+         LEDFier.turnOnArry(LED.FIER,12);
+         LEDFier.turnOnArry(LED.SINGEL_LEDS,10);
       }
   }
 
@@ -649,7 +665,7 @@ void readMux(byte address, Mux &mux) {
   digitalWrite(Selb, controlValues[1]);
   digitalWrite(Selc, controlValues[2]);
   // Delay as needed
-    delay(5);
+    delay(10);
   // Read analog values and store them in the mux arrays
    for (int i = 0; i < 4; i++) {
     mux.Values1[address] = ((((analogRead(Analog1)*VREF/ADC_RESOLUTION)*VOLTAGE_ATTENUATION)+VOLTAGE_DROP_MUX)/RSHANT)*1000;
@@ -659,7 +675,7 @@ void readMux(byte address, Mux &mux) {
   }
 
   // Delay as needed
-  delay(5);
+  delay(10);
 
 }
 
@@ -804,9 +820,9 @@ void GPIOInit(void) {
   // digitalWrite(ChangeVolt, LOW);
     // Errors Settings
     pinMode(LEDerror, OUTPUT);
-    pinMode(MCUbuzz, OUTPUT);
+    pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(LEDerror, LOW);
-    digitalWrite(MCUbuzz, LOW);
+    digitalWrite(BUZZER_PIN, LOW);
     // Analog settings
     pinMode(Sela, OUTPUT);
     pinMode(Selb, OUTPUT);
@@ -829,28 +845,6 @@ void Update_IT_callback1(void) {  // 10hz
 
    
  
-  // if (CardPresentError > 0) {
-  // if (CardPresentError == 1) {
-  //   shiftRegister.set(ledErrorsPins[4], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[5], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[6], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[7], ledBlinker2);
-  // } else if (CardPresentError == 2) {
-  //   shiftRegister.set(ledErrorsPins[8], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[9], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[10], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[11], ledBlinker2);
-  // } else if (CardPresentError == 3) {
-  //   shiftRegister.set(ledErrorsPins[4], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[5], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[6], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[7], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[8], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[9], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[10], ledBlinker2);
-  //   shiftRegister.set(ledErrorsPins[11], ledBlinker2);
-  // }
-  // }
 
 
 }
@@ -889,17 +883,39 @@ double readMainVoltage(double VADC) {
   const float R1=220;// The resistor connected to VCC
   const float R2=22;// The resistor connected to ground 
   const float VDiode=0.48; //220.363kΩ
-  double voltage =((VADC)*(R1+R2)/R2 )+ VDiode;
-  double a1 = 20.0;
-  double b1 = 20.0;
-  double a2 = 28.0;
-  double b2 = 23.891;
-  // Calculate the conversion factor
-  double conversionFactor = (a2 - a1) / (b2 - b1);
+  const float offset=1.6; //220.363kΩ
+  double voltage =(((VADC)*(R1+R2)/R2 )+ VDiode);
+  double X1= 18.7;
+  double Y1 = 18.7;
+  double Y2 = 27.1;
+  double X2 = 26.3;
+
+  // // Calculate the conversion factor
+  double conversionFactor =((Y2-Y1)/(X2-X1));
   // Calculate the corresponding value of a
-  voltage= a1 + conversionFactor * (voltage - b1);
+  voltage= conversionFactor*(voltage+offset-X1)+Y1;
+   POWER_CHECK_DEBUG ("\n readMainVoltage=");
+   POWER_CHECK_DEBUG(voltage);
   return voltage;
  }
+
+bool readOutputsAlart(float outputVoltage1,float outputVoltage2)
+{
+  #define  VOLTAGE_ALART_NORMAL 1.17
+  #define  MINIMUM_VOLTAGE_ALART 0.5
+
+  POWER_CHECK_DEBUG ("\n VOUT ALART1=");
+  POWER_CHECK_DEBUG( outputVoltage1);
+  POWER_CHECK_DEBUG ("\n VOUT ALART2=");
+  POWER_CHECK_DEBUG(outputVoltage2);
+  return((outputVoltage1<MINIMUM_VOLTAGE_ALART)||(outputVoltage2<MINIMUM_VOLTAGE_ALART))?true:false;
+}
+bool readEarth(float earthVoltage)
+{
+  mySerial.print("\n earthVoltage");
+  mySerial.print(earthVoltage);
+return (earthVoltage<0);
+}
 
 // Function to configure timers for periodic tasks
 void configureTimers(void){
