@@ -3,6 +3,17 @@
 // Hardware Settings
   void setup() {
 
+
+// struct{
+//   status lineStatus[12];
+//   powerState powerStatus;
+//   ButtonState;
+//   &buttonStatus;
+//   float mainVoltage; 
+//   bool outputAlart
+//  bool existenceEarth
+
+// }
     // Initialize GPIO pins
     GPIOInit();
 
@@ -87,7 +98,7 @@
       lineStatus,//line status
       powerStatus,//power state (battery and power suply)
       *buttonStatus,//botton status
-      readMainVoltage(MUX_MAIN_VOLTAGE),//read main voltage value
+      true,//read main voltage value
       readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
       readEarth(MUX_EARTH)//read earth value
       );
@@ -338,19 +349,41 @@ void RelayManager(bool fierTrack,ButtonState &buttonStatus){
   }
 }
 
-void BuzzerManager(status lineStatus[12],powerState powerStatus,ButtonState  &buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
+void BuzzerManager(status lineStatus[12],powerState powerStatus,ButtonState  &buttonStatus, bool mainVoltage,bool outputAlart,bool existenceEarth){
    #define  BLINK_BUZZER_ON_TIME 200
    #define  BLINK_BUZZER_OFF_TIME 1000
    static bool fierTrack=false;
+   static bool flagfirst=false;
    static bool fierLine[12]={false}; 
-
-    for (char i = 0;i < 12; i++) {
-     if(fierLine[i])continue;
-     if (lineStatus[i] == FIER){
-         fierLine[i]=true;
-         buttonStatus.BUZZER = false;
-          fierTrack=true;
+   static status lineLastEvent[12]={NON_STATUS}; 
+   static bool lastMainVoltage=false;
+   static bool lastOutputAlart=false;
+    if(flagfirst==true)
+    {
+      for (char i = 0;i < 12; i++) {
+        
+      lineLastEvent[i]= lineStatus[i];
       }
+      lastMainVoltage=mainVoltage;
+      lastOutputAlart=outputAlart;
+    }
+    for (char i = 0;i < 12; i++) {
+      // mySerial.print("\nlineLastEvent[i]==");
+      // mySerial.print(lineLastEvent[i]);
+      // mySerial.print("lineStatus[i]==");
+      // mySerial.print(lineStatus[i]);(lastMainVoltage!=mainVoltage)
+      if((lineLastEvent[i])!=(lineStatus[i])&&(lineStatus[i]!=NORMAL)||(lastOutputAlart!=outputAlart))
+      { 
+          buttonStatus.BUZZER = false;
+          lineLastEvent[i]=lineStatus[i];
+         if (lineStatus[i] == FIER)  fierTrack=true;
+      }
+    //  if(fierLine[i])continue;
+    //  if (lineStatus[i] == FIER){
+    //      fierLine[i]=true;
+    //      buttonStatus.BUZZER = false;
+    //       fierTrack=true;
+    //   }
       //all types of faults
       if((lineStatus[i] == OPEN_CIRCUIT)
       ||(lineStatus[i] == SHORT_CIRCUIT)
@@ -358,6 +391,7 @@ void BuzzerManager(status lineStatus[12],powerState powerStatus,ButtonState  &bu
       ||(mainVoltage<16)
       ||(outputAlart)
       ||(existenceEarth))
+      
       buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);  
   }
 
