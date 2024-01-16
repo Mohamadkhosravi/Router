@@ -30,19 +30,18 @@
     // Read initial values from analog mux
     readInitialMuxValues();
   }
-
   void loop() { 
-  // buzzer.Begin(true);
+
     IWatchdog.reload();
 
-    // Read values from analog mux
     readMux(muxPosition,mux);
-  
+ 
+    LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     // Check power status
     powerStatus =checkPower(
-       readBattery(MUX_BATTERY_VOLTAGE) ,
-       readPowerSupply(MUX_POWER_SUPPLY_VOLTAGE) 
-       );
+    readBattery(MUX_BATTERY_VOLTAGE) ,
+    readPowerSupply(MUX_POWER_SUPPLY_VOLTAGE) 
+    );
     
     // Check button inputs
     buttonStatus=checkButtons();
@@ -53,7 +52,7 @@
     // Print debug information
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     // Perform line status evaluation after The first time the board is turned on
-    if (firstRepeat>12){
+    if (firstRepeat>MAXIMUM_REPEAD_TURN_ON){
 
       for (lineNumber = 0; lineNumber < ((cardSituation + 1) * 4); lineNumber++){ 
 
@@ -61,7 +60,7 @@
           lineStatus[lineNumber] = evaluateLineStatus( 
           lineCurrent[lineNumber] ,// line current value
           lineVoltage[lineNumber] ,// line voltage value 
-          readMainVoltage(MUX_MAIN_VOLTAGE),//Supply voltage on the board
+          readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
           lineNumber //The number of the line being checked
 
         );
@@ -73,24 +72,27 @@
   else{
     firstRepeat++;
   }
-
+    
   
     LEDManager(
-      lineStatus,
-      powerStatus,
-      buttonStatus,
-      readMainVoltage(MUX_MAIN_VOLTAGE),
-      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),
-      readEarth(MUX_EARTH)
+      lineStatus,//line status
+      powerStatus,//power state (battery and power suply)
+      *buttonStatus,//botton status
+      readMainVoltage(MUX_MAIN_VOLTAGE),//read main voltage value
+      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
+      readEarth(MUX_EARTH)//read earth value
       );
 
      BuzzerManager(
-      fireTrace,
-      powerStatus,
-      buttonStatus
+      lineStatus,//line status
+      powerStatus,//power state (battery and power suply)
+      *buttonStatus,//botton status
+      readMainVoltage(MUX_MAIN_VOLTAGE),//read main voltage value
+      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
+      readEarth(MUX_EARTH)//read earth value
       );
 
-    RelayManager(fireTrace,buttonStatus);
+    RelayManager(fireTrace,*buttonStatus);
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     // Reload watchdog timer
@@ -239,7 +241,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   return state;
 }
 
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
   #define BLINK_LEDS_ON_TIME 300
   #define BLINK_LEDS_OFF_TIME 300
   #define FAST_BLINK_LEDS_ON_TIME 100
@@ -286,7 +288,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
   LEDPower.turnOn(LED.POWER): 
   LEDPower.turnOff(LED.POWER);
 
-  (mainVoltage>16)? 
+  (mainVoltage>20)? 
   LEDPower.turnOff(LED.MAIN_VOLTAGE): 
   LEDPower.turnOn(LED.MAIN_VOLTAGE);
 
@@ -303,6 +305,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
   LEDWarning.turnOff(LED.BUZZER);
 
   if(buttonStatus.LED_CHECK){
+        //It stays here until Watchdogs resets
         while(1){
          digitalWrite(LED.SYSTEM, HIGH);
          LEDFier.turnOnArry(LED.WARNING,12);
@@ -313,7 +316,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState buttonS
 
 }
 
-void RelayManager(bool fierTrack,ButtonState buttonStatus){
+void RelayManager(bool fierTrack,ButtonState &buttonStatus){
   digitalWrite(rel2, faultFlag);
   // mySerial.println(faultFlag);y
   if ((fierTrack) &&(!buttonStatus.ALARM_RELAY)) {
@@ -335,13 +338,34 @@ void RelayManager(bool fierTrack,ButtonState buttonStatus){
   }
 }
 
-void BuzzerManager(bool fierTrack,powerState powerStatus,ButtonState buttonStatus){
+void BuzzerManager(status lineStatus[12],powerState powerStatus,ButtonState  &buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
    #define  BLINK_BUZZER_ON_TIME 200
    #define  BLINK_BUZZER_OFF_TIME 1000
-   buzzer.Begin(!buttonStatus.BUZZER);
-  if(fireTrace ==true) buzzer.TurnOn(!buttonStatus.BUZZER);
-  if(powerStatus!=NORMAL_POWER)buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);
+   static bool fierTrack=false;
+   static bool fierLine[12]={false}; 
 
+    for (char i = 0;i < 12; i++) {
+     if(fierLine[i])continue;
+     if (lineStatus[i] == FIER){
+         fierLine[i]=true;
+         buttonStatus.BUZZER = false;
+          fierTrack=true;
+      }
+      //all types of faults
+      if((lineStatus[i] == OPEN_CIRCUIT)
+      ||(lineStatus[i] == SHORT_CIRCUIT)
+      ||(powerStatus!= NORMAL_POWER)
+      ||(mainVoltage<16)
+      ||(outputAlart)
+      ||(existenceEarth))
+      buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);  
+  }
+
+
+    buzzer.Begin(!buttonStatus.BUZZER);
+    mySerial.print("\n!buttonStatus.BUZZER");
+    mySerial.print(!buttonStatus.BUZZER);
+    if(fierTrack)buzzer.TurnOn(!buttonStatus.BUZZER); 
 }
  
 
@@ -417,7 +441,7 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
       LINE_STATE_DEBUG(" OPEN_CIRCUIT ");
       // If there is a previous short circuit, change state to SHORT_CIRCUIT, else turn the line ON
       if (shortCircuitLock[numberLine]== true)state =SHORT_CIRCUIT;
-      else lineON(numberLine);
+      else LINE_ON(numberLine);
     break;
 
     //Handle Normal state
@@ -429,17 +453,17 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
     case FIER:
       LINE_STATE_DEBUG(" FIER ");
       //turn the line ON
-      lineON(numberLine);
+      LINE_ON(numberLine);
       return FIER;
     break;
 
     //Handle short Circuit state: when a short connection occurs, the line is turned off,
     // after a period of SHORT_CIRCUIT_TIME time equal to SHORT_CIRCUIT_LINE_ON_TIME, the line is turned on and The line status is checked again
     case SHORT_CIRCUIT:
-      lineON(numberLine);
+      LINE_ON(numberLine);
       shortCircuitLock[numberLine] = true;
-      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) lineOFF(numberLine); 
-      if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  lineON(numberLine);
+      if(shortCircuitFlow[numberLine].Delay(SHORT_CIRCUIT_TIME) == false) LINE_OFF(numberLine); 
+      if(shortCircuitFlow[numberLine].value>=SHORT_CIRCUIT_LINE_ON_TIME)  LINE_ON(numberLine);
       LINE_STATE_DEBUG(" SHORT_CIRCUIT ");  
     break;
 
@@ -452,7 +476,7 @@ status evaluateLineStatus(float current , float voltage,double supplyVoltage,int
     //Handle Check Fier state:Turn the line ON, increment the repeatFireDetection[numberLine] counter, and manage FIER detection
     case CHECK:
       LINE_STATE_DEBUG(" CHECK ");
-      lineON(numberLine);
+      LINE_ON(numberLine);
       repeatFireDetection[numberLine]++;
       // Check the number of repeats and set the state accordingly
       if(fierFlow.Delay(FIER_DETECTION_TIME)||fierLouckBit[numberLine] )
@@ -652,7 +676,7 @@ void readMux(byte address, Mux &mux) {
   #define VOLTAGE_DROP_MUX 0.032 //Voltage drop on the multiplexer
   #define RSHANT  18.00 //Voltage drop on the multiplexer
 
-  // Define control values for Sela, Selb, and Selc
+  // Define control values for analogSelectionA, analogSelectionB, and analogSelectionC
   byte controlValues[3] = { LOW, LOW, LOW };
 
   // // Calculate control values based on the address (add)
@@ -661,9 +685,9 @@ void readMux(byte address, Mux &mux) {
   if (address & 0b100) controlValues[2] = HIGH;
 
   // Set the control values
-  digitalWrite(Sela, controlValues[0]);
-  digitalWrite(Selb, controlValues[1]);
-  digitalWrite(Selc, controlValues[2]);
+  digitalWrite(analogSelectionA, controlValues[0]);
+  digitalWrite(analogSelectionB, controlValues[1]);
+  digitalWrite(analogSelectionC, controlValues[2]);
   // Delay as needed
     delay(10);
   // Read analog values and store them in the mux arrays
@@ -679,8 +703,8 @@ void readMux(byte address, Mux &mux) {
 
 }
 
-ButtonState checkButtons() {
- static ButtonState   buttonState ;
+ButtonState* checkButtons() {
+  static ButtonState   buttonState ;
   static bool buzzerButtonFlag=false;
   static bool resetButtonFlag=false;
   static bool relayONButtonFlag=false;
@@ -694,80 +718,48 @@ ButtonState checkButtons() {
   #define PRESS_RELEY_OFF_BUTTON    digitalRead(But1) == 0
   #define BUZZER_ON_TIME 60
 
-
-  if (PRESS_BUZZER_BUTTON) {  // Buzzer off
-    buzzerButtonFlag =true;
-  }
+  // Buzzer on/off
+  if (PRESS_BUZZER_BUTTON)buzzerButtonFlag =true;
   if((! PRESS_BUZZER_BUTTON )&&( buzzerButtonFlag ==true)){
-      BUZZER_ON
-      delay(50);
-      BUZZER_OFF
+      buzzer.localBib();
       buzzerButtonFlag =false; 
-      buttonState.BUZZER= (!buttonState.BUZZER );
-     
-    }
-  
-  if (PRESS_LED_CHECK_BUTTON) {  // LED check
-   checkLEDsFlag=true;
+      buttonState.BUZZER= (!buttonState.BUZZER ); 
   }
-  if ((!PRESS_LED_CHECK_BUTTON)&&(checkLEDsFlag==true)) {  // LED check
-      BUZZER_ON
-      delay(50);
-      BUZZER_OFF
+
+  // LED check
+  if (PRESS_LED_CHECK_BUTTON) checkLEDsFlag=true;
+  if ((!PRESS_LED_CHECK_BUTTON)&&(checkLEDsFlag==true)) {  
+      buzzer.localBib();
       buttonState.LED_CHECK=true; 
-      
-
-   
   }
-  // if((buttonState.LED_CHECK==true)&&(! buttonFlow.Delay(800))){buttonState.LED_CHECK=false;}
 
-
-
-  if( PRESS_RESET_BUTTON ){  // All Line Reset
-   resetButtonFlag = true; 
-  }
-  if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) )
-  {
-    BUZZER_ON
-    delay(50);
-    BUZZER_OFF
+  // All Line Reset
+  if(PRESS_RESET_BUTTON)resetButtonFlag = true;  
+  if( (! PRESS_RESET_BUTTON) && (resetButtonFlag == true) ){ 
+    buzzer.localBib();
     resetButtonFlag = false;
-    if(CONNECTED_JUMPER)
-    {
+    if(CONNECTED_JUMPER){
      buttonState.RESET=true;
      resetFunc(); //call reset
     }
   }
 
-  if (PRESS_RELEY_ON_BUTTON) {  // Alarm rely on
-
-    relayONButtonFlag=true; 
-  }
+  // Alarm rely on
+  if (PRESS_RELEY_ON_BUTTON) relayONButtonFlag=true; 
   if((!PRESS_RELEY_ON_BUTTON)&&(relayONButtonFlag==true)){
-       BUZZER_ON
-      delay(50);
-      BUZZER_OFF
+      buzzer.localBib();
       buttonState.ALARM_RELAY=true;
       relayONButtonFlag=false;
-
-
-
   }
 
-  if (PRESS_RELEY_OFF_BUTTON) {  // Alarm rely off
-    relayOFFButtonFlag=true;
-  }
-  if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) )
-  {
-    
-    BUZZER_ON
-    delay(50);
-    BUZZER_OFF
+  // Alarm rely off
+  if (PRESS_RELEY_OFF_BUTTON)relayOFFButtonFlag=true;
+  if((!PRESS_RELEY_OFF_BUTTON) && (relayOFFButtonFlag==true) ) {
+    buzzer.localBib();
     buttonState.ALARM_RELAY=false;
     relayOFFButtonFlag=false;
-  
   }
-  return buttonState;
+  return &buttonState;
 }
 
 void GPIOInit(void) {
@@ -814,8 +806,8 @@ void GPIOInit(void) {
     pinMode(But4, INPUT);
     pinMode(But5, INPUT);
     // Battery Charges Settings
-    pinMode(Batcharges, OUTPUT);
-    pinMode(ChangeVolt, OUTPUT);
+    pinMode(BATTERY_CHARGER_PIN, OUTPUT);
+    pinMode(CHANGE_VOLTAGE, OUTPUT);
   //digitalWrite(Batcharges, HIGH);
   // digitalWrite(ChangeVolt, LOW);
     // Errors Settings
@@ -824,12 +816,12 @@ void GPIOInit(void) {
     digitalWrite(LEDerror, LOW);
     digitalWrite(BUZZER_PIN, LOW);
     // Analog settings
-    pinMode(Sela, OUTPUT);
-    pinMode(Selb, OUTPUT);
-    pinMode(Selc, OUTPUT);
-    digitalWrite(Sela, LOW);
-    digitalWrite(Selb, LOW);
-    digitalWrite(Selc, LOW);
+    pinMode(analogSelectionA, OUTPUT);
+    pinMode(analogSelectionB, OUTPUT);
+    pinMode(analogSelectionC, OUTPUT);
+    digitalWrite(analogSelectionA, LOW);
+    digitalWrite(analogSelectionB, LOW);
+    digitalWrite(analogSelectionC, LOW);
     pinMode(Analog1, INPUT_ANALOG);
     pinMode(Analog2, INPUT_ANALOG);
     pinMode(Analog3, INPUT_ANALOG);
@@ -877,7 +869,7 @@ float readPowerSupply(float VADC){
   float powerSupplyVoltage;
   return powerSupplyVoltage=((VADC/0.3225806451612903)*0.1020408163265)-26.857142857127; 
 }
-
+//This voltage is always present and is provided through power, battery, or power supply connected to the connector
 double readMainVoltage(double VADC) {
  // Define constants
   const float R1=220;// The resistor connected to VCC
@@ -912,8 +904,8 @@ bool readOutputsAlart(float outputVoltage1,float outputVoltage2)
 }
 bool readEarth(float earthVoltage)
 {
-  mySerial.print("\n earthVoltage");
-  mySerial.print(earthVoltage);
+POWER_CHECK_DEBUG("\n earthVoltage");
+POWER_CHECK_DEBUG(earthVoltage);
 return (earthVoltage<0);
 }
 
@@ -1001,15 +993,15 @@ char setCardSituation(void){
 void readInitialMuxValues(void){
 
   digitalWrite(LEDerror, HIGH);
-  digitalWrite(Sela, LOW);
-  digitalWrite(Selb, LOW);
-  digitalWrite(Selc, LOW);
+  digitalWrite(analogSelectionA, LOW);
+  digitalWrite(analogSelectionB, LOW);
+  digitalWrite(analogSelectionC, LOW);
   delay(25);
   mux.Values4[0] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
   delay(15);
-  digitalWrite(Sela, HIGH);
-  digitalWrite(Selb, HIGH);
-  digitalWrite(Selc, LOW);
+  digitalWrite(analogSelectionA, HIGH);
+  digitalWrite(analogSelectionB, HIGH);
+  digitalWrite(analogSelectionC, LOW);
   delay(25);
   mux.Values4[3] = ((3.3 / 4095.00) * analogRead(Analog4))*100;
 

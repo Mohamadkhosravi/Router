@@ -1356,3 +1356,13 @@ This C++ header file is part of an Arduino project. It defines various constants
 
 - Various `#ifdef` and `#define` statements for conditional compilation based on debug flags.
 
+```mermaid
+graph TD;
+```mermaid
+graph TD;
+  A[شروع] -->|مرحله ۱| B(مرحله ۲);
+  B -->|مرحله ۳| C{شرط};
+  C -->|بله| D(مرحله ۴);
+  C -->|خیر| E(مرحله ۵);
+  D --> F[پایان];
+  E --> F;
