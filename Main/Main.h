@@ -9,15 +9,19 @@
 #include <thread>
 #include <chrono>
 
+/***** ***** ***** ***** *****/
 
+/***** ***** ***** ***** *****/ 
+// #define POWER_CHECK_DEBUG 
+// #define LINE_STATUS_DEBUG 
+// #define LINE_STATE_DEBUG 
+// #define LINE_FIER_DEBUG
+// #define LINE_SC_DEBUG
+/***** ***** ***** ***** *****/ 
+
+/***** ***** ***** ***** *****/ 
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
-
-//  #define POWER_CHECK_DEBUG 
-//  #define LINE_STATUS_DEBUG 
-// #define LINE_STATE_DEBUG 
-//  #define LINE_FIER_DEBUG
-// #define LINE_SC_DEBUG
 
 #ifdef  POWER_CHECK_DEBUG 
   #define POWER_CHECK_DEBUG   DEBUG_ON
@@ -196,6 +200,22 @@ typedef enum
 
 } powerState;
 
+ struct event {
+  status LineStatus[12]; 
+  powerState PowerState;
+  bool MainVoltageState=false;
+  bool OutputAlartState=false;
+  };
+
+ struct eventPtr {
+  status *LineStatus; 
+  powerState *PowerState;
+  bool *MainVoltageState;
+  bool *OutputAlartState;
+  };
+
+
+
 typedef struct
 {
   bool BUZZER= false;
@@ -205,11 +225,13 @@ typedef struct
  
 } ButtonState;
 
-ButtonState *buttonStatus;
+
 status lineStatus[12] = { NON_STATUS };
 powerState powerStatus;
 
-
+ButtonState *buttonStatus;
+status *statusPtr;
+powerState *powerStatusPtr;
 
 typedef enum {
   STOP,

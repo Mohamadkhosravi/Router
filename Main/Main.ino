@@ -4,16 +4,7 @@
   void setup() {
 
 
-// struct{
-//   status lineStatus[12];
-//   powerState powerStatus;
-//   ButtonState;
-//   &buttonStatus;
-//   float mainVoltage; 
-//   bool outputAlart
-//  bool existenceEarth
 
-// }
     // Initialize GPIO pins
     GPIOInit();
 
@@ -68,7 +59,7 @@
       for (lineNumber = 0; lineNumber < ((cardSituation + 1) * 4); lineNumber++){ 
 
          //Check and determine the condition of the lines
-          lineStatus[lineNumber] = evaluateLineStatus( 
+          statusPtr[lineNumber] = evaluateLineStatus( 
           lineCurrent[lineNumber] ,// line current value
           lineVoltage[lineNumber] ,// line voltage value 
           readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
@@ -83,27 +74,31 @@
   else{
     firstRepeat++;
   }
+
+   statusPtr=lineStatus;
+   powerStatusPtr=&powerStatus;
+  double mainVoltage=readMainVoltage(MUX_MAIN_VOLTAGE);
+  bool mainVoltageStat=mainVoltageState(mainVoltage);
+  bool alartOutputSta=readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2);
     
-  
+//statusPtr->lineStatus[1]=NON_STATUS;
+
     LEDManager(
-      lineStatus,//line status
-      powerStatus,//power state (battery and power suply)
-      *buttonStatus,//botton status
-      readMainVoltage(MUX_MAIN_VOLTAGE),//read main voltage value
-      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
+      statusPtr,//line status
+      *powerStatusPtr,//power state (battery and power suply)
+      buttonStatus,//botton status
+      mainVoltageStat,//read main voltage value
+      alartOutputSta,//read state output Alart
       readEarth(MUX_EARTH)//read earth value
       );
 
      BuzzerManager(
-      lineStatus,//line status
-      powerStatus,//power state (battery and power suply)
-      *buttonStatus,//botton status
-      true,//read main voltage value
-      readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
-      readEarth(MUX_EARTH)//read earth value
+      buttonStatus,//botton status
+      newEvent(statusPtr,powerStatusPtr,mainVoltageStat,alartOutputSta),
+      fireTrace
       );
 
-    RelayManager(fireTrace,*buttonStatus);
+    RelayManager(fireTrace,buttonStatus);
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     // Reload watchdog timer
@@ -113,7 +108,11 @@
  
 
   }
-
+bool mainVoltageState(double mainVoltage)
+{
+  #define MINIMUM_VOLTAGE_MAIN 20
+  return( mainVoltage>=MINIMUM_VOLTAGE_MAIN);
+}
 
 
 // Function to check power state based on battery and power supply voltages
@@ -252,7 +251,7 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   return state;
 }
 
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &buttonStatus, float mainVoltage,bool outputAlart,bool existenceEarth){
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth){
   #define BLINK_LEDS_ON_TIME 300
   #define BLINK_LEDS_OFF_TIME 300
   #define FAST_BLINK_LEDS_ON_TIME 100
@@ -280,7 +279,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &button
         LEDFier.turnOn(LED.FIER_OUTBREAK);
         }
        //all types of faults
-        if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||mainVoltage<16){
+        if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||(!mainVoltageState)){
          LEDWarning.turnOn(LED.GENERAL);
         }
         else{
@@ -299,7 +298,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &button
   LEDPower.turnOn(LED.POWER): 
   LEDPower.turnOff(LED.POWER);
 
-  (mainVoltage>20)? 
+  (mainVoltageState)? 
   LEDPower.turnOff(LED.MAIN_VOLTAGE): 
   LEDPower.turnOn(LED.MAIN_VOLTAGE);
 
@@ -307,15 +306,15 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &button
    LEDWarning.turnOff(LED.MANITOR_ALARM):
    LEDWarning.blinkCustum(LED.MANITOR_ALARM,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
 
-  (buttonStatus.ALARM_RELAY)?
+  (buttonStatus->ALARM_RELAY)?
    LEDWarning.turnOn(LED.ALARM): 
    LEDWarning.turnOff(LED.ALARM);
 
-  (buttonStatus.BUZZER)?
+  (buttonStatus->BUZZER)?
   LEDWarning.turnOn(LED.BUZZER): 
   LEDWarning.turnOff(LED.BUZZER);
 
-  if(buttonStatus.LED_CHECK){
+  if(buttonStatus->LED_CHECK){
         //It stays here until Watchdogs resets
         while(1){
          digitalWrite(LED.SYSTEM, HIGH);
@@ -327,16 +326,16 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState &button
 
 }
 
-void RelayManager(bool fierTrack,ButtonState &buttonStatus){
+void RelayManager(bool fierTrack,ButtonState *buttonStatus){
   digitalWrite(rel2, faultFlag);
   // mySerial.println(faultFlag);y
-  if ((fierTrack) &&(!buttonStatus.ALARM_RELAY)) {
+  if ((fierTrack) &&(!buttonStatus->ALARM_RELAY)) {
     digitalWrite(rel1, HIGH);
     digitalWrite(relo1, HIGH);
     digitalWrite(relo2, HIGH);
   } else 
     {
-      if (buttonStatus.ALARM_RELAY) {
+      if (buttonStatus->ALARM_RELAY) {
         digitalWrite(rel1, HIGH);
         digitalWrite(relo1, HIGH);
         digitalWrite(relo2, HIGH);
@@ -348,58 +347,78 @@ void RelayManager(bool fierTrack,ButtonState &buttonStatus){
       }
   }
 }
+bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
+{
+   static event last;
+   static bool newEvent=false;
+   #define lineNewEvent(numberLine)  last.LineStatus[numberLine]!=lineStatus[numberLine]
+   #define powerNewEvent             last.PowerState!=*powerStatus
+   #define mainVoltageNewEvent       last.MainVoltageState!=mainVoltageState
+   #define outoutAlartNewEvent       last.OutputAlartState!=outputAlartState
+   #define normalEvent(numberLine)    (lineStatus[numberLine]==NORMAL)||(*powerStatus==NORMAL_POWER)             
 
-void BuzzerManager(status lineStatus[12],powerState powerStatus,ButtonState  &buttonStatus, bool mainVoltage,bool outputAlart,bool existenceEarth){
-   #define  BLINK_BUZZER_ON_TIME 200
-   #define  BLINK_BUZZER_OFF_TIME 1000
-   static bool fierTrack=false;
-   static bool flagfirst=false;
-   static bool fierLine[12]={false}; 
-   static status lineLastEvent[12]={NON_STATUS}; 
-   static bool lastMainVoltage=false;
-   static bool lastOutputAlart=false;
-    if(flagfirst==true)
-    {
-      for (char i = 0;i < 12; i++) {
-        
-      lineLastEvent[i]= lineStatus[i];
-      }
-      lastMainVoltage=mainVoltage;
-      lastOutputAlart=outputAlart;
-    }
+       for(char numberLine=0; numberLine<=11;numberLine++){
+  
+          if((lineNewEvent(numberLine))||(powerNewEvent)||(mainVoltageNewEvent)||(outoutAlartNewEvent))
+          {
+            last.LineStatus[numberLine]= lineStatus[numberLine];
+            last.MainVoltageState=mainVoltageState;
+            last.PowerState =*powerStatus;
+            last.OutputAlartState=outputAlartState;
+            if(!normalEvent(numberLine))
+            {
+              newEvent=true;
+            }
+           
+          }  
+     }
+     if(newEvent==true)
+     {
+      newEvent=false;
+      return true;
+     }
+     else{
+      return false;
+     }
+
+     
+}
+
+
+void BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack){
+  #define  BLINK_BUZZER_ON_TIME 200
+  #define  BLINK_BUZZER_OFF_TIME 1000
+  static bool ev;
+  static bool lastEv;
+ // static bool fierTrack=false;
+
+     // ev=newEvent(lineStatus,powerStatus,mainVoltageState,outputAlart);
+     ev=newEven;
+       mySerial.print("\n event==");
+      mySerial.print(ev);
     for (char i = 0;i < 12; i++) {
-      // mySerial.print("\nlineLastEvent[i]==");
-      // mySerial.print(lineLastEvent[i]);
-      // mySerial.print("lineStatus[i]==");
-      // mySerial.print(lineStatus[i]);(lastMainVoltage!=mainVoltage)
-      if((lineLastEvent[i])!=(lineStatus[i])&&(lineStatus[i]!=NORMAL)||(lastOutputAlart!=outputAlart))
-      { 
-          buttonStatus.BUZZER = false;
-          lineLastEvent[i]=lineStatus[i];
-         if (lineStatus[i] == FIER)  fierTrack=true;
-      }
-    //  if(fierLine[i])continue;
-    //  if (lineStatus[i] == FIER){
-    //      fierLine[i]=true;
-    //      buttonStatus.BUZZER = false;
-    //       fierTrack=true;
-    //   }
-      //all types of faults
-      if((lineStatus[i] == OPEN_CIRCUIT)
-      ||(lineStatus[i] == SHORT_CIRCUIT)
-      ||(powerStatus!= NORMAL_POWER)
-      ||(mainVoltage<16)
-      ||(outputAlart)
-      ||(existenceEarth))
-      
+     
+      // if((lastLineStatus[i])!=(lineStatus[i])&&(lineStatus[i]!=NORMAL)||(lastOutputAlart!=outputAlart))
+      // { 
+      //     buttonStatus.BUZZER = false;
+      //     lastLineStatus[i]=lineStatus[i];
+      //    if (lineStatus[i] == FIER)  fierTrack=true;
+      // }
+
+     if(ev){
+      buttonStatus->BUZZER = false;
+     }
+
+      if(ev==1)
+      lastEv=ev;
+      if(lastEv)
       buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);  
   }
 
-
-    buzzer.Begin(!buttonStatus.BUZZER);
-    mySerial.print("\n!buttonStatus.BUZZER");
-    mySerial.print(!buttonStatus.BUZZER);
-    if(fierTrack)buzzer.TurnOn(!buttonStatus.BUZZER); 
+    buzzer.Begin(!buttonStatus->BUZZER);
+    // mySerial.print("\n!buttonStatus.BUZZER");
+    // mySerial.print(!buttonStatus.BUZZER);
+    if(fierTrack)buzzer.TurnOn(!buttonStatus->BUZZER); 
 }
  
 
