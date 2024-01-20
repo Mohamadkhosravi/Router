@@ -44,8 +44,6 @@
    }; 
    outputParametrs parametr;
 
-
-
     IWatchdog.reload();
 
     readMux(muxPosition,mux);
@@ -72,10 +70,10 @@
 
          //Check and determine the condition of the lines
          lineStatus[lineNumber] = evaluateLineStatus( 
-                                                        lineCurrent[lineNumber] ,// line current value
-                                                        lineVoltage[lineNumber] ,// line voltage value 
-                                                        readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
-                                                        lineNumber //The number of the line being checked
+                                                      lineCurrent[lineNumber] ,// line current value
+                                                      lineVoltage[lineNumber] ,// line voltage value 
+                                                      readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
+                                                      lineNumber //The number of the line being checked
           );
     
         if ( lineStatus[lineNumber] == FIER) parametr.fireTrace=true;
@@ -87,34 +85,38 @@
   }
  
    parametr.LineStatus=lineStatus;
-   //parametr.PowerStatus=&powerStatus;
    parametr.MainVoltage=readMainVoltage(MUX_MAIN_VOLTAGE);
    parametr.MainVoltageState=mainVoltageState(parametr.MainVoltage);
    parametr.AlatrState=readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2);
 
- 
-//statusPtr->lineStatus[1]=NON_STATUS;
-
     Output::LEDManager(
-      parametr.LineStatus,//line status
-      *parametr.PowerStatus,//power state (battery and power suply)
-      parametr.buttonStatus,//botton status
-      parametr.MainVoltageState,//read main voltage value
-      parametr.AlatrState,//read state output Alart
-      readEarth(MUX_EARTH)//read earth value
+            parametr.LineStatus,//line status
+            *parametr.PowerStatus,//power state (battery and power suply)
+            parametr.buttonStatus,//botton status
+            parametr.MainVoltageState,//read main voltage value
+            parametr.AlatrState,//read state output Alart
+            readEarth(MUX_EARTH)//read earth value
       );
-
+    
     Output::BuzzerManager(
-      parametr.buttonStatus,//botton status
-      Output::newEvent(
-                          parametr.LineStatus,
-                          parametr.PowerStatus,
-                          parametr.MainVoltageState,
-                          parametr.AlatrState),
-      parametr.fireTrace
+            parametr.buttonStatus,//botton status
+            newEvent( parametr.LineStatus,
+                      parametr.PowerStatus,
+                      parametr.MainVoltageState,
+                      parametr.AlatrState
+                    ),
+            parametr.fireTrace
       );
 
-    Output::RelayManager( parametr.fireTrace,parametr.buttonStatus);
+    Output::RelayManager( 
+            parametr.fireTrace,
+            parametr.buttonStatus,  
+            newEvent( parametr.LineStatus,
+                      parametr.PowerStatus,
+                      parametr.MainVoltageState,
+                      parametr.AlatrState
+                  )
+      );
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     // Reload watchdog timer
@@ -274,26 +276,33 @@ void Output::LEDManager(status lineStatus[12],powerState powerStatus,ButtonState
   #define FAST_BLINK_LEDS_OFF_TIME 100
   LEDs LED;
   static bool fireTrace[12]={false};
+  
 
- 
     LEDWarning.turnOn(LED.ALL_CONDITION);//The fire control panel is power supplied
     digitalWrite(LED.SYSTEM, HIGH);//System fault 
 
     for (char i = 0;i < 12; i++) {
       if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
        LEDWarning.blinkCustum(LED.WARNING[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
-
+    
       else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
       else if (lineStatus[i] == FIER)  fireTrace[i]=true;
-      else
+      else if((lineStatus[i]!= FIER)||(lineStatus[i] != CHECK))
       {
       LEDWarning.turnOff(LED.WARNING[i]);
       LEDFier.turnOff(LED.FIER[i]);
       }
-      if(fireTrace[i]==true){
-        LEDFier.turnOn(LED.FIER[i]);
-        LEDFier.turnOn(LED.FIER_OUTBREAK);
-        }
+      else{
+       LEDFier.turnOff(LED.FIER[i]);
+      }
+       
+      // if(fireTrace[i]==true){
+      //   LEDFier.turnOn(LED.FIER[i]);
+      //   LEDFier.turnOn(LED.FIER_OUTBREAK);
+      //   }
+      //   else{
+      //    LEDFier.turnOff(LED.FIER[i]); 
+      //   }
        //all types of faults
         if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||(!mainVoltageState)){
          LEDWarning.turnOn(LED.GENERAL);
@@ -342,8 +351,11 @@ void Output::LEDManager(status lineStatus[12],powerState powerStatus,ButtonState
 
 }
 
-void Output::RelayManager(bool fierTrack,ButtonState *buttonStatus){
-  digitalWrite(rel2, faultFlag);
+void Output::RelayManager(bool fierTrack,ButtonState *buttonStatus,eventStatus newEvent){
+
+  if(newEvent!=NormalEvent)
+  digitalWrite(rel2, HIGH);
+  else digitalWrite(rel2, LOW);
   // mySerial.println(faultFlag);y
   if ((fierTrack) &&(!buttonStatus->ALARM_RELAY)) {
     digitalWrite(rel1, HIGH);
@@ -364,79 +376,60 @@ void Output::RelayManager(bool fierTrack,ButtonState *buttonStatus){
   }
 }
 
-bool Output::newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
-{
-   static event last;
-   static bool newEvent=false;
+eventStatus newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
+{   
+
+    static event last;
+    static eventStatus newEvent;
+    bool event=false;
+    static  bool lineNormalLatch=false;
+
    #define lineNewEvent(numberLine)  last.LineStatus[numberLine]!=lineStatus[numberLine]
    #define powerNewEvent             last.PowerState!=*powerStatus
    #define mainVoltageNewEvent       last.MainVoltageState!=mainVoltageState
    #define outoutAlartNewEvent       last.OutputAlartState!=outputAlartState
-   #define normalEvent(numberLine)    (lineStatus[numberLine]==NORMAL)||(*powerStatus==NORMAL_POWER)             
- 
+   #define unormalEvent(numberLine)  (lineStatus[numberLine]!=NORMAL)&&(!mainVoltageNewEvent)&&(*powerStatus!=NORMAL_POWER)&&(!outputAlartState)             
+       
        for(char numberLine=0; numberLine<=11;numberLine++){
-  
-          if((lineNewEvent(numberLine))||(powerNewEvent)||(mainVoltageNewEvent)||(outoutAlartNewEvent))
+
+         if(unormalEvent(numberLine))lineNormalLatch=true;
+         if((lineNewEvent(numberLine))||(powerNewEvent)||(mainVoltageNewEvent)||(outoutAlartNewEvent))
           {
+
             last.LineStatus[numberLine]= lineStatus[numberLine];
             last.MainVoltageState=mainVoltageState;
             last.PowerState =*powerStatus;
             last.OutputAlartState=outputAlartState;
-           
-              newEvent=true;
-               // if(normalEvent(numberLine))
-            // {
-            // }
-           
-          }  
-          mySerial.print(*powerStatus);
-          mySerial.print(last.PowerState);
-     }
-     if(newEvent==true)
-     {
-      newEvent=false;
-      return true;
-     }
-     else{
-      return false;
-     }
-
-     
+            
+            event=true;
+          }
+         }
+          if(lineNormalLatch==false)return NormalEvent;
+          if(event==true)
+          {
+            event=false;
+            return HappenedAgain;
+          }
+          else
+          {
+            return Happened;
+          }
+  
 }
 
-void Output::BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack){
+void Output::BuzzerManager(ButtonState  *buttonStatus,eventStatus newEvent,bool fierTrack){
   #define  BLINK_BUZZER_ON_TIME 200
   #define  BLINK_BUZZER_OFF_TIME 1000
-  static bool ev;
-  static bool lastEv;
- // static bool fierTrack=false;
-
-     // ev=newEvent(lineStatus,powerStatus,mainVoltageState,outputAlart);
-     ev=newEven;
-       mySerial.print("\n event==");
-      mySerial.print(ev);
-    for (char i = 0;i < 12; i++) {
-     
-      // if((lastLineStatus[i])!=(lineStatus[i])&&(lineStatus[i]!=NORMAL)||(lastOutputAlart!=outputAlart))
-      // { 
-      //     buttonStatus.BUZZER = false;
-      //     lastLineStatus[i]=lineStatus[i];
-      //    if (lineStatus[i] == FIER)  fierTrack=true;
-      // }
-
-     if(ev){
-      buttonStatus->BUZZER = false;
-     }
-
-      if(ev==1)
-      lastEv=ev;
-      if(lastEv)
-      buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME);  
-  }
-
+  static eventStatus event;
+  static eventStatus lastEvent;
+    event =newEvent;
+    if(event==HappenedAgain){
+    buttonStatus->BUZZER = false;
+    lastEvent=HappenedAgain;
+    }
+    if(lastEvent==HappenedAgain) buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME); 
+    if((event==NormalEvent)&&!(fierTrack))buzzer.TurnOff();
     buzzer.Begin(!buttonStatus->BUZZER);
-    // mySerial.print("\n!buttonStatus.BUZZER");
-    // mySerial.print(!buttonStatus.BUZZER);
     if(fierTrack)buzzer.TurnOn(!buttonStatus->BUZZER); 
 }
 

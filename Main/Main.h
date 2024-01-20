@@ -215,7 +215,6 @@ typedef enum
   };
 
 
-
 typedef struct
 {
   bool BUZZER= false;
@@ -229,12 +228,6 @@ typedef struct
 status lineStatus[12] = { NON_STATUS };
 powerState powerStatus;
 
-enum
-{ 
- Normal,
- Happened,
- HappenedAgain,
-}eventStatus;
 
 typedef enum {
   STOP,
@@ -385,6 +378,9 @@ class LED{
         CustomBlinking,
         Custom
     };
+  void LEDBegin(void){
+  
+  }
   void turnOn(char numerPin); 
   void turnOff(char numerPin);
   void blink(char numerPin,unsigned int timeBlinking); 
@@ -416,7 +412,8 @@ void LED::blinkCustum(char numerPin,unsigned int timeOn,unsigned int timeOff) {
   turnOffTime[id]=timeOff;
   ledBlinkerFlow[id].Delay(timeOn+timeOff);
   if(ledBlinkerFlow[id].value<=timeOn) LED_ON(numerPin);
-  if((ledBlinkerFlow[id].value>timeOn)&&(ledBlinkerFlow[id].value<timeOn+timeOff)) LED_OFF(numerPin);
+  if((ledBlinkerFlow[id].value>timeOn)&&(ledBlinkerFlow[id].value<timeOn+timeOff)){ LED_OFF(numerPin);}
+  if((ledBlinkerFlow[id].value>timeOn))LED_OFF(numerPin);
 }
 
 
@@ -472,16 +469,22 @@ LED LEDWarning(0);
 LED LEDFier(1);
 LED LEDPower(2);
 
-
-
+ enum eventStatus
+{ 
+ Happened,
+ HappenedAgain,
+ NormalEvent
+};
 namespace Output {
+
+
+ 
 void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth);
-void RelayManager(bool fierTrack,ButtonState *buttonStatus);
-bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState);
-void BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack);
+void RelayManager(bool fierTrack,ButtonState *buttonStatus,eventStatus newEven);
+
+void BuzzerManager(ButtonState  *buttonStatus,eventStatus newEven,bool fierTrack);
 
 }
-
 
 
 
