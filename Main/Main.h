@@ -229,9 +229,12 @@ typedef struct
 status lineStatus[12] = { NON_STATUS };
 powerState powerStatus;
 
-ButtonState *buttonStatus;
-status *statusPtr;
-powerState *powerStatusPtr;
+enum
+{ 
+ Normal,
+ Happened,
+ HappenedAgain,
+}eventStatus;
 
 typedef enum {
   STOP,
@@ -239,6 +242,7 @@ typedef enum {
   PAUSE,
 
 } STATE;
+
 
 
 
@@ -467,6 +471,17 @@ Buzzer buzzer;
 LED LEDWarning(0);
 LED LEDFier(1);
 LED LEDPower(2);
+
+
+
+namespace Output {
+void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth);
+void RelayManager(bool fierTrack,ButtonState *buttonStatus);
+bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState);
+void BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack);
+
+}
+
 
 
 

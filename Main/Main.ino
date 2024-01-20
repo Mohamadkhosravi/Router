@@ -33,6 +33,18 @@
     readInitialMuxValues();
   }
   void loop() { 
+   struct outputParametrs{
+    powerState *PowerStatus;
+    status *LineStatus;
+    ButtonState *buttonStatus;
+    double MainVoltage=0.0;
+    bool MainVoltageState=false;
+    bool AlatrState=false;
+    bool fireTrace=false;
+   }; 
+   outputParametrs parametr;
+
+
 
     IWatchdog.reload();
 
@@ -40,13 +52,13 @@
  
     LINE_STATE_DEBUG("\n <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     // Check power status
-    powerStatus =checkPower(
+    parametr.PowerStatus =checkPower(
     readBattery(MUX_BATTERY_VOLTAGE) ,
     readPowerSupply(MUX_POWER_SUPPLY_VOLTAGE) 
     );
     
     // Check button inputs
-    buttonStatus=checkButtons();
+    parametr.buttonStatus=checkButtons();
 
     // Distribute mux values to corresponding lines based on cardSituation
      distributionMuxValues(cardSituation,mux);
@@ -59,46 +71,50 @@
       for (lineNumber = 0; lineNumber < ((cardSituation + 1) * 4); lineNumber++){ 
 
          //Check and determine the condition of the lines
-          statusPtr[lineNumber] = evaluateLineStatus( 
-          lineCurrent[lineNumber] ,// line current value
-          lineVoltage[lineNumber] ,// line voltage value 
-          readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
-          lineNumber //The number of the line being checked
-
-        );
+         lineStatus[lineNumber] = evaluateLineStatus( 
+                                                        lineCurrent[lineNumber] ,// line current value
+                                                        lineVoltage[lineNumber] ,// line voltage value 
+                                                        readMainVoltage(MUX_MAIN_VOLTAGE),// the Main voltage value
+                                                        lineNumber //The number of the line being checked
+          );
     
-        if (lineStatus[lineNumber] == FIER) fireTrace=true;
+        if ( lineStatus[lineNumber] == FIER) parametr.fireTrace=true;
       }
    }
 
   else{
     firstRepeat++;
   }
+ 
+   parametr.LineStatus=lineStatus;
+   //parametr.PowerStatus=&powerStatus;
+   parametr.MainVoltage=readMainVoltage(MUX_MAIN_VOLTAGE);
+   parametr.MainVoltageState=mainVoltageState(parametr.MainVoltage);
+   parametr.AlatrState=readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2);
 
-   statusPtr=lineStatus;
-   powerStatusPtr=&powerStatus;
-  double mainVoltage=readMainVoltage(MUX_MAIN_VOLTAGE);
-  bool mainVoltageStat=mainVoltageState(mainVoltage);
-  bool alartOutputSta=readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2);
-    
+ 
 //statusPtr->lineStatus[1]=NON_STATUS;
 
-    LEDManager(
-      statusPtr,//line status
-      *powerStatusPtr,//power state (battery and power suply)
-      buttonStatus,//botton status
-      mainVoltageStat,//read main voltage value
-      alartOutputSta,//read state output Alart
+    Output::LEDManager(
+      parametr.LineStatus,//line status
+      *parametr.PowerStatus,//power state (battery and power suply)
+      parametr.buttonStatus,//botton status
+      parametr.MainVoltageState,//read main voltage value
+      parametr.AlatrState,//read state output Alart
       readEarth(MUX_EARTH)//read earth value
       );
 
-     BuzzerManager(
-      buttonStatus,//botton status
-      newEvent(statusPtr,powerStatusPtr,mainVoltageStat,alartOutputSta),
-      fireTrace
+    Output::BuzzerManager(
+      parametr.buttonStatus,//botton status
+      Output::newEvent(
+                          parametr.LineStatus,
+                          parametr.PowerStatus,
+                          parametr.MainVoltageState,
+                          parametr.AlatrState),
+      parametr.fireTrace
       );
 
-    RelayManager(fireTrace,buttonStatus);
+    Output::RelayManager( parametr.fireTrace,parametr.buttonStatus);
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
     // Reload watchdog timer
@@ -116,7 +132,7 @@ bool mainVoltageState(double mainVoltage)
 
 
 // Function to check power state based on battery and power supply voltages
-powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
+powerState* checkPower(float VoltageBattery, float VoltagePowerSupply) {
 
   // Define constants for voltage thresholds
   #define MINIMUM_VOLTAGE_VALIDE 6
@@ -248,10 +264,10 @@ powerState checkPower(float VoltageBattery, float VoltagePowerSupply) {
   if( batteryCheckTime.value > MAXIMUM_TIME) batteryCheckTime.status = STOP;
 
   // Return the current power state
-  return state;
+  return &state;
 }
 
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth){
+void Output::LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth){
   #define BLINK_LEDS_ON_TIME 300
   #define BLINK_LEDS_OFF_TIME 300
   #define FAST_BLINK_LEDS_ON_TIME 100
@@ -326,7 +342,7 @@ void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *button
 
 }
 
-void RelayManager(bool fierTrack,ButtonState *buttonStatus){
+void Output::RelayManager(bool fierTrack,ButtonState *buttonStatus){
   digitalWrite(rel2, faultFlag);
   // mySerial.println(faultFlag);y
   if ((fierTrack) &&(!buttonStatus->ALARM_RELAY)) {
@@ -347,7 +363,8 @@ void RelayManager(bool fierTrack,ButtonState *buttonStatus){
       }
   }
 }
-bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
+
+bool Output::newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
 {
    static event last;
    static bool newEvent=false;
@@ -356,7 +373,7 @@ bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,b
    #define mainVoltageNewEvent       last.MainVoltageState!=mainVoltageState
    #define outoutAlartNewEvent       last.OutputAlartState!=outputAlartState
    #define normalEvent(numberLine)    (lineStatus[numberLine]==NORMAL)||(*powerStatus==NORMAL_POWER)             
-
+ 
        for(char numberLine=0; numberLine<=11;numberLine++){
   
           if((lineNewEvent(numberLine))||(powerNewEvent)||(mainVoltageNewEvent)||(outoutAlartNewEvent))
@@ -365,12 +382,15 @@ bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,b
             last.MainVoltageState=mainVoltageState;
             last.PowerState =*powerStatus;
             last.OutputAlartState=outputAlartState;
-            if(!normalEvent(numberLine))
-            {
+           
               newEvent=true;
-            }
+               // if(normalEvent(numberLine))
+            // {
+            // }
            
           }  
+          mySerial.print(*powerStatus);
+          mySerial.print(last.PowerState);
      }
      if(newEvent==true)
      {
@@ -384,8 +404,7 @@ bool newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,b
      
 }
 
-
-void BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack){
+void Output::BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack){
   #define  BLINK_BUZZER_ON_TIME 200
   #define  BLINK_BUZZER_OFF_TIME 1000
   static bool ev;
@@ -420,7 +439,6 @@ void BuzzerManager(ButtonState  *buttonStatus,bool newEven,bool fierTrack){
     // mySerial.print(!buttonStatus.BUZZER);
     if(fierTrack)buzzer.TurnOn(!buttonStatus->BUZZER); 
 }
- 
 
 
 // Function to update the mux position for analog readings
