@@ -284,32 +284,28 @@ void Output::LEDManager(status lineStatus[12],powerState powerStatus,ButtonState
     for (char i = 0;i < 12; i++) {
       if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
        LEDWarning.blinkCustum(LED.WARNING[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+
+      if (lineStatus[i] == FIER) fireTrace[i]=true;
     
-      else if (lineStatus[i] == CHECK)LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
-      else if (lineStatus[i] == FIER)  fireTrace[i]=true;
-      else if((lineStatus[i]!= FIER)||(lineStatus[i] != CHECK))
+      if(fireTrace[i]==true){
+        LEDFier.turnOn(LED.FIER[i]);
+        LEDFier.turnOn(LED.FIER_OUTBREAK);
+      }
+      else if (lineStatus[i] == CHECK){
+       LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
+      }
+      else if((fireTrace[i]==false)&&(lineStatus[i] != CHECK))
       {
-      LEDWarning.turnOff(LED.WARNING[i]);
-      LEDFier.turnOff(LED.FIER[i]);
+        LEDFier.turnOff(LED.FIER[i]);
       }
-      else{
-       LEDFier.turnOff(LED.FIER[i]);
-      }
-       
-      // if(fireTrace[i]==true){
-      //   LEDFier.turnOn(LED.FIER[i]);
-      //   LEDFier.turnOn(LED.FIER_OUTBREAK);
-      //   }
-      //   else{
-      //    LEDFier.turnOff(LED.FIER[i]); 
-      //   }
-       //all types of faults
+    
         if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||(!mainVoltageState)){
          LEDWarning.turnOn(LED.GENERAL);
         }
-        else{
+        else
+        {
           LEDWarning.turnOff(LED.GENERAL);
-         } 
+        } 
        
   }
 
@@ -395,12 +391,11 @@ eventStatus newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltage
          if(unormalEvent(numberLine))lineNormalLatch=true;
          if((lineNewEvent(numberLine))||(powerNewEvent)||(mainVoltageNewEvent)||(outoutAlartNewEvent))
           {
-
             last.LineStatus[numberLine]= lineStatus[numberLine];
             last.MainVoltageState=mainVoltageState;
             last.PowerState =*powerStatus;
             last.OutputAlartState=outputAlartState;
-            
+
             event=true;
           }
          }
@@ -418,10 +413,10 @@ eventStatus newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltage
 }
 
 void Output::BuzzerManager(ButtonState  *buttonStatus,eventStatus newEvent,bool fierTrack){
-  #define  BLINK_BUZZER_ON_TIME 200
-  #define  BLINK_BUZZER_OFF_TIME 1000
-  static eventStatus event;
-  static eventStatus lastEvent;
+    #define  BLINK_BUZZER_ON_TIME 200
+    #define  BLINK_BUZZER_OFF_TIME 1000
+    static eventStatus event;
+    static eventStatus lastEvent;
     event =newEvent;
     if(event==HappenedAgain){
     buttonStatus->BUZZER = false;
