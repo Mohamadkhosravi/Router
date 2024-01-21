@@ -18,7 +18,7 @@
 // #define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
 /***** ***** ***** ***** *****/ 
-
+ //#define BUZZER_SUND_ON
 /***** ***** ***** ***** *****/ 
 #define DEBUG_ON  mySerial.print
 #define DEBUG_OFF 
@@ -206,7 +206,18 @@ typedef enum
   bool MainVoltageState=false;
   bool OutputAlartState=false;
   };
-
+   struct bufferEvent {
+    unsigned  int Line[12]={0};
+    unsigned  int  Power=0;
+    unsigned  int Main=0;
+    unsigned  int Alart=0;
+  };
+ struct eventState {
+    bool Line[12]={false};
+    bool Power=false;
+    bool Main=false;
+    bool Alart=false;
+  };
  struct eventPtr {
   status *LineStatus; 
   powerState *PowerState;
@@ -464,6 +475,7 @@ timerMS batteryCheckTime;
 flowDelay shortCircuitFlow[12];
 flowDelay fierFlow;
 flowDelay buttonFlow;
+flowDelay eventFlow;
 Buzzer buzzer;
 LED LEDWarning(0);
 LED LEDFier(1);
