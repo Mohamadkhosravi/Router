@@ -129,7 +129,7 @@
   }
 bool mainVoltageState(double mainVoltage)
 {
-  #define MINIMUM_VOLTAGE_MAIN 20
+  #define MINIMUM_VOLTAGE_MAIN 19
   return( mainVoltage>=MINIMUM_VOLTAGE_MAIN);
 }
 
@@ -383,8 +383,8 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
     bool event=false;
 
       static eventStatus result;
-
-
+       powerState power;
+       power=*powerStatus;
     static  bool lineNormalLatch=false;
     static char lastNumberLine;
     #define lineNewEvent(numberLine)  (last.LineStatus[numberLine]!=lineStatus[numberLine])&&(lineStatus[numberLine]!=NORMAL)
@@ -414,7 +414,7 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
         {
         mySerial.print("\nP");
         result.TypeOfEvent=HappeningOnPower;
-        // result.ValueOfEvent.PowerState=*powerStatus;
+        result.ValueOfEvent.StatePower=*powerStatus;
         }
         if(mainVoltageNewEvent)
         {
@@ -446,9 +446,7 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
         last.MainVoltageState=mainVoltageState;
         last.OutputAlartState=outputAlartState;
         last.PowerState =*powerStatus;
-        
-
-
+      
         mySerial.print("\nE");
         mySerial.print(event);
         event=false;
@@ -472,19 +470,68 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
 void Output::BuzzerManagement(ButtonState  *buttonStatus,eventStatus *newEvent){
     #define  BLINK_BUZZER_ON_TIME 200
     #define  BLINK_BUZZER_OFF_TIME 1000
-    static eventStatus event;
+
     static eventStatus lastEvent;
-    
-    mySerial.print("\nT");
-    mySerial.print(event.State);
-    
-   event=*newEvent;
+    static eventStatus Event;
    
-    if(newEvent->State==HappenedAgain){
+    Event=*newEvent;
+    mySerial.print("\nTl=");
+    mySerial.print(lastEvent.TypeOfEvent);
+    mySerial.print("T=");
+    mySerial.print(Event.TypeOfEvent);
+    if( (newEvent->State==HappenedAgain) && ( (Event.TypeOfEvent)!=(lastEvent.TypeOfEvent) ) ){
      
-    buttonStatus->BUZZER = false;
-    event.State=HappenedAgain;
+
+      lastEvent=*newEvent;
+      buttonStatus->BUZZER = false;
+      lastEvent.State=HappenedAgain;
+
     }
+    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnLine))
+    {
+      if((Event.ValueOfEvent.StateLine)!=(lastEvent.ValueOfEvent.StateLine)){
+        lastEvent=*newEvent;
+        buttonStatus->BUZZER = false;
+        lastEvent.State=HappenedAgain;
+      }
+      else if((Event.ValueOfEvent.numberLine)!=(lastEvent.ValueOfEvent.numberLine))
+      {
+        lastEvent=*newEvent;
+        buttonStatus->BUZZER = false;
+        lastEvent.State=HappenedAgain; 
+      }
+
+    }
+    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnPower))
+    {
+      if((Event.ValueOfEvent.StatePower)!=(lastEvent.ValueOfEvent.StatePower)){
+        lastEvent=*newEvent;
+        buttonStatus->BUZZER = false;
+        lastEvent.State=HappenedAgain;
+      }
+
+    }
+    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnMain))
+    {
+      if((Event.TypeOfEvent)!=(lastEvent.TypeOfEvent)){
+        lastEvent=*newEvent;
+        buttonStatus->BUZZER = false;
+        lastEvent.State=HappenedAgain;
+      }
+
+    }
+    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnOutput))
+    {
+      if((Event.TypeOfEvent)!=(lastEvent.TypeOfEvent)){
+        lastEvent=*newEvent;
+        buttonStatus->BUZZER = false;
+        lastEvent.State=HappenedAgain;
+      }
+
+    }
+
+
+
     if(newEvent->State==Happened) buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME); 
     if((newEvent->State==NormalEvent)&&!(newEvent->FierTrack))buzzer.TurnOff();
     buzzer.Begin(!buttonStatus->BUZZER);
