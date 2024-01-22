@@ -200,31 +200,45 @@ typedef enum
 
 } powerState;
 
- struct event {
+ enum stateEvents{
+  Happened,
+  HappenedAgain,
+  NormalEvent,
+  line1Open
+  };
+
+
+
+
+ enum typeOfEvent{
+     NotHappening,
+     HappeningOnLine,
+     HappeningOnPower,
+     HappeningOnMain,
+     HappeningOnOutput
+  };
+
+ struct valueOfEvent {
+    status StateLine;
+    char numberLine=0;
+    powerState StatePower;
+    // bool MainState=false;
+    // bool OutputState=false;
+  };
+
+ struct eventStatus{
+  stateEvents State;
+  typeOfEvent TypeOfEvent;
+  valueOfEvent ValueOfEvent;
+  bool FierTrack=false;
+};
+
+struct event {
   status LineStatus[12]; 
   powerState PowerState;
   bool MainVoltageState=false;
   bool OutputAlartState=false;
-  };
-   struct bufferEvent {
-    unsigned  int Line[12]={0};
-    unsigned  int  Power=0;
-    unsigned  int Main=0;
-    unsigned  int Alart=0;
-  };
- struct eventState {
-    bool Line[12]={false};
-    bool Power=false;
-    bool Main=false;
-    bool Alart=false;
-  };
- struct eventPtr {
-  status *LineStatus; 
-  powerState *PowerState;
-  bool *MainVoltageState;
-  bool *OutputAlartState;
-  };
-
+};
 
 typedef struct
 {
@@ -481,20 +495,14 @@ LED LEDWarning(0);
 LED LEDFier(1);
 LED LEDPower(2);
 
- enum eventStatus
-{ 
- Happened,
- HappenedAgain,
- NormalEvent
-};
+
 namespace Output {
 
 
  
-void LEDManager(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth);
-void RelayManager(bool fierTrack,ButtonState *buttonStatus,eventStatus newEven);
-
-void BuzzerManager(ButtonState  *buttonStatus,eventStatus newEven,bool fierTrack);
+void LEDManagement(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth);
+void RelayManagement(ButtonState *buttonStatus,eventStatus *newEven);
+void BuzzerManagement(ButtonState  *buttonStatus,eventStatus *newEven);
 
 }
 
