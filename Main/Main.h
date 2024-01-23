@@ -17,6 +17,7 @@
 // #define LINE_STATE_DEBUG 
 // #define LINE_FIER_DEBUG
 // #define LINE_SC_DEBUG
+// #define EVENT_DEBUG
 /***** ***** ***** ***** *****/ 
  //#define BUZZER_SUND_ON
 /***** ***** ***** ***** *****/ 
@@ -53,6 +54,11 @@
   #define LINE_SC_DEBUG   DEBUG_OFF
 #endif
 
+#ifdef  EVENT_DEBUG 
+  #define EVENT_DEBUG   DEBUG_ON
+#else
+  #define EVENT_DEBUG   DEBUG_OFF
+#endif
 
 // Defines Relys
 #define rel1 PD1
@@ -209,6 +215,12 @@ typedef enum
 
 
 
+struct event {
+  status LineStatus[12]; 
+  powerState PowerState;
+  bool MainVoltageState=false;
+  bool OutputAlartState=false;
+};
 
  enum typeOfEvent{
      NotHappening,
@@ -233,12 +245,6 @@ typedef enum
   bool FierTrack=false;
 };
 
-struct event {
-  status LineStatus[12]; 
-  powerState PowerState;
-  bool MainVoltageState=false;
-  bool OutputAlartState=false;
-};
 
 typedef struct
 {
@@ -360,6 +366,7 @@ void Buzzer::Repead(int *NumberRepead,unsigned int timeON,unsigned int timeOFF)
 }
 
 void Buzzer::TurnOn(bool ActivityState){
+  
   if((ActivityState))
   {
     BUZZER_ON
@@ -367,6 +374,9 @@ void Buzzer::TurnOn(bool ActivityState){
   }
   else AlarmActive=false; 
 }
+
+
+
 void Buzzer::TurnOff(void){
   BUZZER_OFF
 }

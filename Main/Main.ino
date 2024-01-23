@@ -37,6 +37,7 @@
     powerState *PowerStatus;
     status *LineStatus;
     ButtonState *buttonStatus;
+    eventStatus *NewEvent;
     double MainVoltage=0.0;
     bool MainVoltageState=false;
     bool AlatrState=false;
@@ -76,7 +77,6 @@
                                                       lineNumber //The number of the line being checked
           );
     
-        if ( lineStatus[lineNumber] == FIER) parametr.fireTrace=true;
       }
    }
 
@@ -88,6 +88,24 @@
    parametr.MainVoltage=readMainVoltage(MUX_MAIN_VOLTAGE);
    parametr.MainVoltageState=mainVoltageState(parametr.MainVoltage);
    parametr.AlatrState=readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2);
+   parametr.NewEvent=newEvent(
+                      parametr.LineStatus,
+                      parametr.PowerStatus,
+                      parametr.MainVoltageState,
+                      parametr.AlatrState
+                    );
+
+
+    // Output::LEDManagement(
+    //         lineStatus,//line status
+    //         *parametr.PowerStatus,//power state (battery and power suply)
+    //         parametr.buttonStatus,//botton status
+    //         readMainVoltage(MUX_MAIN_VOLTAGE),//read main voltage value
+    //         readOutputsAlart(MUX_VOLTAGE_ALART_1,MUX_VOLTAGE_ALART_2),//read state output Alart
+    //         readEarth(MUX_EARTH)//read earth value
+    //   );
+    
+
 
     Output::LEDManagement(
             parametr.LineStatus,//line status
@@ -110,13 +128,12 @@
 
     Output::RelayManagement( 
             parametr.buttonStatus,  
-            newEvent
-                  (    
-                    parametr.LineStatus,
-                    parametr.PowerStatus,
-                    parametr.MainVoltageState,
-                    parametr.AlatrState
-                  )
+            newEvent(
+                      parametr.LineStatus,
+                      parametr.PowerStatus,
+                      parametr.MainVoltageState,
+                      parametr.AlatrState
+                    )
       );
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
@@ -271,43 +288,54 @@ powerState* checkPower(float VoltageBattery, float VoltagePowerSupply) {
 }
 
 void Output::LEDManagement(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth){
-  #define BLINK_LEDS_ON_TIME 250
+  #define BLINK_LEDS_ON_TIME 200
   #define BLINK_LEDS_OFF_TIME 200
   #define FAST_BLINK_LEDS_ON_TIME 100
   #define FAST_BLINK_LEDS_OFF_TIME 100
   LEDs LED;
   static bool fireTrace[12]={false};
-  
+  static bool normalLine=false;
 
     LEDWarning.turnOn(LED.ALL_CONDITION);//The fire control panel is power supplied
     digitalWrite(LED.SYSTEM, HIGH);//System fault 
 
     for (char i = 0;i < 12; i++) {
-      if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)) 
-       LEDWarning.blinkCustum(LED.WARNING[i],BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
-
-      if (lineStatus[i] == FIER) fireTrace[i]=true;
-      if(fireTrace[i]==true){
-        LEDFier.turnOn(LED.FIER[i]);
-        LEDFier.turnOn(LED.FIER_OUTBREAK);
+    
+      if ((lineStatus[i] == OPEN_CIRCUIT) || (lineStatus[i] == SHORT_CIRCUIT)){
+          LEDWarning.blink(LED.WARNING[i],BLINK_LEDS_ON_TIME);
       }
+      else if (lineStatus[i] == FIER){ fireTrace[i]=true;}
       else if (lineStatus[i] == CHECK){
-       LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
-      }
+        LEDFier.blinkCustum(LED.FIER[i], FAST_BLINK_LEDS_ON_TIME,FAST_BLINK_LEDS_OFF_TIME);
+        LEDWarning.turnOff(LED.WARNING[i]);
+       }
       else if((fireTrace[i]==false)&&(lineStatus[i] != CHECK))
       {
         LEDFier.turnOff(LED.FIER[i]);
       }
+      else
+      {
+        LEDWarning.turnOff(LED.WARNING[i]);
+        normalLine=true;
+      }
+      if (lineStatus[i] == FIER){ fireTrace[i]=true;}
+      if(fireTrace[i]==true){
+        LEDFier.turnOn(LED.FIER[i]);
+        LEDFier.turnOn(LED.FIER_OUTBREAK);
+      }
+     
     
-      if((powerStatus!=NORMAL_POWER)||(lineStatus[i]!=NORMAL)||(!mainVoltageState)){
+  }
+  
+      if((powerStatus!=NORMAL_POWER)||!(normalLine)||(!mainVoltageState)){
         LEDWarning.turnOn(LED.GENERAL);
       }
       else
       {
+        normalLine=false;
         LEDWarning.turnOff(LED.GENERAL);
       } 
-       
-  }
+
 
   if(powerStatus==POWER_SUPPLY) LEDPower.turnOn(LED.BATTERY);
   else if(powerStatus==LOW_BATTERY) LEDWarning.blinkCustum(LED.BATTERY,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
@@ -325,7 +353,7 @@ void Output::LEDManagement(status lineStatus[12],powerState powerStatus,ButtonSt
 
   (outputAlart)? 
    LEDWarning.turnOff(LED.MANITOR_ALARM):
-   LEDWarning.blinkCustum(LED.MANITOR_ALARM,BLINK_LEDS_ON_TIME,BLINK_LEDS_OFF_TIME);
+   LEDWarning.blink(LED.MANITOR_ALARM,BLINK_LEDS_ON_TIME);
 
   (buttonStatus->ALARM_RELAY)?
    LEDWarning.turnOn(LED.ALARM): 
@@ -381,10 +409,9 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
 {   
     static event last;
     bool event=false;
-
-      static eventStatus result;
-       powerState power;
-       power=*powerStatus;
+    static eventStatus result;
+    powerState power;
+    power=*powerStatus;
     static  bool lineNormalLatch=false;
     static char lastNumberLine;
     #define lineNewEvent(numberLine)  (last.LineStatus[numberLine]!=lineStatus[numberLine])&&(lineStatus[numberLine]!=NORMAL)
@@ -393,7 +420,6 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
     #define outoutAlartNewEvent       (last.OutputAlartState!=outputAlartState)&&(!outputAlartState)
     #define unormalState(numberLine)  (lineStatus[numberLine]!=NORMAL)&&(!mainVoltageNewEvent)&&(*powerStatus!=NORMAL_POWER)&&(!outputAlartState)             
 
-   
     for(char numberLine=0; numberLine<=11;numberLine++)
     {
       if(lineStatus[numberLine]==FIER)result.FierTrack=true;
@@ -405,62 +431,47 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
         lastNumberLine=numberLine;
         if(lineNewEvent(numberLine))
         {
-        mySerial.print("\nL");
+        EVENT_DEBUG("\nLine");
         result.TypeOfEvent=HappeningOnLine;
         result.ValueOfEvent.StateLine=lineStatus[numberLine];
         result.ValueOfEvent.numberLine=numberLine;
         }
         if(powerNewEvent)
         {
-        mySerial.print("\nP");
+        EVENT_DEBUG("\nPower");
         result.TypeOfEvent=HappeningOnPower;
         result.ValueOfEvent.StatePower=*powerStatus;
         }
         if(mainVoltageNewEvent)
         {
-        mySerial.print("\nM");
+        EVENT_DEBUG("\nMain");
         result.TypeOfEvent=HappeningOnMain;
         }
         if(outoutAlartNewEvent)
         {
-          mySerial.print("\nO");
+        EVENT_DEBUG("\nOAlart");
         result.TypeOfEvent=HappeningOnOutput;
         }
       
       }
-      
       last.LineStatus[numberLine]= lineStatus[numberLine];
-    
-
     }
-      
-
-      // mySerial.print("\n P");
-      // mySerial.print(*powerStatus);
-      // mySerial.print(" ");
-      // mySerial.print(last.PowerState);
       if(lineNormalLatch) result.State=NormalEvent;
       if(event==true)
       {
-       
         last.MainVoltageState=mainVoltageState;
         last.OutputAlartState=outputAlartState;
         last.PowerState =*powerStatus;
-      
-        mySerial.print("\nE");
-        mySerial.print(event);
+        EVENT_DEBUG("\nE");
+        EVENT_DEBUG(event);
         event=false;
         result.State=HappenedAgain;
-       // return HappenedAgain;
       }
       else
       {
         lineNormalLatch=false;
         result.State=Happened;
-       // return Happened;
       }
-      //  mySerial.print("\n P");
-      //   mySerial.print(result.TypeOfEvent);
       return &result;   
   }
 
@@ -470,73 +481,124 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
 void Output::BuzzerManagement(ButtonState  *buttonStatus,eventStatus *newEvent){
     #define  BLINK_BUZZER_ON_TIME 200
     #define  BLINK_BUZZER_OFF_TIME 1000
-
+    #define  UNMUTE  buttonStatus->BUZZER = false
+    #define  SaveEvent lastEvent=*newEvent
+    #define  LOWBATTERY_TO_BATTERY
+    #define  LOWBATTERY_TO_BATTERY
+    static bool FierTrackBuffer[12]={false};
     static eventStatus lastEvent;
-    static eventStatus Event;
-   
-    Event=*newEvent;
-    mySerial.print("\nTl=");
-    mySerial.print(lastEvent.TypeOfEvent);
-    mySerial.print("T=");
-    mySerial.print(Event.TypeOfEvent);
-    if( (newEvent->State==HappenedAgain) && ( (Event.TypeOfEvent)!=(lastEvent.TypeOfEvent) ) ){
-     
+    static bool RunOnce=false;
+   EVENT_DEBUG("\n lastEvent=");
+   EVENT_DEBUG(lastEvent.TypeOfEvent);
+   EVENT_DEBUG("newEvent=");
+   EVENT_DEBUG(newEvent->TypeOfEvent);
+   EVENT_DEBUG("button=");
+   EVENT_DEBUG(buttonStatus->BUZZER);
 
-      lastEvent=*newEvent;
-      buttonStatus->BUZZER = false;
-      lastEvent.State=HappenedAgain;
+
+    // if( (newEvent->State==HappenedAgain) && ( (newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent) ) ){
+    //   SaveEvent;
+    //   UNMUTE;
+    // }
+    if((buttonStatus->BUZZER)&&(!RunOnce))
+    {
+      RunOnce=true;
+      SaveEvent;
 
     }
-    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnLine))
+    if(!buttonStatus->BUZZER)
     {
-      if((Event.ValueOfEvent.StateLine)!=(lastEvent.ValueOfEvent.StateLine)){
-        lastEvent=*newEvent;
-        buttonStatus->BUZZER = false;
-        lastEvent.State=HappenedAgain;
+      RunOnce=false;
+    }
+
+    if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnLine))
+    {
+
+       if((newEvent->ValueOfEvent.StateLine==FIER)&&(lastEvent.ValueOfEvent.StateLine!=FIER))
+       {   
+          FierTrackBuffer[newEvent->ValueOfEvent.numberLine]=true;
+          mySerial.print("\n ===");
+       }
+
+        if((FierTrackBuffer[newEvent->ValueOfEvent.numberLine]==false)&&(newEvent->FierTrack))
+        {
+          mySerial.print("\n1===");
+          UNMUTE;
+          SaveEvent;
+        }
+      
+      else if((newEvent->ValueOfEvent.StateLine)!=(lastEvent.ValueOfEvent.StateLine)){
+       SaveEvent;
+       UNMUTE;
+        mySerial.print("\n2===");
       }
-      else if((Event.ValueOfEvent.numberLine)!=(lastEvent.ValueOfEvent.numberLine))
+      else if((newEvent->ValueOfEvent.numberLine)!=(lastEvent.ValueOfEvent.numberLine))
       {
-        lastEvent=*newEvent;
-        buttonStatus->BUZZER = false;
-        lastEvent.State=HappenedAgain; 
+         mySerial.print("\n3===");
+       SaveEvent;
+       UNMUTE;
       }
 
-    }
-    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnPower))
+
+     }
+    
+
+    else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnPower))
     {
-      if((Event.ValueOfEvent.StatePower)!=(lastEvent.ValueOfEvent.StatePower)){
-        lastEvent=*newEvent;
-        buttonStatus->BUZZER = false;
-        lastEvent.State=HappenedAgain;
+     
+        if((newEvent->ValueOfEvent.StatePower==LOW_BATTERY)&&(lastEvent.ValueOfEvent.StatePower==BATTERY))
+        {
+          mySerial.print("\n ===");
+          SaveEvent;
+          UNMUTE;
+          
+        }
+        else if((newEvent->ValueOfEvent.StatePower==BATTERY)&&(lastEvent.ValueOfEvent.StatePower==LOW_BATTERY))
+        {
+          
+        }
+
+        //lastEvent.State=HappenedAgain;
+        // if((newEvent->ValueOfEvent.StatePower)!=(lastEvent.ValueOfEvent.StatePower)){
+        //   SaveEvent;
+        //   UNMUTE;
+        //   lastEvent.State=HappenedAgain;
+        // }
+        else{
+          SaveEvent;
+          UNMUTE;
+        }
+       
+      }
+     else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnMain))
+     {
+      if((newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent)){
+       SaveEvent;
+       UNMUTE;
+       mySerial.print("\n ===");
       }
 
-    }
-    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnMain))
+     }
+    else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnOutput))
     {
-      if((Event.TypeOfEvent)!=(lastEvent.TypeOfEvent)){
-        lastEvent=*newEvent;
-        buttonStatus->BUZZER = false;
-        lastEvent.State=HappenedAgain;
+      if((newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent)){
+       SaveEvent;
+       UNMUTE;
       }
 
     }
-    else if((newEvent->State==HappenedAgain)&&(Event.TypeOfEvent==HappeningOnOutput))
-    {
-      if((Event.TypeOfEvent)!=(lastEvent.TypeOfEvent)){
-        lastEvent=*newEvent;
-        buttonStatus->BUZZER = false;
-        lastEvent.State=HappenedAgain;
-      }
-
-    }
-
 
 
     if(newEvent->State==Happened) buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME); 
-    if((newEvent->State==NormalEvent)&&!(newEvent->FierTrack))buzzer.TurnOff();
+    // if((newEvent->State==NormalEvent)&&!(newEvent->FierTrack))buzzer.TurnOff();
+    
+    if(newEvent->FierTrack){
+     
+      buzzer.TurnOn(!buttonStatus->BUZZER); 
+      mySerial.print(buttonStatus->BUZZER);
+     }
     buzzer.Begin(!buttonStatus->BUZZER);
-    if(newEvent->FierTrack)buzzer.TurnOn(!buttonStatus->BUZZER); 
-  
+    
 }
 
 
