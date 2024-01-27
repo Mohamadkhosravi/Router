@@ -381,9 +381,9 @@ void Buzzer::TurnOff(void){
   BUZZER_OFF
 }
 void Buzzer::SingelOn(unsigned int timeON,unsigned int timeOFF){
-     buzzerTimeON =timeON;
-      buzzerTimeOFF=timeOFF+timeON;
-      buzzerFlow.Delay(timeON+timeOFF);
+    buzzerTimeON =timeON;
+    buzzerTimeOFF=timeOFF+timeON;
+    buzzerFlow.Delay(timeON+timeOFF);
 }
 void Buzzer::localBib(void)
 {

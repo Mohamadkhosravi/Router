@@ -43,7 +43,7 @@
     bool AlatrState=false;
     bool fireTrace=false;
    }; 
-   outputParametrs parametr;
+   static outputParametrs parametr;
 
     IWatchdog.reload();
     
@@ -118,22 +118,12 @@
     
     Output::BuzzerManagement(
             parametr.buttonStatus,//botton status
-            newEvent(
-                      parametr.LineStatus,
-                      parametr.PowerStatus,
-                      parametr.MainVoltageState,
-                      parametr.AlatrState
-                    )
+            parametr.NewEvent
       );
 
     Output::RelayManagement( 
             parametr.buttonStatus,  
-            newEvent(
-                      parametr.LineStatus,
-                      parametr.PowerStatus,
-                      parametr.MainVoltageState,
-                      parametr.AlatrState
-                    )
+            parametr.NewEvent
       );
     // Handle card present errors
     handleCardPresentErrors(cardSituation);
@@ -466,12 +456,24 @@ eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltag
         EVENT_DEBUG(event);
         event=false;
         result.State=HappenedAgain;
+      
+        EVENT_DEBUG("\n result1");
+        EVENT_DEBUG(result.State);
+          return &result; 
       }
       else
       {
         lineNormalLatch=false;
         result.State=Happened;
+    
+          EVENT_DEBUG("\n result2");
+          EVENT_DEBUG(result.State);
+          return &result; 
       }
+      // return &result;
+
+       EVENT_DEBUG("\result3");
+      EVENT_DEBUG(result.State);
       return &result;   
   }
 
@@ -482,121 +484,72 @@ void Output::BuzzerManagement(ButtonState  *buttonStatus,eventStatus *newEvent){
     #define  BLINK_BUZZER_ON_TIME 200
     #define  BLINK_BUZZER_OFF_TIME 1000
     #define  UNMUTE  buttonStatus->BUZZER = false
+    #define  MUTE    buttonStatus->BUZZER = true
+
     #define  SaveEvent lastEvent=*newEvent
-    #define  LOWBATTERY_TO_BATTERY
-    #define  LOWBATTERY_TO_BATTERY
-    static bool FierTrackBuffer[12]={false};
     static eventStatus lastEvent;
     static bool RunOnce=false;
-   EVENT_DEBUG("\n lastEvent=");
-   EVENT_DEBUG(lastEvent.TypeOfEvent);
-   EVENT_DEBUG("newEvent=");
-   EVENT_DEBUG(newEvent->TypeOfEvent);
-   EVENT_DEBUG("button=");
-   EVENT_DEBUG(buttonStatus->BUZZER);
 
-
-    // if( (newEvent->State==HappenedAgain) && ( (newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent) ) ){
-    //   SaveEvent;
-    //   UNMUTE;
-    // }
     if((buttonStatus->BUZZER)&&(!RunOnce))
     {
+      MUTE;
       RunOnce=true;
       SaveEvent;
 
     }
     if(!buttonStatus->BUZZER)
     {
-      RunOnce=false;
+       UNMUTE;
+       RunOnce=false;
     }
 
-    if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnLine))
-    {
-
-       if((newEvent->ValueOfEvent.StateLine==FIER)&&(lastEvent.ValueOfEvent.StateLine!=FIER))
-       {   
-          FierTrackBuffer[newEvent->ValueOfEvent.numberLine]=true;
-          mySerial.print("\n ===");
-       }
-
-        if((FierTrackBuffer[newEvent->ValueOfEvent.numberLine]==false)&&(newEvent->FierTrack))
-        {
-          mySerial.print("\n1===");
-          UNMUTE;
-          SaveEvent;
-        }
-      
-      else if((newEvent->ValueOfEvent.StateLine)!=(lastEvent.ValueOfEvent.StateLine)){
-       SaveEvent;
-       UNMUTE;
-        mySerial.print("\n2===");
+    if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnLine)){
+  
+      if((newEvent->ValueOfEvent.numberLine!=lastEvent.ValueOfEvent.numberLine))
+      {  
+        SaveEvent;
+        UNMUTE;
       }
-      else if((newEvent->ValueOfEvent.numberLine)!=(lastEvent.ValueOfEvent.numberLine))
-      {
-         mySerial.print("\n3===");
-       SaveEvent;
-       UNMUTE;
-      }
-
-
-     }
-    
-
+    }
     else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnPower))
     {
      
         if((newEvent->ValueOfEvent.StatePower==LOW_BATTERY)&&(lastEvent.ValueOfEvent.StatePower==BATTERY))
         {
-          mySerial.print("\n ===");
           SaveEvent;
           UNMUTE;
-          
         }
         else if((newEvent->ValueOfEvent.StatePower==BATTERY)&&(lastEvent.ValueOfEvent.StatePower==LOW_BATTERY))
         {
           
         }
-
-        //lastEvent.State=HappenedAgain;
-        // if((newEvent->ValueOfEvent.StatePower)!=(lastEvent.ValueOfEvent.StatePower)){
-        //   SaveEvent;
-        //   UNMUTE;
-        //   lastEvent.State=HappenedAgain;
-        // }
         else{
           SaveEvent;
           UNMUTE;
         }
        
-      }
-     else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnMain))
-     {
+    }
+    else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnMain))
+    {
       if((newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent)){
        SaveEvent;
        UNMUTE;
-       mySerial.print("\n ===");
       }
 
-     }
+    }
     else if((newEvent->State==HappenedAgain)&&(newEvent->TypeOfEvent==HappeningOnOutput))
     {
       if((newEvent->TypeOfEvent)!=(lastEvent.TypeOfEvent)){
        SaveEvent;
        UNMUTE;
       }
-
     }
-
-
-    if(newEvent->State==Happened) buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME); 
-    // if((newEvent->State==NormalEvent)&&!(newEvent->FierTrack))buzzer.TurnOff();
-    
     if(newEvent->FierTrack){
-     
-      buzzer.TurnOn(!buttonStatus->BUZZER); 
-      mySerial.print(buttonStatus->BUZZER);
-     }
+      buzzer.TurnOn(true); 
+    }
+    if(newEvent->State==Happened) buzzer.SingelOn(BLINK_BUZZER_ON_TIME, BLINK_BUZZER_OFF_TIME); 
+    if((newEvent->State==NormalEvent)&&!(newEvent->FierTrack))buzzer.TurnOff();
+    
     buzzer.Begin(!buttonStatus->BUZZER);
     
 }
