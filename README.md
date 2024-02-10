@@ -32,14 +32,25 @@
   - [`readBatteryVoltage` Function Documentation](#read-battery-voltage-function-detection)
   - [`readPowerSupply` Function Documentation](#readpowersupply-function-documentation)
   - [`readMainVoltage` Function Documentation](#readmainvoltage-function-documentation)
-- [LED Control Functions](#toggleledstate-function-documentation)
-  - [`Ledcontrol` Function Documentation](#ledcontrol-function-documentation)
-  - [`toggleLedState` Function Documentation](#toggleledstate-function-documentation)
-
-
+  - [`mainVoltageState` Function Documentation](#mainvoltagestate-function-documentation)
+  - [`readEarth` Function Documentation](#readearth-function-documentation)
 - [GPIO Initialization Function Documentation](#gpioinit-function-documentation)
   - [`GPIOInit` Function Documentation](#gpioinit-function-documentation)
-- [checkButtons Functions](#checkbuttons-function-documentation) 
+- [`checkButtons` Functions](#checkbuttons-function-documentation) 
+- [`readOutputsAlart` Functions Documentation](#readoutputsalart-function-documentation) 
+
+
+ - [`newEvent` function Documentation](#newevent-function-documentation)
+
+ - [Output management functions and classes](#output-management-functions-and-classes)
+    - [`LED` class Documentation](#led-class-documentation)
+   - [`Buzzer` class Documentation](#buzzer-class-documentation)
+   - [`Output` management functions Documentation](#output-management-functions)
+      -  [`LEDManagement` function Documentation](#ledmanagement-function-documentation)
+      -  [`BuzzerManagement` function Documentation](#buzzermanagementfunction-documentation)
+      -  [`RelayManagement` function Documentation](#relaymanagemen-function-documentation )
+
+
 - [Main Header File Documentation](#main-header-file-documentation)
   - [`main.h` Overview](#mainh)
   - [Pins Definitions](#pins-definitions)
@@ -60,7 +71,6 @@
 ## Overview:
 
 The provided code is designed to control and monitor a system related to fire alarm and power distribution. It utilizes various sensors, algorithms, and peripherals to detect and manage potential fire hazards and power-related issues.
-
 ## Functions:
 
 ### 1. Reading and Monitoring Sensors:
@@ -70,25 +80,36 @@ The provided code is designed to control and monitor a system related to fire al
 
 ### 2. Button Inputs:
 
-- **`checkButtons`**: Checks the status of buttons for user input.
+- **`checkButtons`**: Monitors button states for user input.
 
 ### 3. Line Status Evaluation:
 
-- **`evaluateLineStatus`**: Evaluates the status of power distribution lines based on sensor readings.
+- **`evaluateLineStatus`**: Determines the status of power distribution lines based on sensor readings.
 
-### 4. LED Control:
+### 4. LED Management:
 
-- **`timeForLedBlink`**: Determines if it's time to toggle LED states.
-- **`Ledcontrol`**: Controls the status of LEDs based on system conditions.
+- **`Output::LEDManagement`**: Manages LED states based on system conditions.
+  - **Parameters:**
+    - `lineStatus`: Status of power distribution lines.
+    - `powerStatus`: Status of the battery and power supply.
+    - `buttonStatus`: Status of buttons for user input.
+    - `mainVoltageState`: Status of the main voltage.
+    - `alatrState`: Status of output alerts.
+    - `earthStatus`: Status of the earth connection.
 
-### 5. Relay Control:
+### 5. Buzzer Management:
 
-- **`Relaycont`**: Controls the status of relays.
+- **`Output::BuzzerManagement`**: Controls the buzzer for alerting users of critical events.
+  - **Parameters:**
+    - `buttonStatus`: Status of buttons for user input.
+    - `newEvent`: Latest event status indicating system changes.
 
-### 6. Lights and Buzzer Management:
+### 6. Relay Management:
 
-- **`Update_IT_callback1`**: Manages lights and the buzzer based on specific conditions.
-- **`checkAndEnableBeeper`**: Checks and enables the buzzer as needed.
+- **`Output::RelayManagement`**: Manages relays to control external devices or circuits.
+  - **Parameters:**
+    - `buttonStatus`: Status of buttons for user input.
+    - `newEvent`: Latest event status indicating system changes.
 
 ### 7. Watchdog Timer:
 
@@ -96,7 +117,7 @@ The provided code is designed to control and monitor a system related to fire al
 
 ### 8. Timer Configuration:
 
-- **`configureTimers`**: Configures and starts hardware timers for periodic tasks.
+- **`configureTimers`**: Sets up hardware timers for periodic tasks.
 
 ### 9. Main Loop :
 
@@ -104,15 +125,38 @@ The main loop continuously performs the following tasks:
 
 - Reads values from analog multiplexers.
 - Checks power status.
-- Checks button inputs.
+- Monitors button inputs.
 - Distributes sensor values to corresponding lines.
 - Evaluates line statuses.
-- Handles LED states.
-- Controls relays.
-- Manages the watchdog timer.
+- Controls LED states.
+- Manages relays.
+- Handles the watchdog timer.
 - Updates the multiplexer position.
-- Checks and enables the buzzer.
 
+
+- **Parameter Structure Definition:**
+  ```cpp
+  struct outputParametrs{
+      powerState *PowerStatus;
+      status *LineStatus;
+      ButtonState *buttonStatus;
+      eventStatus *NewEvent;
+      double MainVoltage=0.0;
+      bool MainVoltageState=false;
+      bool AlatrState=false;
+      bool fireTrace=false;
+  };
+  ```
+- output parametrs: Defines a structure to store various parameters and statuses related to system functionality.
+  -  Reads values from analog multiplexers.
+  -  Checks power status.
+  -  Monitors button inputs.
+  -  Distributes sensor values to corresponding lines.
+  -  Evaluates line statuses.
+  -  Controls LED states.
+  -  Manages relays.
+  -  Handles the watchdog timer.
+  -  Updates the multiplexer position.
 ## Usage:
 
 The code is intended for a fire alarm and power distribution control system. It employs various sensors and algorithms to ensure the safety and proper functioning of the system.
@@ -1100,7 +1144,7 @@ The readMainVoltage function calculates the main voltage based on the given anal
 
 ## Parameters:
 `VADC`: Analog voltage value obtained from the main voltage.
-## Examples:
+
 
 ## Parameters and Configurations:
 - `R1`: The resistor connected to VCC.
@@ -1121,7 +1165,7 @@ double mainVoltage = readMainVoltage(analogVoltage);
 Returns the calculated main voltage.
 
 
-# mainVoltageState  Function Documentation
+# mainVoltageState Function Documentation
 
 ## Function
 ```cpp
@@ -1131,93 +1175,53 @@ bool mainVoltageState(double mainVoltage)
 The function compares the provided main voltage with a predefined minimum voltage threshold.
 
 ## Parameters:
-mainVoltage: A double value representing the main voltage to be checked.
-## Examples:
+`mainVoltage`: `A` double value representing the main voltage to be checked.
 
 ## Parameters and Configurations:
-- `R1`: The resistor connected to VCC.
-- `R2`: The resistor connected to ground.
-`VDiode`: Diode voltage drop.
-## Calibration Constants
-- `X1`: Calibration constant.
-- `X2`: Calibration constant.
-- `Y1`: Calibration constant.
-- `Y2`: Calibration constant.
-## Examples:
-```cpp
-float analogVoltage = 3.0;  // Replace with the actual analog voltage value
-double mainVoltage = readMainVoltage(analogVoltage);
-// mainVoltage is now the calculated main voltage based on the given analog voltage.
-``````
-## Returns:
-Returns the calculated main voltage.
 
-
-
-
-
-
-
-
-
- ## Function
-# ledcontrol Function Documentation
-```cpp
-void Ledcontrol(status lineStatus[12],powerState powerStatus,double mainVoltage, bool ledStatus) 
-`````````
-
-## General Overview:
-The Ledcontrol function is responsible for managing the status of LEDs based on various system conditions. It considers the status of power lines, the overall power state, main voltage, the current LED status, and a reset signal for fire conditions. The function adjusts the LED status accordingly.
-
-## Parameters:
-- `lineStatus[12]`: An array representing the status of each power line.
-- `powerStatus`: The overall power state of the system.
-- `mainVoltage`: The calculated main voltage.
-- `ledStatus`: The current status of the LED.
-- `resetFier`: A boolean indicating whether a reset for fire conditions is triggered.
+`MINIMUM_VOLTAGE_MAIN`: Predefined minimum voltage threshold for the main power.
 
 ## Examples:
 ```cpp
-// Example: Using Ledcontrol
-status lineStatus[12]; // Assuming an array of status for each line
-powerState currentPowerState = // Obtain current power state;
-double mainVoltage = // Obtain main voltage;
-bool currentLedStatus = // Obtain current LED status;
-bool resetFier = // Obtain reset signal for fire conditions;
-Ledcontrol(lineStatus, currentPowerState, mainVoltage, currentLedStatus, resetFier);
-```````
-## Variables:
-`static bool lockFier[12]`: An array of static boolean variables used to lock the fire status for each line.
-
-`bool ledBlinker1`: A boolean variable representing the LED status.
-
-##  Control Flow:
-- The function iterates through each power line and adjusts the LED status based on the line status.
-- In case of an open circuit or short circuit, it sets the error LED.
-- In case of a fire condition, it sets the fire LED and activates the buzzer.
-- If there is a fault condition without a fire trace, it sets the error LED.
-- It manages the general fault, fire trace, and buzzer based on specific conditions.
-- It sets LEDs for power supply, low battery, battery, earth, fire mode, and general fault.
-## Additional Notes:
-- This function is integral to the visual indication of the system's status.
-- Ensure that the LED control aligns with the system's safety and monitoring requirements.
+double mainVoltage = 20.5; // Main voltage value to be checked
+bool voltageStatus = mainVoltageState(mainVoltage);
+// The function will return true if the main voltage is greater than or equal to 19V, otherwise false.
+`````
 ## Returns:
-- None
-# toggleLedState Function Documentation
-## Function
+`true` if the main voltage meets or exceeds the minimum threshold.
+`false` if the main voltage is below the minimum threshold.
+
+
+
+
+# readEarth Function Documentation
+## Function: 
 ```cpp
-bool toggleLedState();
-```````
+bool readEarth(float earthVoltage)
+```
 ## General Overview:
-The `toggleLedState` function is designed to toggle the state of an LED on each call. It maintains the current state using a static variable and returns the updated state.
+The `readEarth` function is responsible for determining whether the measured earth voltage is within acceptable limits.
+
 ## Parameters:
-- None
-## Variables
-- `bool static ledBlinker1`: A static boolean variable used to store the current state of the LED.
+- **earthVoltage**: A floating-point value representing the measured earth voltage.
+
+## Control Flow:
+- The function compares the measured earth voltage with a predefined threshold (0 in this case).
+- If the earth voltage is less than 0, indicating a negative voltage or an invalid measurement, the function returns false.
+- Otherwise, if the earth voltage is greater than or equal to 0, the function returns true.
+
 ## Additional Notes:
-This function serves as a simple utility to toggle the LED state in applications where a toggle effect is desired.
-## Returns
-- `true`: The LED state is toggled.
+- Ensure proper calibration and error handling mechanisms are in place for accurate earth voltage measurements.
+- Adjust the threshold value according to system specifications and requirements.
+
+## Returns:
+A boolean value indicating whether the measured earth voltage is within acceptable limits.
+
+## Examples:
+```cpp
+float earthVoltage = // measured earth voltage value
+bool isEarthValid = readEarth(earthVoltage);
+````
 
 
 
@@ -1273,6 +1277,46 @@ Analog Pins
 - None
 
 
+# readOutputsAlart Function Documentation
+
+## Function:
+```cpp
+bool readOutputsAlart(float outputVoltage1,float outputVoltage2)
+```
+## General Overview:
+The `readOutputsAlart` function checks if the measured output voltages are below the minimum threshold, indicating an alarm condition.
+
+## Parameters:
+- **outputVoltage1**: A floating-point value representing the voltage of the first output.
+- **outputVoltage2**: A floating-point value representing the voltage of the second output.
+
+## Variables:
+- **VOLTAGE_ALART_NORMAL**: A constant representing the normal voltage threshold for the outputs.
+- **MINIMUM_VOLTAGE_ALART**: A constant representing the minimum voltage threshold for triggering an alarm.
+
+## Control Flow:
+- The function compares the measured voltages of both outputs with the minimum voltage threshold for triggering an alarm.
+- If either of the output voltages is less than the minimum threshold (`MINIMUM_VOLTAGE_ALART`), the function returns true, indicating an alarm condition.
+- Otherwise, if both output voltages are greater than or equal to the minimum threshold, the function returns false, indicating normal operation.
+
+## Additional Notes:
+- Ensure proper calibration and error handling mechanisms are in place for accurate voltage measurements.
+- Adjust the threshold values (`VOLTAGE_ALART_NORMAL` and `MINIMUM_VOLTAGE_ALART`) according to system specifications and requirements.
+
+## Returns:
+A boolean value indicating whether an alarm condition is present based on the measured output voltages.
+
+## Examples:
+```cpp
+float outputVoltage1 = // measured voltage of the first output
+float outputVoltage2 = // measured voltage of the second output
+bool isAlartTriggered = readOutputsAlart(outputVoltage1, outputVoltage2);
+````
+
+
+
+
+
 # checkButtons Function Documentation
 ## Function
 ```cpp
@@ -1280,14 +1324,12 @@ void checkButtons(bool &resetFier)
 ``````
 ## General Overview:
 The `checkButtons` function monitors the status of various buttons and responds to specific button presses. It controls functionalities such as toggling the general fault, checking LEDs, resetting all lines, enabling/disabling the alarm relay, and turning off the buzzer.
-## Parameters:
-- `resetFier`: A boolean reference indicating whether a reset for fire conditions is triggered
+
 
 ## Examples:
 ```cpp
 // Example: Using checkButtons
-bool resetFier = false; // Assuming resetFier is initialized
-checkButtons(resetFier);
+checkButtons();
 `````````
 
 ## Variables:
@@ -1303,7 +1345,8 @@ Several static and global variables, such as buttonPressTime, generalFault, ledB
 - Turn off all LEDs, check for card present errors, and blink the LEDerror. Restore the LED state after the check.
  #### 3. All Line Reset Button (But3 and JUMPER):
 
-- If both buttons are pressed, reset various system variables, line parameters, and flags. Set resetFier to true.
+- If both buttons are pressed, reset various system variables, line parameters
+
  ####  4. Alarm Relay On Button (But2):
 
 - If the button is pressed, turn on the alarm relay (relayControl), set the ledesounder, and update related flags.
@@ -1318,6 +1361,339 @@ Several static and global variables, such as buttonPressTime, generalFault, ledB
 
 ## Returns:
 - None
+
+
+# newEvent Function Documentation
+ ##Function:
+```cpp
+eventStatus *newEvent(status *lineStatus,powerState *powerStatus,bool mainVoltageState,bool outputAlartState)
+```
+## General Overview:
+The `newEvent` function is responsible for generating and updating event statuses based on changes in system parameters such as line status, power state, main voltage state, and output alert state.
+
+## Parameters:
+- **lineStatus**: An array of status enums representing the current status of each line.
+- **powerStatus**: A pointer to a powerState enum representing the current power state.
+- **mainVoltageState**: A boolean indicating whether the main voltage is within acceptable limits.
+- **outputAlartState**: A boolean indicating the state of output alerts.
+
+## Variables:
+- **last**: A static event struct representing the last known event.
+- **event**: A boolean indicating whether an event has occurred.
+- **result**: A static eventStatus struct representing the current event status.
+- **power**: A powerState enum representing the current power state.
+- **lineNormalLatch**: A static boolean indicating whether the line status is normal.
+- **lastNumberLine**: A static character storing the last line number.
+- Various macro definitions for detecting new events and abnormal states.
+
+## Control Flow:
+- The function iterates through each line and checks for new events or abnormal states.
+- If a new event or abnormal state is detected, the appropriate event type and details are updated in the result struct.
+- The function returns a pointer to the result struct indicating the event status.
+
+## Additional Notes:
+- Ensure proper initialization of variables and macros before calling this function.
+- Adjust the macro definitions and control flow according to specific system requirements and configurations.
+## Examples:
+```cpp
+status lineStatus[12];
+powerState powerStatus;
+bool mainVoltageState, outputAlartState;
+// Example call:
+eventStatus *eventResult = newEvent(lineStatus, &powerStatus, mainVoltageState, outputAlartState);
+`````
+## Returns:
+A pointer to the `eventStatus` struct representing the current event status.
+
+
+# Output management functions and classes
+
+# LED Class Documentation
+
+## Overview:
+The `LED` class provides functionality to manage LEDs, including turning them on or off and blinking them with custom patterns.
+
+## Constructors:
+- **LED(unsigned char ID)**: Initializes an LED object with the specified ID.
+
+## Methods:
+- **LEDBegin()**: Initializes the LED object.
+- **turnOn(char numerPin)**: Turns on the LED connected to the specified pin.
+- **turnOff(char numerPin)**: Turns off the LED connected to the specified pin.
+- **blink(char numerPin, unsigned int timeBlinking)**: Blinks the LED connected to the specified pin with the given duration.
+- **blinkCustum(char numerPin, unsigned int timeOn, unsigned int timeOff)**: Blinks the LED connected to the specified pin with a custom on-off pattern.
+- **turnOnArry(char *arry, unsigned int length)**: Turns on multiple LEDs specified in the array.
+- **turnOffArry(char *arry, unsigned int length)**: Turns off multiple LEDs specified in the array.
+- **blinkCustumArry(char *arry, unsigned int length, unsigned int timeOn, unsigned int timeOff)**: Blinks multiple LEDs with a custom on-off pattern specified in the array.
+- **blinkArry(char *arry, unsigned int length, unsigned int timeBlinking)**: Blinks multiple LEDs with the same duration specified in the array.
+
+## Variables:
+- **id**: An unsigned char representing the ID of the LED.
+- **ActivityState**: A boolean indicating the activity state of the LED.
+
+## Control Flow:
+- The `LED` class provides methods to control individual LEDs or arrays of LEDs based on specific timing patterns.
+- Each method handles the behavior of LEDs according to the provided parameters.
+
+## Additional Notes:
+- Ensure proper initialization of LED pins before using the methods.
+- Adjust timing parameters according to specific requirements and hardware configurations.
+
+## Returns:
+The methods do not return values; they directly control the state of LEDs based on the provided parameters.
+
+## Example:
+```cpp
+// Example for LED::LEDBegin()
+LED led1(1);
+led1.LEDBegin(); // Initializes LED with ID 1
+
+// Example for LED::turnOn()
+led1.turnOn(13); // Turns on LED connected to pin 13
+
+// Example for LED::turnOff()
+led1.turnOff(13); // Turns off LED connected to pin 13
+
+// Example for LED::blink()
+led1.blink(13, 1000); // Blinks LED connected to pin 13 for 1 second
+
+// Example for LED::blinkCustum()
+led1.blinkCustum(13, 500, 300); // Blinks LED connected to pin 13 with a custom pattern
+
+// Example for LED::turnOnArry()
+char pins[] = {10, 11, 12};
+led1.turnOnArry(pins, sizeof(pins)/sizeof(pins[0])); // Turns on LEDs connected to pins 10, 11, and 12
+
+// Example for LED::turnOffArry()
+led1.turnOffArry(pins, sizeof(pins)/sizeof(pins[0])); // Turns off LEDs connected to pins 10, 11, and 12
+
+// Example for LED::blinkCustumArry()
+led1.blinkCustumArry(pins, sizeof(pins)/sizeof(pins[0]), 500, 300); // Blinks LEDs with a custom pattern
+
+// Example for LED::blinkArry()
+led1.blinkArry(pins, sizeof(pins)/sizeof(pins[0]), 1000); // Blinks LEDs with a common pattern
+
+```
+
+
+# Buzzer Class Documentation
+
+## Overview:
+The `Buzzer` class manages the behavior of a buzzer, including turning it on or off, producing single-tone alarms, and repeating tone patterns.
+
+## Variables:
+- **buzzerFlow**: A `flowDelay` object to control the duration of single-tone buzzers.
+- **buzzerRepeadFlow**: A `flowDelay` object to control the duration of repeated tone patterns.
+- **buzzerTimeON**: An unsigned integer representing the duration of the buzzer being on.
+- **buzzerTimeOFF**: An unsigned integer representing the duration of the buzzer being off.
+- **buzzerRepedTimeOFF**: An unsigned integer representing the duration of the repeated tone pattern being off.
+- **buzzerRepedTimeON**: An unsigned integer representing the duration of the repeated tone pattern being on.
+- **numberRepead**: A pointer to an integer representing the number of times the repeated tone pattern should be played.
+- **AlarmActive**: A boolean indicating the activation status of the buzzer.
+
+## Methods:
+- **Begin(bool ActivityState)**: Initializes the buzzer and controls its behavior based on the activity state.
+- **Repead(int *NumberRepead, unsigned int timeON, unsigned int timeOFF)**: Plays a repeated tone pattern specified by the number of repeats and the durations of on and off states.
+- **TurnOn(bool ActivityState)**: Turns on the buzzer if the activity state is true.
+- **TurnOff()**: Turns off the buzzer.
+- **SingelOn(unsigned int timeON, unsigned int timeOFF)**: Plays a single-tone buzzer with the specified durations of on and off states.
+- **localBib()**: Produces a short beep sound locally.
+
+## Control Flow:
+- The `Buzzer` class provides methods to control the behavior of the buzzer based on specific timing patterns and activity states.
+- The buzzer can be turned on or off, produce single-tone alarms, or repeat tone patterns.
+
+## Additional Notes:
+- Ensure proper initialization of the buzzer pins before using the methods.
+- Adjust timing parameters and tone patterns according to specific requirements and hardware configurations.
+
+## Example:
+```cpp
+Buzzer buzzer;
+buzzer.Begin(true); // Initializes the buzzer and sets it active
+buzzer.SingelOn(1000, 500); // Plays a single-tone buzzer for 1 second with a 0.5-second pause
+int repeats[] = {3};
+buzzer.Repead(repeats, 200, 300); // Repeats a tone pattern 3 times with a 0.2-second tone and a 0.3-second pause
+```
+
+
+
+
+
+
+
+# Output Management Functions
+
+## General Overview:
+This document describes a namespace called `Output` containing functions for managing LEDs, relays, and buzzers based on various conditions.
+
+## Parameters:
+- `lineStatus`: An array of `status` representing the status of each line.
+- `powerStatus`: A `powerState` indicating the status of the power supply.
+- `buttonStatus`: A pointer to `ButtonState` representing the status of buttons.
+- `mainVoltageState`: A boolean indicating whether the main voltage meets a certain threshold.
+- `outputAlart`: A boolean indicating the occurrence of an output alert.
+- `existenceEarth`: A boolean indicating the existence of an earth connection.
+
+## Examples:
+```cpp
+// Example usage of LED management function
+Output::LEDManagement(lineStatus, powerStatus, &buttonStatus, mainVoltageState, outputAlart, existenceEarth);
+
+// Example usage of buzzer management function
+Output::BuzzerManagement(&buttonStatus, &newEven);
+
+// Example usage of relay management function
+Output::RelayManagement(&buttonStatus, &newEven);
+
+
+```
+
+# LEDManagement Function Documentation
+ Function: 
+```cpp
+Output::LEDManagement(lineStatus, powerStatus, &buttonStatus, mainVoltageState, outputAlart, existenceEarth);
+```
+## General Overview:
+The `LEDManagement` function, defined within the Output namespace, controls the behavior of LEDs based on various system statuses and conditions.
+
+## Parameters:
+- **lineStatus[12]**: An array of status enums representing the status of each power line.
+- **powerStatus**: A powerState enum indicating the overall power status of the system.
+- **buttonStatus**: A pointer to a ButtonState struct representing the status of buttons.
+- **mainVoltageState**: A boolean indicating whether the main voltage is within the acceptable range.
+- **outputAlart**: A boolean indicating the occurrence of an output alert.
+- **existenceEarth**: A boolean indicating the existence of an earth connection.
+
+## Variables:
+- **BLINK_LEDS_ON_TIME**: Constant representing the duration for LED blinking (ON state).
+- **BLINK_LEDS_OFF_TIME**: Constant representing the duration for LED blinking (OFF state).
+- **FAST_BLINK_LEDS_ON_TIME**: Constant representing the fast duration for LED blinking (ON state).
+- **FAST_BLINK_LEDS_OFF_TIME**: Constant representing the fast duration for LED blinking (OFF state).
+- **fireTrace[12]**: Array of booleans representing the trace of fire on each line.
+- **normalLine**: Boolean indicating the presence of normal lines without fire.
+
+
+
+## Control Flow:
+- Initializes LED objects.
+- Controls LED behavior based on line status, power status, button status, and other conditions.
+- Blinks LEDs for open circuit or short circuit statuses.
+- Turns on or off fire LEDs based on fire status.
+- Handles power status LEDs based on different power states.
+- Handles alarm and buzzer LEDs based on button status.
+- Enters a loop to indicate LED check if the LED check button is pressed.
+
+## Additional Notes:
+- Ensure proper initialization of LED pins before calling this function.
+- Adjust blinking durations and other parameters as needed for specific requirements.
+## Examples:
+```cpp
+ButtonState button;
+status lineStatus[12];
+powerState power;
+bool mainVoltageOK = true;
+bool alert = false;
+bool earthConnected = true;
+
+// Example call:
+ Output::LEDManagement(lineStatus, power, &button, mainVoltageOK, alert, earthConnected);
+```````
+
+## Returns:
+This function does not return any value.
+
+
+
+#  BuzzerManagementFunction Documentation
+Function:
+```cpp
+Output::BuzzerManagement(&buttonStatus, &newEven);
+```
+## General Overview:
+The `BuzzerManagement` function, defined within the Output namespace, controls the behavior of the buzzer based on various events and system states.
+
+## Parameters:
+- **buttonStatus**: A pointer to a ButtonState struct representing the state of buttons, including the buzzer button.
+- **newEvent**: A pointer to an eventStatus struct representing the latest detected event.
+
+## Variables:
+- **BLINK_BUZZER_ON_TIME**: Macro defining the duration for the buzzer to be turned on during blinking.
+- **BLINK_BUZZER_OFF_TIME**: Macro defining the duration for the buzzer to be turned off during blinking.
+- **UNMUTE**: Macro to set the buzzer status to unmute (buttonStatus->BUZZER = false).
+- **MUTE**: Macro to set the buzzer status to mute (buttonStatus->BUZZER = true).
+- **lastEvent**: A static eventStatus struct storing the last event processed by the function.
+- **RunOnce**: A boolean flag indicating whether the function has run at least once.
+
+## Control Flow:
+- Mutes the buzzer if the buzzer button is pressed and the function has not run yet.
+- Unmutes the buzzer when the buzzer button is released.
+- Handles different types of events:
+  - If a line-related event occurs, unmutes the buzzer if the event is different from the last event.
+  - If a power-related event occurs, unmutes the buzzer under specific conditions.
+  - If a main voltage-related event occurs, unmutes the buzzer.
+  - If an output-related event occurs, unmutes the buzzer.
+- Turns on the buzzer if there is a fire track detected.
+- Sets the buzzer to blink or turn off based on the event state.
+- Calls the buzzer's Begin method based on the state of the buzzer button.
+
+## Additional Notes:
+- Ensure proper initialization of the lastEvent struct before calling this function.
+- Adjust the debug output statements as needed for debugging purposes.
+
+## Examples:
+```cpp
+ButtonState buttonStatus;
+eventStatus newEvent;
+// Example call:
+Output::BuzzerManagement(&buttonStatus, &newEvent);
+``````
+## Returns:
+- None
+
+
+
+# RelayManagemen Function Documentation
+ Function:
+```cpp 
+Output::RelayManagement(&buttonStatus, &newEven);
+```
+## Overview:
+The `RelayManagement` function, part of the Output namespace, manages the behavior of relays based on the current system state and events.
+
+## Parameters:
+- **buttonStatus**: A pointer to a ButtonState struct representing the state of buttons, including the alarm relay button.
+- **newEvent**: A pointer to an eventStatus struct representing the latest detected event.
+
+## Variables:
+- **rel1**: Pin used to control relay 1.
+- **rel2**: Pin used to control relay 2.
+- **relo1**: Pin used to control relay output 1.
+- **relo2**: Pin used to control relay output 2.
+
+## Control Flow:
+- If the system is not in the normal event state, relay 2 is turned on (HIGH); otherwise, it is turned off (LOW).
+- If there is a fire track detected and the alarm relay button is not pressed, relay 1 and the relay outputs are turned on (HIGH).
+- If the alarm relay button is pressed, relay 1 and the relay outputs are turned on (HIGH).
+- If neither of the above conditions is met, relay 1 and the relay outputs are turned off (LOW).
+
+## Additional Notes:
+- Ensure proper initialization of the relay pins and other necessary components before calling this function.
+- Adjust the behavior according to specific system requirements and configurations.
+
+## Examples:
+```cpp
+ButtonState buttonStatus;
+eventStatus newEvent;
+// Example call:
+Output::RelayManagement(&buttonStatus, &newEvent);
+````````
+## Returns:
+- None
+
+
+
+
 
 
 

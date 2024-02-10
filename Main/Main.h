@@ -1,4 +1,6 @@
 
+
+
 #ifndef MAIN_H
 #define  MAIN_H
 
@@ -8,6 +10,7 @@
 #include <SoftwareSerial.h>
 #include <thread>
 #include <chrono>
+
 
 /***** ***** ***** ***** *****/
 
@@ -407,12 +410,12 @@ class LED{
  bool ActivityState;
 
 
-  enum class Behavior {
-        Constant,
-        Blinking,
-        CustomBlinking,
-        Custom
-    };
+  // enum class Behavior {
+  //       Constant,
+  //       Blinking,
+  //       CustomBlinking,
+  //       Custom
+  //   };
   void LEDBegin(void){
   
   }
@@ -507,12 +510,14 @@ LED LEDPower(2);
 
 
 namespace Output {
-
-
- 
-void LEDManagement(status lineStatus[12],powerState powerStatus,ButtonState *buttonStatus, bool mainVoltageState,bool outputAlart,bool existenceEarth);
-void RelayManagement(ButtonState *buttonStatus,eventStatus *newEven);
-void BuzzerManagement(ButtonState  *buttonStatus,eventStatus *newEven);
+// Function declarations for LED management
+  void LEDManagement(status lineStatus[12], powerState powerStatus, ButtonState *buttonStatus, bool mainVoltageState, bool outputAlart, bool existenceEarth);
+  
+  // Function declaration for relay management
+  void RelayManagement(ButtonState *buttonStatus, eventStatus *newEven);
+  
+  // Function declaration for buzzer management
+  void BuzzerManagement(ButtonState *buttonStatus, eventStatus *newEven);
 
 }
 

@@ -1,5 +1,5 @@
-
 #include <Main.h>
+
 // Hardware Settings
   void setup() {
 
@@ -134,6 +134,10 @@
  
 
   }
+
+
+
+//******************************************************************************
 bool mainVoltageState(double mainVoltage)
 {
   #define MINIMUM_VOLTAGE_MAIN 19
