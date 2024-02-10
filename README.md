@@ -1520,7 +1520,7 @@ buzzer.Repead(repeats, 200, 300); // Repeats a tone pattern 3 times with a 0.2-s
 
 
 
-
+newEven
 
 # Output Management Functions
 
@@ -1541,10 +1541,10 @@ This document describes a namespace called `Output` containing functions for man
 Output::LEDManagement(lineStatus, powerStatus, &buttonStatus, mainVoltageState, outputAlart, existenceEarth);
 
 // Example usage of buzzer management function
-Output::BuzzerManagement(&buttonStatus, &newEven);
+Output::BuzzerManagement(&buttonStatus, &newEvent);
 
 // Example usage of relay management function
-Output::RelayManagement(&buttonStatus, &newEven);
+Output::RelayManagement(&buttonStatus, &newEvent);
 
 
 ```
@@ -1608,7 +1608,7 @@ This function does not return any value.
 #  BuzzerManagementFunction Documentation
 Function:
 ```cpp
-Output::BuzzerManagement(&buttonStatus, &newEven);
+Output::BuzzerManagement(&buttonStatus, &newEvent);
 ```
 ## General Overview:
 The `BuzzerManagement` function, defined within the Output namespace, controls the behavior of the buzzer based on various events and system states.
@@ -1656,7 +1656,7 @@ Output::BuzzerManagement(&buttonStatus, &newEvent);
 # RelayManagemen Function Documentation
  Function:
 ```cpp 
-Output::RelayManagement(&buttonStatus, &newEven);
+Output::RelayManagement(&buttonStatus, &newEvent);
 ```
 ## Overview:
 The `RelayManagement` function, part of the Output namespace, manages the behavior of relays based on the current system state and events.
