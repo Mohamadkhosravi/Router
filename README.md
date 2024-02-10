@@ -1107,10 +1107,10 @@ The readMainVoltage function calculates the main voltage based on the given anal
 - `R2`: The resistor connected to ground.
 `VDiode`: Diode voltage drop.
 ## Calibration Constants
-- `a1`: Calibration constant.
-- `b1`: Calibration constant.
-- `a2`: Calibration constant.
-- `b2`: Calibration constant.
+- `X1`: Calibration constant.
+- `X2`: Calibration constant.
+- `Y1`: Calibration constant.
+- `Y2`: Calibration constant.
 ## Examples:
 ```cpp
 float analogVoltage = 3.0;  // Replace with the actual analog voltage value
@@ -1119,6 +1119,45 @@ double mainVoltage = readMainVoltage(analogVoltage);
 ``````
 ## Returns:
 Returns the calculated main voltage.
+
+
+# mainVoltageState  Function Documentation
+
+## Function
+```cpp
+bool mainVoltageState(double mainVoltage)
+````````
+## General Overview:
+The function compares the provided main voltage with a predefined minimum voltage threshold.
+
+## Parameters:
+mainVoltage: A double value representing the main voltage to be checked.
+## Examples:
+
+## Parameters and Configurations:
+- `R1`: The resistor connected to VCC.
+- `R2`: The resistor connected to ground.
+`VDiode`: Diode voltage drop.
+## Calibration Constants
+- `X1`: Calibration constant.
+- `X2`: Calibration constant.
+- `Y1`: Calibration constant.
+- `Y2`: Calibration constant.
+## Examples:
+```cpp
+float analogVoltage = 3.0;  // Replace with the actual analog voltage value
+double mainVoltage = readMainVoltage(analogVoltage);
+// mainVoltage is now the calculated main voltage based on the given analog voltage.
+``````
+## Returns:
+Returns the calculated main voltage.
+
+
+
+
+
+
+
 
 
  ## Function
