@@ -1,6 +1,4 @@
 
-
-
 #ifndef MAIN_H
 #define  MAIN_H
 
@@ -13,7 +11,6 @@
 
 
 /***** ***** ***** ***** *****/
-
 /***** ***** ***** ***** *****/ 
 // #define POWER_CHECK_DEBUG 
 // #define LINE_STATUS_DEBUG 

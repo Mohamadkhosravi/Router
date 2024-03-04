@@ -317,6 +317,7 @@ void Output::LEDManagement(status lineStatus[12],powerState powerStatus,ButtonSt
         LEDFier.turnOn(LED.FIER[i]);
         LEDFier.turnOn(LED.FIER_OUTBREAK);
       }
+      if (lineStatus[i] == NORMAL)LEDWarning.turnOff(LED.WARNING[i]);
      
     
   }
